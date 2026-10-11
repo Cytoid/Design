@@ -114,16 +114,16 @@ export interface LongHoldBodyOptions {
  * Final-stage collapse: the pillar — track, rails and done fill — narrows
  * from left and right toward its centre, eased in, down to
  * `LONG_HOLD_SHRINK_CORE`× width; the conveyor fades out with it. Live (with
- * `holdDuration`): a fixed 1.2 s close anchored to end exactly at the hold's
+ * `holdDuration`): a fixed 0.6 s close anchored to end exactly at the hold's
  * finish, so longer holds start collapsing earlier and holds shorter than
- * 1.2 s collapse across their whole length. Static consumers without
+ * 0.6 s collapse across their whole length. Static consumers without
  * `holdDuration` (the baked tiles) fall back to the progress-keyed window.
  */
 const LONG_HOLD_SHRINK_FROM = 0.86
 const LONG_HOLD_SHRINK_CORE = 0.15
 const LONG_HOLD_SHRINK_EASE = outSine
 /** Live collapse length in seconds (Cylheim: 38 frames @ 30 fps ≈ 1.267). */
-const LONG_HOLD_COLLAPSE_SECONDS = 1.2
+const LONG_HOLD_COLLAPSE_SECONDS = 0.6
 
 export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNode {
   const WbFull = ctx.unit * tokens.stroke.holdBody
@@ -133,7 +133,7 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
   const top = o.top * a
   const bottom = o.bottom * a
   const p = clamp01(o.progress)
-  // live collapse: fixed 1.2 s, ending exactly at the hold's finish; holds
+  // live collapse: fixed 0.6 s, ending exactly at the hold's finish; holds
   // shorter than that collapse across their whole length. Static consumers
   // without `holdDuration` fall back to the progress-keyed window.
   const holdDuration = o.holdDuration
