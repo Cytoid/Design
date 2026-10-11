@@ -1,18 +1,22 @@
 export default defineAppConfig({
   ui: {
     colors: {
-      primary: 'green',
-      neutral: 'slate',
+      primary: 'violet',
+      neutral: 'mist',
     },
-    footer: {
-      slots: {
-        root: 'border-t border-default',
-        left: 'text-sm text-muted',
+    button: {
+      defaultVariants: {
+        color: 'neutral',
+      },
+    },
+    badge: {
+      defaultVariants: {
+        color: 'neutral',
       },
     },
   },
   seo: {
-    siteName: 'Nuxt Docs Template',
+    siteName: 'Design.Cytoid',
   },
   header: {
     title: '',
@@ -22,51 +26,38 @@ export default defineAppConfig({
       light: '',
       dark: '',
     },
-    search: true,
-    colorMode: true,
+    search: false,
+    colorMode: false,
     links: [{
       'icon': 'i-simple-icons-github',
-      'to': 'https://github.com/nuxt-ui-templates/docs',
+      'to': 'https://github.com/Cytoid/Design',
       'target': '_blank',
       'aria-label': 'GitHub',
     }],
   },
   footer: {
-    credits: `Built with Nuxt UI • © ${new Date().getFullYear()}`,
+    credits: `© ${new Date().getFullYear()} Cytoid`,
     colorMode: false,
     links: [{
-      'icon': 'i-simple-icons-discord',
-      'to': 'https://go.nuxt.com/discord',
+      'icon': 'i-lucide-house',
+      'to': 'https://cytoid.io',
       'target': '_blank',
-      'aria-label': 'Nuxt on Discord',
+      'aria-label': 'Cytoid website',
+    }, {
+      'icon': 'i-simple-icons-discord',
+      'to': 'https://discord.gg/cytoid',
+      'target': '_blank',
+      'aria-label': 'Cytoid on Discord',
     }, {
       'icon': 'i-simple-icons-x',
-      'to': 'https://go.nuxt.com/x',
+      'to': 'https://twitter.com/cytoidio',
       'target': '_blank',
-      'aria-label': 'Nuxt on X',
+      'aria-label': 'Cytoid on X',
     }, {
       'icon': 'i-simple-icons-github',
-      'to': 'https://github.com/nuxt/ui',
+      'to': 'https://github.com/Cytoid',
       'target': '_blank',
-      'aria-label': 'Nuxt UI on GitHub',
+      'aria-label': 'Cytoid on GitHub',
     }],
-  },
-  toc: {
-    title: 'Table of Contents',
-    bottom: {
-      title: 'Community',
-      edit: 'https://github.com/nuxt-ui-templates/docs/edit/main/content',
-      links: [{
-        icon: 'i-lucide-star',
-        label: 'Star on GitHub',
-        to: 'https://github.com/nuxt/ui',
-        target: '_blank',
-      }, {
-        icon: 'i-lucide-book-open',
-        label: 'Nuxt UI docs',
-        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-        target: '_blank',
-      }],
-    },
   },
 })

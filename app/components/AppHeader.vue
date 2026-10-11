@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import type { ContentNavigationItem } from '@nuxt/content'
-
-const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
-
 const { header } = useAppConfig()
 </script>
 
@@ -44,8 +40,6 @@ const { header } = useAppConfig()
       >
         <AppLogo class="w-auto h-6 shrink-0" />
       </NuxtLink>
-
-      <TemplateMenu />
     </template>
 
     <template #right>
@@ -66,10 +60,7 @@ const { header } = useAppConfig()
     </template>
 
     <template #body>
-      <UContentNavigation
-        highlight
-        :navigation="navigation"
-      />
+      <AppSideNav />
     </template>
   </UHeader>
 </template>

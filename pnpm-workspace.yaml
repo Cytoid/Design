@@ -1,11 +1,8 @@
 minimumReleaseAgeExcludePrune: true
 
 trustPolicy: no-downgrade
+
 # cssnano family pinned at the 2026-10-05 release round is flagged as
-# "trust downgrade" (weaker publish evidence than some earlier release,
-# during the maintainer's release-pipeline churn that week). Verified
-# healthy against github.com/cssnano/cssnano releases on 2026-10-11:
-# no advisories, normal coordinated monorepo release.
 trustPolicyExclude:
   - cssnano@9.3.2
   - cssnano-preset-default@9.3.2
@@ -45,8 +42,12 @@ trustPolicyExclude:
 
 shellEmulator: true
 
+packages:
+  - packages/*
+
 allowBuilds:
   '@parcel/watcher': false
+  '@resvg/resvg-js': true
   '@tailwindcss/oxide': false
   esbuild: false
   sharp: true

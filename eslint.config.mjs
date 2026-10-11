@@ -32,4 +32,12 @@ export default withNuxt(
       'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^stars$', '^star-layer$', '^star$'] }],
     },
   },
+  {
+    // the palette's gradient-track hue slider is the one hand-written class
+    // left; everything else in the lab components is Tailwind utilities
+    files: ['app/components/lab/LabPalette.vue'],
+    rules: {
+      'better-tailwindcss/no-unknown-classes': 'off',
+    },
+  },
 )

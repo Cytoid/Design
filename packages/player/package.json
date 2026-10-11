@@ -1,0 +1,21 @@
+{
+  "name": "@cytoid/player",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Framework-agnostic Cytoid chart player core: parsing, per-frame state derivation, Pixi rendering, input judging",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cytoid/notes": "workspace:*",
+    "jszip": "^3.10.2",
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

@@ -1,10 +1,37 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { fileURLToPath } from 'node:url'
+
 export default defineNuxtConfig({
+  // workspace packages are consumed from TypeScript source
+  // (vite alias for runtime, tsconfig paths for types)
+  alias: {
+    '@cytoid/notes': fileURLToPath(new URL('./packages/notes/src/index.ts', import.meta.url)),
+    '@cytoid/player': fileURLToPath(new URL('./packages/player/src/index.ts', import.meta.url)),
+  },
+
+  typescript: {
+    tsConfig: {
+      compilerOptions: {
+        paths: {
+          '@cytoid/notes': ['../packages/notes/src/index.ts'],
+          '@cytoid/player': ['../packages/player/src/index.ts'],
+        },
+      },
+    },
+  },
+
+  // dark theme only; the fresh storage key drops any stale light preference
+  // from before the theme toggle was removed
+  colorMode: {
+    preference: 'dark',
+    fallback: 'dark',
+    storageKey: 'cytoid-design-color-mode',
+  },
+
   modules: [
     '@nuxt/eslint',
     '@nuxt/image',
     '@nuxt/ui',
-    '@nuxt/content',
     'nuxt-og-image',
   ],
 
@@ -13,19 +40,6 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
-
-  content: {
-    build: {
-      markdown: {
-        toc: {
-          searchDepth: 1,
-        },
-      },
-    },
-    experimental: {
-      sqliteConnector: 'native',
-    },
-  },
 
   experimental: {
     asyncContext: true,
@@ -49,6 +63,20 @@ export default defineNuxtConfig({
   prerender: {
     routes: [
       '/',
+      // the inspector links live inside collapsed sidebar accordions, so the
+      // link crawler never sees them — list the pages explicitly
+      '/notes',
+      '/notes/inspector/click',
+      '/notes/inspector/hold',
+      '/notes/inspector/long-hold',
+      '/notes/inspector/drag-head',
+      '/notes/inspector/drag-child',
+      '/notes/inspector/flick',
+      '/notes/inspector/click-drag-head',
+      '/notes/inspector/click-drag-child',
+      '/notes/inspector/drop-click',
+      '/notes/inspector/drop-drag',
+      '/notes/palette',
     ],
     crawlLinks: true,
   },

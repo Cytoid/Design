@@ -13,24 +13,22 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "pnpm -r test",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@cytoid/notes": "workspace:*",
+    "@cytoid/player": "workspace:*",
     "@iconify-json/lucide": "^1.2.139",
     "@iconify-json/simple-icons": "^1.2.98",
     "@iconify-json/vscode-icons": "^1.2.84",
-    "@nuxt/content": "^3.16.1",
     "@nuxt/image": "^2.1.0",
     "@nuxt/ui": "^4.11.3",
-    "@nuxtjs/mdc": "^0.23.2",
     "@takumi-rs/core": "^2.14.0",
     "@vueuse/core": "^14.4.0",
-    "minimark": "^0.2.0",
     "nuxt": "^4.6.0",
     "nuxt-og-image": "^6.10.3",
     "tailwindcss": "^4.3.3",
-    "ufo": "^1.6.4",
-    "unist-util-visit": "^5.1.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

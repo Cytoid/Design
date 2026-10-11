@@ -1,0 +1,51 @@
+{
+  "name": "@cytoid/notes",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Flat-style note designs for Cytoid: vector animation specs + baked frame animations",
+  "license": "MIT",
+  "repository": "github:Cytusol/cytoid-notes-design",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./bake": {
+      "types": "./dist/bake.d.mts",
+      "import": "./dist/bake.mjs"
+    }
+  },
+  "module": "./dist/index.mjs",
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/index.d.mts"
+      ],
+      "bake": [
+        "./dist/bake.d.mts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "obuild",
+    "bake": "tsx scripts/bake.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.4",
+    "changelogen": "^0.6.2",
+    "obuild": "^0.4.35",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
