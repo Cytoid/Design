@@ -63,7 +63,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   if (hold && (state.phase === 'enter' || state.phase === 'holding')) {
     const progress = state.phase === 'holding' ? state.progress : 0
     const appear = state.phase === 'enter' ? state.p : 1
-    drawScene(ctx, props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: elapsed }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
+    drawScene(ctx, props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: state.phase === 'holding' ? state.t : 0 }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
   }
   // Hold clears play where the scanline is the moment the hold ends:
   // the body end for holds, a representative line position for the full-height

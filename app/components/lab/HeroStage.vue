@@ -60,7 +60,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   if (hold && (state.phase === 'enter' || state.phase === 'holding')) {
     const progress = state.phase === 'holding' ? state.progress : 0
     const appear = state.phase === 'enter' ? state.p : 1
-    drawScene(ctx, kind.value === 'hold' ? holdBody({ length: bodyLength, progress, appear, t: elapsed }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
+    drawScene(ctx, kind.value === 'hold' ? holdBody({ length: bodyLength, progress, appear, t: state.phase === 'holding' ? state.t : 0 }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
   }
   const fall = drop && state.phase === 'enter' ? -(1 - t / 1.5) * height * 0.35 : 0
   const fx = renderNote(kind.value, state, dc, { judgement: true })
