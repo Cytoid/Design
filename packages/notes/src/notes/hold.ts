@@ -4,8 +4,7 @@
  * Holds may be pressed early, so the head carries **no timing gauge**: it
  * reaches a steady pose quickly and reads as a different *shape* from a
  * click: a borderless dark core (at Cytoid HoldNoteRing's inner-ring radius)
- * with a static centre glyph — a circle (hold) or a square (long hold, +
- * corner brackets).
+ * with a static centre glyph — a circle (hold) or a square (long hold).
  *
  * Entry mirrors the click shade language on the palette scale: the head
  * spawns as one 600 ball, then the core contracts onto the inner ring as the
@@ -31,7 +30,7 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { inOutCubic, inOutQuad, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
+import { inOutQuad, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
@@ -85,33 +84,11 @@ function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, spl
   ].filter(Boolean) as SceneNode[])
 }
 
-function brackets(R: number, k: number, ctx: DrawContext, opacity: number, color: string = ctx.palette.ring): SceneNode {
-  const W = ctx.unit * tokens.stroke.hair * 2
-  const r = lerp(R * 1.6, R * 1.28, k)
-  const L = R * 0.36
-  const items: SceneNode[] = []
-  for (let i = 0; i < 4; i++) {
-    const sx = i % 2 ? 1 : -1
-    const sy = i < 2 ? -1 : 1
-    const cx = (sx * r) / Math.SQRT2
-    const cy = (sy * r) / Math.SQRT2
-    items.push({
-      type: 'poly',
-      points: [[cx, cy - sy * L], [cx, cy], [cx - sx * L, cy]],
-      stroke: color,
-      strokeWidth: W,
-      join: 'miter',
-    })
-  }
-  return group(items, { opacity })
-}
-
 function holdEnter(long: boolean) {
   // the size follows the click's fitted S-curve exactly (tokens.sizeCurve.hold =
   // click's anchors): hold and click must read the same size during approach
   const holdSize = riseSettleCurve(tokens.sizeCurve.hold, tokens.sizeCurve.s)
   return (p: number, ctx: DrawContext): SceneNode => {
-    const R = ctx.size / 2
     // steady by p = 0.35 — no timing to read on a hold head (internals only;
     // the size keeps following the fitted curve)
     const k = outCubic(seg(p, 0, 0.35))
@@ -119,19 +96,15 @@ function holdEnter(long: boolean) {
     // split starts after the fade-in (0.08) and lands with the steady pose (0.35)
     const split = inOutQuad(seg(p, 0.08, 0.35))
     const head = holdHead(ctx, long, k, glyph, split, wakeAmount(p))
-    // white material (ring, glyph, brackets) rides the wake: neutral 400 → 50
-    const extra = long ? brackets(R, inOutCubic(seg(p, 0.1, 0.45)), ctx, seg(p, 0.1, 0.25), ringTone(ctx.palette, wakeAmount(p))) : null
-    return group([extra, head], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p) } })
+    return group([head], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p) } })
   }
 }
 
 /** Head in pressed state; t = seconds since hold start. */
 function holdPress(long: boolean) {
   return (t: number, ctx: DrawContext): SceneNode => {
-    const R = ctx.size / 2
     const k = outCubic(seg(t, 0, tokens.time.holdPress))
-    const extra = long ? brackets(R, 1 + k * 0.1, ctx, 1) : null
-    return group([extra, group([holdHead(ctx, long, 1, 1)], { transform: { scale: lerp(1, PRESSED, k) } })])
+    return group([holdHead(ctx, long, 1, 1)], { transform: { scale: lerp(1, PRESSED, k) } })
   }
 }
 
@@ -194,7 +167,7 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; square glyph + corner brackets; whites wake neutral 400 → 50.'
+        ? 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; square glyph; whites wake neutral 400 → 50.'
         : 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; circle glyph; whites wake neutral 400 → 50.',
     },
     hold: {
