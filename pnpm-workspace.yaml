@@ -1,0 +1,54 @@
+minimumReleaseAgeExcludePrune: true
+
+trustPolicy: no-downgrade
+# cssnano family pinned at the 2026-10-05 release round is flagged as
+# "trust downgrade" (weaker publish evidence than some earlier release,
+# during the maintainer's release-pipeline churn that week). Verified
+# healthy against github.com/cssnano/cssnano releases on 2026-10-11:
+# no advisories, normal coordinated monorepo release.
+trustPolicyExclude:
+  - cssnano@9.3.2
+  - cssnano-preset-default@9.3.2
+  - cssnano-utils@8.2.0
+  - postcss-calc@11.2.2
+  - postcss-colormin@9.0.6
+  - postcss-convert-values@9.0.7
+  - postcss-discard-comments@9.0.6
+  - postcss-discard-duplicates@9.0.5
+  - postcss-discard-empty@9.0.6
+  - postcss-discard-overridden@9.0.5
+  - postcss-merge-longhand@9.2.1
+  - postcss-merge-rules@9.1.2
+  - postcss-minify-font-values@9.0.7
+  - postcss-minify-gradients@9.0.6
+  - postcss-minify-params@9.0.6
+  - postcss-minify-selectors@9.0.6
+  - postcss-normalize-charset@9.0.5
+  - postcss-normalize-display-values@9.0.5
+  - postcss-normalize-positions@9.0.6
+  - postcss-normalize-repeat-style@9.0.5
+  - postcss-normalize-string@9.0.5
+  - postcss-normalize-timing-functions@9.0.5
+  - postcss-normalize-unicode@9.0.5
+  - postcss-normalize-url@9.0.5
+  - postcss-normalize-whitespace@9.0.5
+  - postcss-ordered-values@9.0.7
+  - postcss-reduce-initial@9.0.6
+  - postcss-reduce-transforms@9.0.4
+  - postcss-svgo@9.0.4
+  - postcss-unique-selectors@9.0.5
+  - stylehacks@9.0.7
+  # semver@6.3.1 is npm's own package, published 2023 (ReDoS fix), in
+  # industry-wide use since — flagged only due to missing modern publish
+  # evidence. Safe to exempt.
+  - semver@6.3.1
+
+shellEmulator: true
+
+allowBuilds:
+  '@parcel/watcher': false
+  '@tailwindcss/oxide': false
+  esbuild: false
+  sharp: true
+  unrs-resolver: false
+  vue-demi: false
