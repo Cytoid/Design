@@ -92,17 +92,28 @@ export interface LongHoldBodyOptions {
   top: number
   /** distance from note centre to the bottom of the play area */
   bottom: number
+  /** hold progress 0–1 */
   progress: number
+  /** seconds — scrolls the centre dashes into the head while holding */
+  t?: number
+  /** fade-in of the body (follows the head entrance) */
   appear?: number
 }
 
 /**
  * Long hold body: full-height rail through the note, fills toward both edges.
  *
+ * Composed bottom to top: dark track + edge rails; one centre conveyor
+ * running from both board edges into the head — dashes in 400 over the dark
+ * track, continuing over the fill in 800 (one dash grid through both, the
+ * contrast inverting at the fill front, so the filled stretch keeps the
+ * conveyor's motion instead of reading as a bare slab).
+ *
  * Final-stage collapse: during the last stretch of the
  * hold the whole pillar — track, rails and done fill — narrows from left and
- * right toward its centre, eased in, down to `LONG_HOLD_SHRINK_CORE`× width.
- * Progress-keyed (not wall-time), so the collapse speed scales with hold length.
+ * right toward its centre, eased in, down to `LONG_HOLD_SHRINK_CORE`× width;
+ * the conveyor fades out with it. Progress-keyed (not wall-time), so the
+ * collapse speed scales with hold length.
  */
 const LONG_HOLD_SHRINK_FROM = 0.86
 const LONG_HOLD_SHRINK_CORE = 0.15
@@ -124,9 +135,38 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
     rail(-Wb / 2),
     rail(Wb / 2),
   ]
+  // centre conveyor, streaming into the head: a decreasing dashOffset walks
+  // the dashes toward each segment's far end (both renderers shift the dash
+  // pattern toward the line start as the offset grows); the bottom segment
+  // starts one dash into the pattern so both halves share a grid at rest.
+  // The whole conveyor dies out as the collapse seals the pillar.
+  const dash = holdDashPeriod(ctx) / 2
+  const flow = (o.t ?? 0) * WbFull * 4
+  const seal = 1 - shrink
+  const conveyor = (from: number, to: number, phase: number, stroke: string, opacity: number): SceneNode => ({
+    type: 'line',
+    x1: 0,
+    y1: from,
+    x2: 0,
+    y2: to,
+    stroke,
+    strokeWidth: hair * 2.4,
+    dash: [dash, dash],
+    dashOffset: phase - flow,
+    opacity,
+  })
+  if (top > 0)
+    items.push(conveyor(-top, -top * p, 0, ctx.palette[400], 0.75 * seal))
+  if (bottom > 0)
+    items.push(conveyor(bottom, bottom * p, dash, ctx.palette[400], 0.75 * seal))
   if (p > 0) {
     const w = lerp(Wb * 0.6, Wb, Math.min(1, p * 4))
     items.push({ type: 'rect', x: -w / 2, y: -top * p, w, h: (top + bottom) * p, fill: ctx.palette[400] })
+    // the same grid continues over the fill in 800, softer than on the track
+    if (top > 0)
+      items.push(conveyor(-top * p, 0, 0, ctx.palette[800], 0.55 * seal))
+    if (bottom > 0)
+      items.push(conveyor(bottom * p, 0, dash, ctx.palette[800], 0.55 * seal))
   }
   return group(items, { opacity: seg(appear, 0.3, 0.45) })
 }
