@@ -9,7 +9,6 @@ import { clamp01, lerp, outBack, outCubic, outSine, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone } from '../palette'
 import { tokens } from '../tokens'
-import { BLINK_PEAK, blinkTrain } from './click'
 
 export interface HoldBodyOptions {
   /** body length in px (from note centre to hold end) */
@@ -108,10 +107,7 @@ export interface LongHoldBodyOptions {
  * running from both board edges into the head — dashes in 400 over the dark
  * track, continuing over the fill in 800 (one dash grid through both, the
  * contrast inverting at the fill front, so the filled stretch keeps the
- * conveyor's motion instead of reading as a bare slab); the fill, with the
- * click's pre-hit blink on top — four white flashes over p 0.72–0.86, the
- * "prepare to let go" cue, placed before the collapse so the bar is still
- * full width (drawn under the conveyor, which stays crisp).
+ * conveyor's motion instead of reading as a bare slab).
  *
  * Final-stage collapse: during the last stretch of the
  * hold the whole pillar — track, rails and done fill — narrows from left and
@@ -122,8 +118,6 @@ export interface LongHoldBodyOptions {
 const LONG_HOLD_SHRINK_FROM = 0.86
 const LONG_HOLD_SHRINK_CORE = 0.15
 const LONG_HOLD_SHRINK_EASE = outSine
-/** The four-blink release cue starts here, one blink-window before the collapse. */
-const LONG_HOLD_FLASH_FROM = 0.72
 
 export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNode {
   const WbFull = ctx.unit * tokens.stroke.holdBody
@@ -168,11 +162,6 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
   if (p > 0) {
     const w = lerp(Wb * 0.6, Wb, Math.min(1, p * 4))
     items.push({ type: 'rect', x: -w / 2, y: -top * p, w, h: (top + bottom) * p, fill: ctx.palette[400] })
-    // the click's blink, on the bar: four flashes over p 0.72–0.86, then the
-    // collapse — "prepare to let go"; under the conveyor so the texture holds
-    const flash = blinkTrain(p, 4, LONG_HOLD_FLASH_FROM, LONG_HOLD_SHRINK_FROM)
-    if (flash > 0)
-      items.push({ type: 'rect', x: -w / 2, y: -top * p, w, h: (top + bottom) * p, fill: ctx.palette.ring, opacity: BLINK_PEAK * flash })
     // the same grid continues over the fill in 800, softer than on the track
     if (top > 0)
       items.push(conveyor(-top * p, 0, 0, ctx.palette[800], 0.55 * seal))

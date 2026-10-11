@@ -67,19 +67,6 @@ export function blinkAmount(p: number): number {
 }
 
 /**
- * A denser blink train (long hold): `n` equal blinks spread evenly over
- * `[from, to]` — the click's double flash generalized, same envelope and
- * peak. The pillar flashes over 0.72–0.86, just before the collapse.
- */
-export function blinkTrain(p: number, n: number, from = CLICK_TIMING.readyBlinkFrom, to = 1): number {
-  const w = (to - from) / n
-  let v = 0
-  for (let i = 0; i < n; i++)
-    v = Math.max(v, bump(p, from + i * w, from + (i + 1) * w))
-  return v
-}
-
-/**
  * Enter size at progress `p` (1 = hit pose): one fitted S-curve carries the
  * ball from the small dim spawn (0.32) up through the full-size crossing
  * (p ≈ 0.74) to the +6 % overshoot peak at p 0.878 — together with the
