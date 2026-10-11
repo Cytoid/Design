@@ -94,8 +94,10 @@ export interface LongHoldBodyOptions {
   bottom: number
   /** hold progress 0–1 */
   progress: number
-  /** seconds — scrolls the centre dashes into the head while holding */
+  /** seconds since the hit — scrolls the centre dashes, drives the live collapse */
   t?: number
+  /** hit → finish seconds; enables the time-anchored collapse */
+  holdDuration?: number
   /** fade-in of the body (follows the head entrance) */
   appear?: number
 }
@@ -109,15 +111,19 @@ export interface LongHoldBodyOptions {
  * contrast inverting at the fill front, so the filled stretch keeps the
  * conveyor's motion instead of reading as a bare slab).
  *
- * Final-stage collapse: during the last stretch of the
- * hold the whole pillar — track, rails and done fill — narrows from left and
- * right toward its centre, eased in, down to `LONG_HOLD_SHRINK_CORE`× width;
- * the conveyor fades out with it. Progress-keyed (not wall-time), so the
- * collapse speed scales with hold length.
+ * Final-stage collapse: the pillar — track, rails and done fill — narrows
+ * from left and right toward its centre, eased in, down to
+ * `LONG_HOLD_SHRINK_CORE`× width; the conveyor fades out with it. Live (with
+ * `holdDuration`): a fixed 1.2 s close anchored to end exactly at the hold's
+ * finish, so longer holds start collapsing earlier and holds shorter than
+ * 1.2 s collapse across their whole length. Static consumers without
+ * `holdDuration` (the baked tiles) fall back to the progress-keyed window.
  */
 const LONG_HOLD_SHRINK_FROM = 0.86
 const LONG_HOLD_SHRINK_CORE = 0.15
 const LONG_HOLD_SHRINK_EASE = outSine
+/** Live collapse length in seconds (Cylheim: 38 frames @ 30 fps ≈ 1.267). */
+const LONG_HOLD_COLLAPSE_SECONDS = 1.2
 
 export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNode {
   const WbFull = ctx.unit * tokens.stroke.holdBody
@@ -127,7 +133,16 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
   const top = o.top * a
   const bottom = o.bottom * a
   const p = clamp01(o.progress)
-  const shrink = LONG_HOLD_SHRINK_EASE(seg(p, LONG_HOLD_SHRINK_FROM, 1))
+  // live collapse: fixed 1.2 s, ending exactly at the hold's finish; holds
+  // shorter than that collapse across their whole length. Static consumers
+  // without `holdDuration` fall back to the progress-keyed window.
+  const holdDuration = o.holdDuration
+  const shrink = holdDuration !== undefined && holdDuration > 0
+    ? LONG_HOLD_SHRINK_EASE(clamp01(
+        ((o.t ?? 0) - Math.max(0, holdDuration - LONG_HOLD_COLLAPSE_SECONDS))
+        / Math.min(LONG_HOLD_COLLAPSE_SECONDS, holdDuration),
+      ))
+    : LONG_HOLD_SHRINK_EASE(seg(p, LONG_HOLD_SHRINK_FROM, 1))
   const Wb = WbFull * (1 - (1 - LONG_HOLD_SHRINK_CORE) * shrink)
   const rail = (x: number): SceneNode => ({ type: 'line', x1: x, y1: -top, x2: x, y2: bottom, stroke: ctx.palette[400], strokeWidth: hair * 1.6, opacity: 0.9 })
   const items: SceneNode[] = [

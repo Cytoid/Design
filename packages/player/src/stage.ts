@@ -245,6 +245,7 @@ export class PlayStage {
             progress,
             appear,
             t: d.state.phase === 'holding' ? d.state.t : 0,
+            holdDuration: note.timeout - note.time,
           },
           ctx,
         ))
