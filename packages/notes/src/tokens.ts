@@ -153,7 +153,7 @@ export const tokens = {
     'click': { up: 247, down: 20 },
     'hold': { up: 247, down: 20 },
     'flick': { up: 247, down: 20 },
-    'long-hold': { up: 88, down: 70 },
+    'long-hold': { up: 88, down: 88 },
     'drag': { up: 160, down: 160 },
     // same as click by default — click drag child differs from drag child by colour only
     'click-drag': { up: 247, down: 20 },
