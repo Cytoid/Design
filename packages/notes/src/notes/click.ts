@@ -67,15 +67,15 @@ export function blinkAmount(p: number): number {
 }
 
 /**
- * A denser blink train for heads without a timing gauge (long hold): `n`
- * equal blinks spread over the same window (0.86–1) — the click's double
- * flash generalized, same envelope and peak.
+ * A denser blink train (long hold): `n` equal blinks spread evenly over
+ * `[from, to]` — the click's double flash generalized, same envelope and
+ * peak. The pillar flashes over 0.72–0.86, just before the collapse.
  */
-export function blinkTrain(p: number, n: number): number {
-  const w = (1 - CLICK_TIMING.readyBlinkFrom) / n
+export function blinkTrain(p: number, n: number, from = CLICK_TIMING.readyBlinkFrom, to = 1): number {
+  const w = (to - from) / n
   let v = 0
   for (let i = 0; i < n; i++)
-    v = Math.max(v, bump(p, CLICK_TIMING.readyBlinkFrom + i * w, CLICK_TIMING.readyBlinkFrom + (i + 1) * w))
+    v = Math.max(v, bump(p, from + i * w, from + (i + 1) * w))
   return v
 }
 

@@ -34,7 +34,7 @@ import { inOutQuad, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
-import { BLINK_PEAK, blinkTrain, ringWidth, wakeAmount, wakeShade } from './click'
+import { ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeMissClip } from './effects'
 import { arc, assemblingRing, disk, ring } from './parts'
 
@@ -61,10 +61,9 @@ const GLYPH = 0.2
 
 /**
  * Head; `k` = build progress 0..1 (fast), `glyph` = centre glyph reveal,
- * `split` = shade split 0..1 (steady poses use the default 1), `blink` =
- * pre-hit flash over the core (long hold only, 0..1).
+ * `split` = shade split 0..1 (steady poses use the default 1).
  */
-function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, split = 1, wake = 1, blink = 0): SceneNode {
+function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, split = 1, wake = 1): SceneNode {
   const R = ctx.size / 2
   const W = ringWidth(ctx)
   const inner = R - W
@@ -80,8 +79,6 @@ function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, spl
     // solid ball from the first frame
     disk(inner + 0.5, tone(ctx.palette, ball)),
     disk(lerp(inner + 0.5, innerRingR, split), tone(ctx.palette, core)),
-    // the click's pre-hit flash, on the core; the glyph stays still on top
-    blink > 0 ? disk(innerRingR, ctx.palette.ring, BLINK_PEAK * blink) : null,
     glyph > 0 ? group([glyphShape(long, R * GLYPH, gw, ringTone(ctx.palette, wake))], { opacity: seg(glyph, 0, 0.5), transform: { scale: lerp(0.4, 1, outBack(glyph, 2)) } }) : null,
     assemblingRing(R - W / 2, lerp(W * 0.5, W, k), ringTone(ctx.palette, wake), 2, outQuart(k), lerp(-TAU / 4, 0, k), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
   ].filter(Boolean) as SceneNode[])
@@ -98,10 +95,7 @@ function holdEnter(long: boolean) {
     const glyph = seg(p, 0.2, 0.42)
     // split starts after the fade-in (0.08) and lands with the steady pose (0.35)
     const split = inOutQuad(seg(p, 0.08, 0.35))
-    // long hold: the click's double blink, denser — four equal flashes over
-    // the same window (0.86–1); the regular hold stays calm
-    const blink = long ? blinkTrain(p, 4) : 0
-    const head = holdHead(ctx, long, k, glyph, split, wakeAmount(p), blink)
+    const head = holdHead(ctx, long, k, glyph, split, wakeAmount(p))
     return group([head], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p) } })
   }
 }
@@ -173,7 +167,7 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; square glyph; whites wake neutral 400 → 50. Core flashes white ×4 over p 0.86–1 (the click\'s double blink, denser).'
+        ? 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; square glyph; whites wake neutral 400 → 50.'
         : 'Internals steady fast; size follows the click\'s fitted S-curve. Colours dim until p 0.45–0.7 (page cue). 600 ball splits: ball rises to 400, core stays 600 on the inner ring; circle glyph; whites wake neutral 400 → 50.',
     },
     hold: {
