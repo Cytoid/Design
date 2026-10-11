@@ -10,17 +10,79 @@ const toast = useToast()
 const directions: Direction[] = ['up', 'down']
 const json = ref('')
 const exported = computed(() => `${JSON.stringify(paletteOptions.value, null, 2)}\n`)
-const classic: PaletteOptions = { families: Object.fromEntries(FAMILIES.map(f => [f, f === 'long-hold' ? { up: '#F2C85A', down: '#F2C85A' } : ['drag', 'drop-drag'].includes(f) ? { up: '#39E59E', down: '#39E59E' } : { up: '#35A7FF', down: '#FF5964' }])) }
 const presets: {
   name: string
   value: PaletteOptions
   colors: string[]
 }[] = [
-  { name: 'Default', value: {}, colors: ['#35a7ff', '#ff5964', '#39e59e'] },
-  { name: 'Cytoid classic', value: classic, colors: ['#35A7FF', '#FF5964', '#F2C85A'] },
-  { name: 'Monochrome', value: { saturation: 0 }, colors: ['#a5a5a5', '#bdbdbd', '#d0d0d0'] },
-  { name: 'Orchid', value: { hueShift: 45, saturation: 0.8 }, colors: ['#b390e5', '#e8ab70', '#79c4b1'] },
-  { name: 'Lagoon', value: { hueShift: -35, saturation: 0.75, ring: '#E3F6F0' }, colors: ['#68b8be', '#dc90b8', '#b0c875'] },
+  {
+    name: 'Default',
+    value: {},
+    colors: ['#35a7ff', '#ff5964', '#39e59e'],
+  },
+  {
+    name: 'Cytoid classic',
+    value: {
+      families: {
+        'click': { up: '#35A7FF', down: '#FF5964' },
+        'click-drag': { up: '#35A7FF', down: '#FF5964' },
+        'drop-click': { up: '#35A7FF', down: '#FF5964' },
+        'hold': { up: '#35A7FF', down: '#FF5964' },
+        'long-hold': { up: '#F2C85A', down: '#F2C85A' },
+        'flick': { up: '#35A7FF', down: '#FF5964' },
+        'drag': { up: '#39E59E', down: '#39E59E' },
+        'drop-drag': { up: '#39E59E', down: '#39E59E' },
+      },
+    },
+    colors: ['#35A7FF', '#FF5964', '#F2C85A'],
+  },
+  {
+    name: 'Aurora',
+    value: {
+      families: {
+        'click': { up: '#00FFC5', down: '#00C2FF' },
+        'click-drag': { up: '#00FFC5', down: '#00C2FF' },
+        'drop-click': { up: '#00FFC5', down: '#00C2FF' },
+        'hold': { up: '#CC52B8', down: '#CC5254' },
+        'long-hold': { up: '#FFDD5B', down: '#FFDD5B' },
+        'flick': { up: '#4CBF6D', down: '#4C8ABF' },
+        'drag': { up: '#573DCC', down: '#B43DCC' },
+        'drop-drag': { up: '#573DCC', down: '#B43DCC' },
+      },
+    },
+    colors: ['#00ffc5', '#b43dcc', '#ffdd5b'],
+  },
+  {
+    name: 'Aurora soft',
+    value: {
+      families: {
+        'click': { up: '#17E5C3', down: '#17CDE5' },
+        'click-drag': { up: '#17E5C3', down: '#17CDE5' },
+        'drop-click': { up: '#17E5C3', down: '#17CDE5' },
+        'hold': { up: '#B347A8', down: '#B34757' },
+        'long-hold': { up: '#FFDD5B', down: '#FFDD5B' },
+        'flick': { up: '#4CBF6D', down: '#4C8ABF' },
+        'drag': { up: '#573DCC', down: '#B43DCC' },
+        'drop-drag': { up: '#573DCC', down: '#B43DCC' },
+      },
+    },
+    colors: ['#17e5c3', '#b347a8', '#ffdd5b'],
+  },
+  {
+    name: 'Monochrome',
+    value: { saturation: 0 },
+    colors: ['#a5a5a5', '#bdbdbd', '#d0d0d0'],
+  },
+  {
+    name: 'Orchid',
+    value: { hueShift: 45, saturation: 0.8 },
+    colors: ['#b390e5', '#e8ab70', '#79c4b1'],
+  },
+  {
+    name: 'Lagoon',
+    value: { hueShift: -35, saturation: 0.75, ring: '#E3F6F0' },
+    colors: ['#68b8be', '#dc90b8', '#b0c875'],
+  },
 ]
 function preset(value: PaletteOptions) {
   paletteOptions.value = structuredClone(value)
