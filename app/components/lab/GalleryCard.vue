@@ -4,7 +4,7 @@ import type { CanvasFrame } from './StageCanvas.vue'
 import { createContext, designs, drawScene, group, holdBody, KIND_LABEL, longHoldBody, renderNote } from '@cytoid/notes'
 import { computed } from 'vue'
 import { drawScanline, paintDragChain } from '~/utils/drag-chain'
-import { lifecycle } from '../../composables/clips'
+import { DEMO_HOLD_SECONDS, lifecycle } from '../../composables/clips'
 import { palette } from '../../composables/usePalette'
 import { review } from '../../composables/useReview'
 import NoteCanvas from './NoteCanvas.vue'
@@ -63,7 +63,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   if (hold && (state.phase === 'enter' || state.phase === 'holding')) {
     const progress = state.phase === 'holding' ? state.progress : 0
     const appear = state.phase === 'enter' ? state.p : 1
-    drawScene(ctx, props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: elapsed }, dc) : longHoldBody({ top: height, bottom: height, progress, appear }, dc))
+    drawScene(ctx, props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: elapsed }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
   }
   // Hold clears play where the scanline is the moment the hold ends:
   // the body end for holds, a representative line position for the full-height
