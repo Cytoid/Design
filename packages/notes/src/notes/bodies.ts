@@ -5,7 +5,7 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext } from './types'
-import { clamp01, lerp, outBack, outCubic, outSine, seg } from '../core/ease'
+import { clamp01, inSine, lerp, outBack, outCubic, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone } from '../palette'
 import { tokens } from '../tokens'
@@ -121,7 +121,7 @@ export interface LongHoldBodyOptions {
  */
 const LONG_HOLD_SHRINK_FROM = 0.86
 const LONG_HOLD_SHRINK_CORE = 0.15
-const LONG_HOLD_SHRINK_EASE = outSine
+const LONG_HOLD_SHRINK_EASE = inSine
 /** Live collapse length in seconds (Cylheim: 38 frames @ 30 fps ≈ 1.267). */
 const LONG_HOLD_COLLAPSE_SECONDS = 0.6
 
