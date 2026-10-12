@@ -244,6 +244,8 @@ export class PlayStage {
             bottom: Math.max(0, screen.y + screen.height - d.pos.y),
             progress,
             appear,
+            t: d.state.phase === 'holding' ? d.state.t : 0,
+            holdDuration: note.timeout - note.time,
           },
           ctx,
         ))

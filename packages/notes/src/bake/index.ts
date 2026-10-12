@@ -141,8 +141,8 @@ async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (nam
   await put('hold-end', holdBody({ length: endL, progress: 0, appear: 0.999 }, hctx), Wb, endH, Wb / 2, endH - endL, 'none', 'Rounded far end with the dim full stop. Tile the body up to length − height, then this piece; its far edge is the hold end point.')
   await put('hold-end-lit', holdBody({ length: endL, progress: 1, appear: 0.999 }, hctx), Wb, endH, Wb / 2, endH - endL, 'none', 'Lit far end (fill landed, white full stop). Cross-fade from hold-end over progress 0.9–1.')
   const lw = Math.ceil(ctx.unit * tokens.stroke.holdBody) + 4
-  await put('long-hold-rail', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold rail; tile vertically across the full play area.')
-  await put('long-hold-done', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
+  await put('long-hold-rail', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 0, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold rail with the centre conveyor; tile vertically across the full play area. Scroll the dashes toward the note at t·4·width (both halves share the dash grid at rest). Over the fill the same grid runs in 800, softer.')
+  await put('long-hold-done', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
   const dw = Math.ceil(ctx.unit * tokens.stroke.dragLine) + 2
   const dash = Math.max(1, Math.round(ctx.unit * tokens.stroke.dragDash))
   await put('drag-line', dragLine({ x1: 0, y1: 0, x2: 0, y2: dash * 8, dash }, ctx)!, dw, dash * 2, dw / 2, 0, 'y', 'Drag connection (white dashes, 50 % duty); tile along the segment from the source note, rotate to its angle.')
