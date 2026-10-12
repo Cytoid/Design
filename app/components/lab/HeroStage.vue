@@ -50,7 +50,11 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   const bodyLength = height * 0.55
   const anchor = hold ? (kind.value === 'hold' ? -bodyLength : -height * 0.325) : 0
   const near = height / 2 - (hold ? 64 : 0)
-  const scanY = drop ? 0 : near + ((anchor - near) / (hold ? span : 1.5)) * t
+  // Alignment invariant: the line must move at the fill's speed (length/hold)
+  // and cross the head exactly at the hit, so it starts one approach-worth of
+  // travel below the head — past the stage edge; it enters mid-approach.
+  const scanStart = kind.value === 'hold' ? bodyLength * (1.5 / DEMO_HOLD_SECONDS) : near
+  const scanY = drop ? 0 : scanStart + ((anchor - scanStart) / (hold ? span : 1.5)) * t
   const onStage = Math.abs(scanY) <= height / 2 + (hold ? 64 : 0)
   if (!state) {
     if (onStage)
