@@ -79,7 +79,7 @@ describe('designs', () => {
     for (const kind of NOTE_KINDS) {
       const d = designs[kind]
       const ctx = createContext(kind)
-      for (const clip of [...Object.values(d.clear), d.miss ?? d.exit!])
+      for (const clip of [...Object.values(d.clear), d.miss, d.exit].filter(c => c != null))
         expect(bounds(clip.draw(clip.duration, ctx)), `${kind}/${clip.id}`).toBeNull()
     }
   })
@@ -193,8 +193,37 @@ describe('exit fade', () => {
     expect(exitAlpha(0.29)).toBe(0)
     expect(exitAlpha(0.3)).toBe(0)
   })
-  it('click & flick: a miss keeps riding the exit fade', () => {
-    for (const kind of ['click', 'flick'] as const) {
+  it('every non-drop note exits; drops keep their miss clip', () => {
+    for (const kind of NOTE_KINDS)
+      expect(designs[kind].exit != null, kind).toBe(!kind.startsWith('drop-'))
+  })
+  it('hold head has no step, the body is gone in half the window, children fade linearly', async () => {
+    const { exitAlpha } = await import('../src/notes/effects')
+    const { tokens } = await import('../src/tokens')
+    const e = tokens.time.exit
+    expect(exitAlpha(0, e.holdHead)).toBe(1)
+    expect(exitAlpha(0.15, e.holdHead)).toBeCloseTo(0.875)
+    expect(exitAlpha(0, e.holdBody)).toBeCloseTo(0.8)
+    expect(exitAlpha(0.075, e.holdBody)).toBeCloseTo(0.7)
+    expect(exitAlpha(0.15, e.holdBody)).toBe(0)
+    expect(exitAlpha(0.075, e.dragChild)).toBeCloseTo(0.5)
+  })
+  it('hold body alpha: fades on the exit, a late (early-release) miss draws no body', async () => {
+    const { holdBodyAlpha } = await import('../src')
+    expect(holdBodyAlpha('hold', { phase: 'holding', t: 0, progress: 0.5 })).toBe(1)
+    expect(holdBodyAlpha('hold', { phase: 'exit', t: 0.075 })).toBeCloseTo(0.7)
+    expect(holdBodyAlpha('hold', { phase: 'miss', t: 0, since: 0.1 })).toBeGreaterThan(0)
+    expect(holdBodyAlpha('hold', { phase: 'miss', t: 0, since: 1 })).toBe(0)
+  })
+  it('hold released early plays its own miss clip, a deadline miss rides the exit', () => {
+    const ctx = createContext('hold')
+    const early = renderNote('hold', { phase: 'miss', t: 0.1, since: 1.1 }, ctx, { judgement: false })
+    expect(toSVG(early)).toBe(toSVG(designs.hold.miss!.draw(0.1, ctx)))
+    const late = renderNote('hold', { phase: 'miss', t: 0, since: 0.2 }, ctx, { judgement: false })
+    expect(toSVG(late)).toBe(toSVG(designs.hold.exit!.draw(0.2, ctx)))
+  })
+  it('taps: a miss keeps riding the exit fade', () => {
+    for (const kind of ['click', 'flick', 'drag-head', 'click-drag-head'] as const) {
       const ctx = createContext(kind)
       expect(designs[kind].exit, kind).toBeDefined()
       const late = renderNote(kind, { phase: 'miss', t: 0, since: 0.2 }, ctx, { judgement: false })
@@ -202,4 +231,15 @@ describe('exit fade', () => {
       expect(bounds(renderNote(kind, { phase: 'miss', t: 0.1, since: 0.3 }, ctx, { judgement: false }))).toBeNull()
     }
   })
+})
+
+it('every exit starts from its own enter pose (rewound by 0), only faded', () => {
+  for (const kind of NOTE_KINDS) {
+    const d = designs[kind]
+    if (!d.exit)
+      continue
+    const ctx = createContext(kind)
+    const node = d.exit.draw(0, ctx) as { children: unknown[] }
+    expect(toSVG(node.children[0] as never), kind).toBe(toSVG(d.enter.draw(1, ctx)))
+  }
 })

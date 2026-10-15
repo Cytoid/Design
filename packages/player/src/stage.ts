@@ -1,8 +1,8 @@
-import type { Direction, Palette } from '@cytoid/notes'
+import type { Direction, Palette, SceneNode } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { BoardRect } from './layout'
 import type { DerivedFrame, DerivedNote, DeriveOptions, Position } from './state'
-import { clamp01, createContext, dragLine, group, holdBody, longHoldBody, renderNote } from '@cytoid/notes'
+import { clamp01, createContext, dragLine, group, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/notes'
 /**
  * Pixi stage for the player: turns `deriveFrame` output into display
  * objects drawn with the design library's vector clips — live, no baking.
@@ -239,12 +239,15 @@ export class PlayStage {
     const parts = []
 
     // hold body under the head (board-fixed: grows toward the hold end)
-    if ((note.kind === 'hold' || note.kind === 'long_hold') && d.state && (d.state.phase === 'enter' || d.state.phase === 'exit' || d.state.phase === 'holding')) {
+    // (exit: the body fades on its own, faster curve than the head)
+    const bodyAlpha = (note.kind === 'hold' || note.kind === 'long_hold') && d.state ? holdBodyAlpha(d.kind, d.state) : 0
+    if (d.state && bodyAlpha > 0.001) {
+      const body: SceneNode[] = []
       const progress = d.state.phase === 'holding' ? d.state.progress : 0
       const appear = d.state.phase === 'enter' ? d.state.p : 1
       if (note.kind === 'long_hold') {
         // the pillar spans the full player height (screen), not just the note field
-        parts.push(longHoldBody(
+        body.push(longHoldBody(
           {
             top: Math.max(0, d.pos.y - screen.y),
             bottom: Math.max(0, screen.y + screen.height - d.pos.y),
@@ -259,7 +262,7 @@ export class PlayStage {
       else {
         const endPos = notePos(note, note.position.endY, board)
         const bodyCtx = createContext(d.kind, { ...base, bodyDirection: endPos.y <= d.pos.y ? 'up' : 'down' })
-        parts.push(holdBody(
+        body.push(holdBody(
           {
             length: Math.abs(endPos.y - d.pos.y),
             progress,
@@ -269,6 +272,7 @@ export class PlayStage {
           bodyCtx,
         ))
       }
+      parts.push(bodyAlpha < 0.999 ? group(body, { opacity: bodyAlpha, isolate: true }) : body[0]!)
     }
 
     // the note sprite (steady pose while a triggered head follows the chain)

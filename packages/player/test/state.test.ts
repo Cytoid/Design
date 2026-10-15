@@ -63,6 +63,12 @@ describe('noteStateAt', () => {
     expect(noteStateAt(note, 1.8, 'miss', 1.7)).toEqual({ phase: 'miss', t: expect.closeTo(0.1, 3), since: expect.closeTo(0.3, 3) })
   })
 
+  it('dead-chain children keep approaching and miss at their own time', () => {
+    const child = { ...note, kind: 'drag_child' as const }
+    expect(noteStateAt(child, 1.2, 'miss', 1.0)!.phase).toBe('enter')
+    expect(noteStateAt(child, 1.55, 'miss', 1.0)).toEqual({ phase: 'miss', t: expect.closeTo(0.05, 3), since: expect.closeTo(0.05, 3) })
+  })
+
   it('exits from the hit time while still pending', () => {
     expect(noteStateAt(note, 1.49, 'pending')).toEqual({ phase: 'enter', p: expect.closeTo(0.993, 2) })
     expect(noteStateAt(note, 1.6, 'pending')).toEqual({ phase: 'exit', t: expect.closeTo(0.1, 3) })

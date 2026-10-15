@@ -136,5 +136,5 @@ export const flick: NoteDesign = {
     note: 'Diamond outline grows from edge midpoints; dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back across the diamond\'s growth so the body–arrow gap only closes; locked from p 0.875. Outline and chevrons wake neutral 400 → 50 with the split.',
   },
   clear: makeClearClips({ shape: 'diamond', reach: 1.4, sectors: 4, extra: 'streaks', seed: 2 }),
-  exit: makeExitClip(ctx => flickEnter(1, ctx)),
+  exit: makeExitClip(flickEnter),
 }

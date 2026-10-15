@@ -20,7 +20,7 @@ import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
-import { makeClearClips, makeMissClip } from './effects'
+import { makeClearClips, makeExitClip } from './effects'
 import { assemblingRing, disk, ring } from './parts'
 
 /** steady by this p */
@@ -57,7 +57,7 @@ export const dragHead: NoteDesign = {
     draw: headDraw,
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),
-  miss: makeMissClip('circle'),
+  exit: makeExitClip(headDraw),
 }
 
 /**
@@ -75,24 +75,16 @@ function childDraw(p: number, ctx: DrawContext): SceneNode {
   ], { opacity: seg(p, 0, 0.06), transform: { scale: dragChildSize(p) } })
 }
 
-/** Miss ghost in the child's own end pose: bead + 600 hairline ring, no outer ring. */
-function childMissGhost(ctx: DrawContext, R: number, _W: number, k: number): SceneNode[] {
-  return [
-    disk(R * lerp(0.92, 0.75, k), ctx.palette[800], 0.9),
-    ring(R * 0.62 * lerp(1, 0.78, k), ctx.unit * tokens.stroke.hair * lerp(1, 0.6, k), ctx.palette[600], 0.7),
-  ]
-}
-
 export const dragChild: NoteDesign = {
   kind: 'drag-child',
   enter: { id: 'enter', mode: 'normalized', duration: tokens.time.enter, draw: childDraw, note: 'Solid bead (Cytoid), faint 600 hairline ring, fitted S-curve.' },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 6 }),
-  miss: makeMissClip('circle', childMissGhost),
+  exit: makeExitClip(childDraw, tokens.time.exit.dragChild),
 }
 
 export const clickDragChild: NoteDesign = {
   kind: 'click-drag-child',
   enter: { id: 'enter', mode: 'normalized', duration: tokens.time.enter, draw: childDraw, note: 'Same as drag child, click colours.' },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 7 }),
-  miss: makeMissClip('circle', childMissGhost),
+  exit: makeExitClip(childDraw, tokens.time.exit.dragChild),
 }

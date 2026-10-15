@@ -93,12 +93,26 @@ export const tokens = {
     /** enter (approach) clip: ends exactly at the hit time */
     enter: 1.2,
     /**
-     * Exit: from the chart hit time the unjudged note steps down to
-     * `drop` opacity and falls off as drop − p³ over `duration` seconds —
-     * absolute time, not scaled with the approach. Starts at the hit time
-     * whether or not the note has been judged; a miss rides the same timeline.
+     * Exit: from the chart hit time an unjudged note fades out as
+     * A(t) = drop − fall · (t / duration)^power (clamped, 0 from `duration`) —
+     * absolute seconds, not scaled with the approach. It starts at the hit
+     * time whether or not the note has been judged; a miss rides the same
+     * timeline. Meanwhile the enter animation plays backwards at `rewind` ×
+     * its own speed (1 = the note's real approach speed, `ctx.approach`) — an
+     * independent clock from the fade. 0 = hold the hit pose.
+     *  tap        click / flick / drag heads: steps 1 → 0.8 at the hit (the
+     *             "you're late" cue), then 0.8 − p³
+     *  holdHead   no step (a hold head is still pressable): 1 − p³
+     *  holdBody   gone in half the window: 0.8 · (1 − (2p)³)
+     *  dragChild  linear 1 − u over 0.15 s (Cytoid's child miss threshold)
      */
-    exit: { duration: 0.3, drop: 0.8 },
+    exit: {
+      rewind: 1,
+      tap: { duration: 0.3, drop: 0.8, fall: 1, power: 3 },
+      holdHead: { duration: 0.3, drop: 1, fall: 1, power: 3 },
+      holdBody: { duration: 0.15, drop: 0.8, fall: 0.8, power: 3 },
+      dragChild: { duration: 0.15, drop: 1, fall: 1, power: 1 },
+    },
     /** hold press-in */
     holdPress: 0.2,
     /** hold loop period */

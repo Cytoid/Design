@@ -35,7 +35,7 @@ import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { ringWidth, wakeAmount, wakeShade } from './click'
-import { makeClearClips, makeMissClip } from './effects'
+import { makeClearClips, makeExitClip, makeMissClip } from './effects'
 import { arc, assemblingRing, disk, ring } from './parts'
 
 const PRESSED = 0.86
@@ -176,6 +176,10 @@ function makeHold(long: boolean): NoteDesign {
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: white lead at 4/3·p, fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),
+    // never pressed: the head rewinds and fades (no 0.8 step — still pressable);
+    // the body fades on its own, faster curve (`holdBodyExitAlpha`)
+    exit: makeExitClip(holdEnter(long), tokens.time.exit.holdHead),
+    // released early: the head was alive until the release, so it powers down there
     miss: makeMissClip('circle'),
   }
 }

@@ -12,8 +12,9 @@ export const DEMO_HOLD_SECONDS = 1.8
 export function lifecycle(kind: NoteKind, time: number, grade: Grade, timing?: Timing): { state: NoteState | null, label: string, t: number, span: number } {
   const hold = designs[kind].hold ? DEMO_HOLD_SECONDS : 0
   // exit designs miss the way play does: unjudged past the hit time (exit
-  // fade), judged MISS once the hit window closes
-  const late = grade === 'miss' && designs[kind].exit ? MISS_DEADLINE : 0
+  // fade), judged MISS once the hit window closes. (The hold demo misses by
+  // releasing early — the head powers down with its own miss clip.)
+  const late = grade === 'miss' && designs[kind].exit && !hold ? MISS_DEADLINE : 0
   const clear = tokens.time.clear[grade]
   const t = time % (1.5 + hold + late + clear + 0.65)
   const span = 1.5 + hold
@@ -24,6 +25,6 @@ export function lifecycle(kind: NoteKind, time: number, grade: Grade, timing?: T
   if (t < span + late)
     return { state: { phase: 'exit', t: t - span }, label: 'Late', t, span }
   if (t < span + late + clear)
-    return { state: grade === 'miss' ? { phase: 'miss', t: t - span - late, since: t - span } : { phase: 'clear', grade, t: t - span, timing }, label: grade, t, span }
+    return { state: grade === 'miss' ? { phase: 'miss', t: t - span - late, since: t - 1.5 } : { phase: 'clear', grade, t: t - span, timing }, label: grade, t, span }
   return { state: null, label: 'Pause', t, span }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NoteKind } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { createContext, designs, drawScene, group, holdBody, longHoldBody, renderNote } from '@cytoid/notes'
+import { createContext, designs, drawScene, group, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/notes'
 import { computed, ref } from 'vue'
 import { drawScanline, paintDragChain } from '~/utils/drag-chain'
 import { DEMO_HOLD_SECONDS, lifecycle } from '../../composables/clips'
@@ -61,7 +61,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
       drawScanline(ctx, width, scanY)
     return
   }
-  if (hold && (state.phase === 'enter' || state.phase === 'holding')) {
+  if (hold && holdBodyAlpha(kind.value, state) > 0.001) {
     const progress = state.phase === 'holding' ? state.progress : 0
     const appear = state.phase === 'enter' ? state.p : 1
     drawScene(ctx, kind.value === 'hold' ? holdBody({ length: bodyLength, progress, appear, t: state.phase === 'holding' ? state.t : 0 }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
