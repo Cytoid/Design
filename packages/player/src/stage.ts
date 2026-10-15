@@ -239,7 +239,7 @@ export class PlayStage {
     const parts = []
 
     // hold body under the head (board-fixed: grows toward the hold end)
-    if ((note.kind === 'hold' || note.kind === 'long_hold') && d.state && (d.state.phase === 'enter' || d.state.phase === 'holding')) {
+    if ((note.kind === 'hold' || note.kind === 'long_hold') && d.state && (d.state.phase === 'enter' || d.state.phase === 'exit' || d.state.phase === 'holding')) {
       const progress = d.state.phase === 'holding' ? d.state.progress : 0
       const appear = d.state.phase === 'enter' ? d.state.p : 1
       if (note.kind === 'long_hold') {

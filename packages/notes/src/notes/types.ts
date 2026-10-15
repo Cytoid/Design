@@ -51,7 +51,18 @@ export interface NoteDesign {
   enter: Clip
   /** hit effects per grade (x = seconds after judgement) */
   clear: Record<ClearGrade, Clip>
-  miss: Clip
+  /**
+   * Miss effect (x = seconds after the miss judgement). Absent on designs with
+   * an `exit`: there the exit fade *is* the miss, the judgement only adds the
+   * MISS text.
+   */
+  miss?: Clip
+  /**
+   * Exit after the hit time while unjudged (x = seconds since the chart hit
+   * time, absolute — not scaled with the approach). Keeps running through a
+   * miss judgement, so a late miss never restarts the note at full opacity.
+   */
+  exit?: Clip
   /** hold-only layers */
   hold?: {
     /** head press-in when the hold starts */
@@ -69,4 +80,7 @@ export type NoteState
     | { phase: 'holding', t: number, progress: number }
     /** `timing`: FAST / SLOW of the hit (shown for GREAT / GOOD / BAD only) */
     | { phase: 'clear', grade: ClearGrade, t: number, timing?: Timing }
-    | { phase: 'miss', t: number }
+    /** past the hit time, still unjudged; t = seconds since the chart hit time */
+    | { phase: 'exit', t: number }
+    /** t = seconds since the miss judgement; `since` = seconds since the chart hit time (defaults to t: judged on the beat) */
+    | { phase: 'miss', t: number, since?: number }

@@ -65,7 +65,8 @@ export function clipsOf(design: NoteDesign): Clip[] {
     design.clear.great,
     design.clear.good,
     design.clear.bad,
-    design.miss,
+    ...(design.exit ? [design.exit] : []),
+    ...(design.miss ? [design.miss] : []),
   ]
 }
 
@@ -115,9 +116,17 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
         layers.push(renderTiming(state.timing, state.grade, state.t, ctx, text ? 'stacked' : 'centre'))
       return layers.length > 1 ? group(layers) : fx
     }
+    case 'exit':
+      return d.exit ? d.exit.draw(state.t, ctx) : d.enter.draw(1, ctx)
     case 'miss': {
-      const fx = d.miss.draw(state.t, ctx)
-      return text ? group([fx, renderJudgement('miss', state.t, ctx)]) : fx
+      // exit designs: the miss keeps riding the exit fade (keyed to the chart
+      // hit time), the judgement only adds the MISS text
+      const since = state.since ?? state.t
+      const fx = d.exit
+        ? since < d.exit.duration ? d.exit.draw(since, ctx) : null
+        : d.miss?.draw(state.t, ctx) ?? null
+      const layers = [fx, text ? renderJudgement('miss', state.t, ctx) : null].filter(Boolean) as SceneNode[]
+      return layers.length === 1 ? layers[0]! : group(layers)
     }
   }
 }

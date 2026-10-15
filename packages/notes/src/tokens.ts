@@ -92,6 +92,13 @@ export const tokens = {
   time: {
     /** enter (approach) clip: ends exactly at the hit time */
     enter: 1.2,
+    /**
+     * Exit: from the chart hit time the unjudged note steps down to
+     * `drop` opacity and falls off as drop − p³ over `duration` seconds —
+     * absolute time, not scaled with the approach. Starts at the hit time
+     * whether or not the note has been judged; a miss rides the same timeline.
+     */
+    exit: { duration: 0.3, drop: 0.8 },
     /** hold press-in */
     holdPress: 0.2,
     /** hold loop period */

@@ -184,6 +184,31 @@ export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, ghos
   return group(parts, { opacity: EFFECT_ALPHA * op, transform: { y: lerp(0, ctx.unit * 0.08, k) } })
 }
 
+/**
+ * Exit opacity: steps from 1 to `drop` (0.8) the moment the hit
+ * time passes — a discrete "you're late" cue — then falls as drop − p³, so it
+ * stays readable through the hit window and vanishes at the end
+ * (≈ 0.93 of the window, clamped). t = seconds since the chart hit time.
+ */
+export function exitAlpha(t: number): number {
+  const { duration, drop } = tokens.time.exit
+  if (t < 0)
+    return 1
+  const p = t / duration
+  return p >= 1 ? 0 : Math.max(0, drop - p ** 3)
+}
+
+/** Exit clip: the steady hit pose under `exitAlpha` (x = seconds since the hit time). */
+export function makeExitClip(pose: (ctx: DrawContext) => SceneNode, note?: string): Clip {
+  return {
+    id: 'exit',
+    mode: 'once',
+    duration: tokens.time.exit.duration,
+    draw: (t, ctx) => group([pose(ctx)], { opacity: exitAlpha(t) }),
+    note: note ?? 'Unjudged past the hit time: hit pose steps to 0.8 opacity, then 0.8 − p³ over 0.3 s. Absolute seconds since the chart hit time; a miss keeps riding it (only the MISS text is added).',
+  }
+}
+
 export function makeClearClips(flavor: ClearFlavor): Record<ClearGrade, Clip> {
   const mk = (grade: ClearGrade): Clip => ({
     id: `clear-${grade}`,

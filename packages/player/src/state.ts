@@ -86,12 +86,12 @@ export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anch
     return null
   if (t < note.time && anchor == null)
     return { phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1 }
-  if (grade === 'pending')
-    return { phase: 'enter', p: 1 } // waiting at the scanline for input
+  if (grade === 'pending') // waiting at the scanline for input: the exit fade keys off the chart hit time
+    return t < note.time ? { phase: 'enter', p: 1 } : { phase: 'exit', t: t - note.time }
   // past the hit time: effects key off the actual press when one happened
   const hit = anchor ?? note.time
   if (grade === 'miss')
-    return t - hit <= clearDuration('miss') ? { phase: 'miss', t: t - hit } : null
+    return t - hit <= clearDuration('miss') ? { phase: 'miss', t: t - hit, since: t - note.time } : null
   if (HOLD_TYPES.has(note.kind) && t < note.timeout) {
     const span = Math.max(1e-6, note.timeout - hit)
     return { phase: 'holding', t: t - hit, progress: clamp01((t - hit) / span) }

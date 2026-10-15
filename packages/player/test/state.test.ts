@@ -55,8 +55,17 @@ describe('noteStateAt', () => {
   })
 
   it('shows miss for the miss window', () => {
-    expect(noteStateAt(note, 1.7, 'miss')).toEqual({ phase: 'miss', t: expect.closeTo(0.2, 3) })
+    expect(noteStateAt(note, 1.7, 'miss')).toEqual({ phase: 'miss', t: expect.closeTo(0.2, 3), since: expect.closeTo(0.2, 3) })
     expect(noteStateAt(note, 2.01, 'miss')).toBeNull()
+  })
+
+  it('a late miss keeps the exit timeline (since = seconds past the chart hit time)', () => {
+    expect(noteStateAt(note, 1.8, 'miss', 1.7)).toEqual({ phase: 'miss', t: expect.closeTo(0.1, 3), since: expect.closeTo(0.3, 3) })
+  })
+
+  it('exits from the hit time while still pending', () => {
+    expect(noteStateAt(note, 1.49, 'pending')).toEqual({ phase: 'enter', p: expect.closeTo(0.993, 2) })
+    expect(noteStateAt(note, 1.6, 'pending')).toEqual({ phase: 'exit', t: expect.closeTo(0.1, 3) })
   })
 })
 

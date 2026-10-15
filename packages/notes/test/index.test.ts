@@ -79,7 +79,7 @@ describe('designs', () => {
     for (const kind of NOTE_KINDS) {
       const d = designs[kind]
       const ctx = createContext(kind)
-      for (const clip of [...Object.values(d.clear), d.miss])
+      for (const clip of [...Object.values(d.clear), d.miss ?? d.exit!])
         expect(bounds(clip.draw(clip.duration, ctx)), `${kind}/${clip.id}`).toBeNull()
     }
   })
@@ -181,5 +181,25 @@ describe('sampling', () => {
     const xs = sampleTimes(clip, 30)
     expect(xs.at(-1)).toBe(1)
     xs.forEach((x, i) => expect(frameIndex(clip, xs.length, x - 1e-9, 30)).toBe(i))
+  })
+})
+
+describe('exit fade', () => {
+  it('steps to 0.8 at the hit time, falls as 0.8 − p³, gone by 0.3 s', async () => {
+    const { exitAlpha } = await import('../src/notes/effects')
+    expect(exitAlpha(-0.01)).toBe(1)
+    expect(exitAlpha(0)).toBeCloseTo(0.8)
+    expect(exitAlpha(0.15)).toBeCloseTo(0.675)
+    expect(exitAlpha(0.29)).toBe(0)
+    expect(exitAlpha(0.3)).toBe(0)
+  })
+  it('click & flick: a miss keeps riding the exit fade', () => {
+    for (const kind of ['click', 'flick'] as const) {
+      const ctx = createContext(kind)
+      expect(designs[kind].exit, kind).toBeDefined()
+      const late = renderNote(kind, { phase: 'miss', t: 0, since: 0.2 }, ctx, { judgement: false })
+      expect(toSVG(late)).toBe(toSVG(renderNote(kind, { phase: 'exit', t: 0.2 }, ctx)))
+      expect(bounds(renderNote(kind, { phase: 'miss', t: 0.1, since: 0.3 }, ctx, { judgement: false }))).toBeNull()
+    }
   })
 })
