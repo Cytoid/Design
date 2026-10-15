@@ -1,11 +1,16 @@
+import type { TimingSlot } from '../src'
 import { describe, expect, it } from 'vitest'
 import {
   bounds,
   createContext,
   drawText,
+  judgementCapHeight,
   renderNote,
+  renderTiming,
   showsTiming,
   TIMED_GRADES,
+  TIMING_COLOR,
+  timingCapHeight,
   timingClips,
   timingOf,
   timingOffset,
@@ -48,6 +53,19 @@ describe('timing label (FAST / SLOW)', () => {
     expect(f).not.toBe(s)
   })
 
+  it('colour is fixed per direction, independent of the grade', () => {
+    expect(TIMING_COLOR.fast).not.toBe(TIMING_COLOR.slow)
+    // at the same point in the window the drawing depends only on the timing
+    const ctx = createContext('click')
+    for (const timing of ['fast', 'slow'] as const) {
+      const svgs = TIMED_GRADES.map((grade) => {
+        const clip = timingClips[grade][timing]
+        return toSVG(clip.draw(clip.duration * 0.5, ctx))
+      })
+      for (const svg of svgs) expect(svg, timing).toBe(svgs[0])
+    }
+  })
+
   it('is toggled independently of the judgement text', () => {
     const state = { phase: 'clear' as const, grade: 'good' as const, t: 0.25, timing: 'fast' as const }
     const both = toSVG(renderNote('click', state))
@@ -71,5 +89,16 @@ describe('timing label (FAST / SLOW)', () => {
     expect(stacked.y).toBeGreaterThan(0)
     // stays inside the clear effect (note radius)
     expect(stacked.y).toBeLessThan(ctx.size / 2)
+  })
+
+  it('takes the judgement text size alone, shrinks to 0.6 stacked', () => {
+    const ctx = createContext('click')
+    expect(timingCapHeight(ctx, 'centre')).toBe(judgementCapHeight(ctx))
+    expect(timingCapHeight(ctx, 'stacked')).toBeCloseTo(judgementCapHeight(ctx) * 0.6)
+    const width = (slot: TimingSlot) => {
+      const b = bounds(renderTiming('fast', 'great', 0.25, ctx, slot))!
+      return b[2] - b[0]
+    }
+    expect(width('centre')).toBeGreaterThan(width('stacked'))
   })
 })

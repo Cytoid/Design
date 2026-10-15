@@ -66,10 +66,12 @@ export interface FrameManifest {
   judgement: Partial<Record<Grade, ClipManifest>> & { capHeight?: number, placement?: string }
   /**
    * FAST / SLOW timing label per timed grade (GREAT / GOOD / BAD), centred on
-   * the label. `offset` = label centre relative to the note centre (px) for
-   * each slot: `stacked` when the judgement text is shown, `centre` when not.
+   * the label. Textures are baked at the centre-slot size (the judgement's
+   * cap height); `scale` shrinks them per slot — `stacked` 0.6 when the
+   * judgement text is shown, `centre` 1 when not. `offset` = label centre
+   * relative to the note centre (px) per slot.
    */
-  timing: Partial<Record<Grade, Record<string, ClipManifest>>> & { capHeight?: number, offset?: Record<string, [number, number]>, placement?: string }
+  timing: Partial<Record<Grade, Record<string, ClipManifest>>> & { capHeight?: number, scale?: Record<string, number>, offset?: Record<string, [number, number]>, placement?: string }
   bodies: Partial<Record<Direction, Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }>>>
 }
 
@@ -200,9 +202,10 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
         manifest.timing[grade]![timing] = await bakeClip(clip, ctx, options.outDir, `timing/${grade}-${timing}`, o)
     }
     const stacked = timingOffset(ctx, 'stacked')
-    manifest.timing.capHeight = timingCapHeight(ctx)
+    manifest.timing.capHeight = timingCapHeight(ctx, 'centre')
+    manifest.timing.scale = { stacked: 0.6, centre: 1 }
     manifest.timing.offset = { stacked: [stacked.x, stacked.y], centre: [0, 0] }
-    manifest.timing.placement = 'GREAT / GOOD / BAD only; label centre at note centre + offset.stacked when the judgement text is on, offset.centre when it is off'
+    manifest.timing.placement = 'GREAT / GOOD / BAD only; scale the texture by timing.scale[slot] around the anchor; label centre at note centre + offset[slot]'
     log('timing')
   }
   for (const direction of directions) {

@@ -14,13 +14,17 @@
  *                 judgement underline, inside the effect.
  *      `centre`   judgement text off: the label takes the vacated centre —
  *                 the position Cytoid's EARLY / LATE always had.
- *  - Same chamfered monoline face as the judgement (no font files), cap
- *    height 0.6 × the judgement's, slightly heavier stroke so it survives
- *    the smaller size.
- *  - Colour: the grade colour lifted toward white — tied to the judgement it
- *    explains, and no new hue competes with the grade palette (blue / yellow
- *    / green / red are all taken; a "blue = fast, red = slow" scheme would
- *    read as PERFECT / BAD).
+ *  - Same chamfered monoline face as the judgement (no font files), with a
+ *    slightly heavier stroke. Two sizes: alone in the centre it takes the
+ *    judgement's full cap height — the slot Cytoid's EARLY / LATE always
+ *    had; stacked under the judgement text it shrinks to 0.6 × so it stays
+ *    a second line, not a rival. Stroke and chevron scale with the cap
+ *    height.
+ *  - Colour (experiment): fixed per direction, not per grade — red = FAST,
+ *    green = SLOW, so direction reads by colour alone at a glance. The base
+ *    design ties the colour to the grade it explains (every hue is taken by
+ *    the grade palette); this variant trades that tie for the instant read,
+ *    at full strength like the judgement text.
  *  - Direction is carried by shape and motion, not colour — the horizontal
  *    axis is time: FAST gets a ‹ chevron on its left and slides in leftward
  *    (ahead of the beat), SLOW gets a › chevron on its right and slides in
@@ -35,7 +39,6 @@
 import type { SceneNode } from '../core/scene'
 import type { Grade } from '../tokens'
 import type { ClearGrade, Clip, DrawContext } from './types'
-import { mix } from '../core/color'
 import { lerp, outBack, outCubic, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { tokens } from '../tokens'
@@ -62,8 +65,10 @@ export function timingOf(error: number): Timing {
 /** Where the label sits: under the judgement text, or alone in the centre. */
 export type TimingSlot = 'stacked' | 'centre'
 
-/** Cap height in px: 0.6 × the judgement text. */
-export const timingCapHeight = (ctx: DrawContext) => judgementCapHeight(ctx) * 0.6
+/** Cap height in px: the judgement's full size alone in the centre, 0.6 × stacked under it. */
+export function timingCapHeight(ctx: DrawContext, slot: TimingSlot): number {
+  return judgementCapHeight(ctx) * (slot === 'centre' ? 1 : 0.6)
+}
 
 /** Label centre relative to the note centre. */
 export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y: number } {
@@ -71,7 +76,7 @@ export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y
     return { x: 0, y: 0 }
   // judgement underline bottom (0.88 Hj) + a 0.3 Hj gap + half the label
   const Hj = judgementCapHeight(ctx)
-  return { x: 0, y: Hj * 1.18 + timingCapHeight(ctx) / 2 }
+  return { x: 0, y: Hj * 1.18 + timingCapHeight(ctx, 'stacked') / 2 }
 }
 
 /** Static label around its own centre (no animation). */
@@ -98,30 +103,40 @@ export function drawTimingLabel(timing: Timing, H: number, color: string, pop?: 
   return group([chevron, group([drawText(text, H, color, { stroke: sw, pop })], { transform: { x: tx } })])
 }
 
-/** Colour of the label for a grade: the grade colour lifted toward white. */
-export function timingColor(grade: TimedGrade, ctx: DrawContext): string {
-  return mix(ctx.grades[grade], '#FFFFFF', 0.45)
+/**
+ * Fixed label colours (experiment): red = FAST, green = SLOW, independent of
+ * the grade. The bases are the grade palette's own red / green hues, at full
+ * strength — the same treatment the judgement text gets — so the direction
+ * read is as strong as this scheme can be.
+ */
+export const TIMING_COLOR: Record<Timing, string> = {
+  fast: tokens.grade.bad,
+  slow: tokens.grade.good,
 }
 
 /** One animated frame around the label centre (t = seconds since judgement). */
-export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext): SceneNode {
+export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
   const u = t / tokens.time.clear[grade]
-  const H = timingCapHeight(ctx)
+  const H = timingCapHeight(ctx, slot)
   const dir = timing === 'fast' ? -1 : 1
   const k = outCubic(seg(u, 0.06, 0.4))
   const pop = (i: number) => outBack(seg(u, 0.06 + i * 0.03, 0.24 + i * 0.03), 1.6)
   const dx = dir * H * 0.5 * (k - 1)
   const dy = -judgementCapHeight(ctx) * 0.12 * outCubic(u)
-  const body = drawTimingLabel(timing, H, timingColor(grade, ctx), pop)
+  const body = drawTimingLabel(timing, H, TIMING_COLOR[timing], pop)
   return group([body], { opacity: lerp(0, 1, seg(u, 0.06, 0.2)) * (1 - seg(u, 0.7, 1)), transform: { x: dx, y: dy } })
 }
 
 /** Placed label (t = seconds since judgement). */
 export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
-  return group([drawTiming(timing, grade, t, ctx)], { transform: timingOffset(ctx, slot) })
+  return group([drawTiming(timing, grade, t, ctx, slot)], { transform: timingOffset(ctx, slot) })
 }
 
-/** One clip per timed grade × timing, drawn around the label centre. */
+/**
+ * One clip per timed grade × timing, drawn around the label centre. Baked at
+ * the centre (full) size — the larger of the two slots — so consumers shrink
+ * it to 0.6 for the stacked slot (see the bake manifest's `timing.scale`).
+ */
 export const timingClips: Record<TimedGrade, Record<Timing, Clip>> = Object.fromEntries(TIMED_GRADES.map(g => [g, {
   fast: clip(g, 'fast'),
   slow: clip(g, 'slow'),
@@ -132,7 +147,7 @@ function clip(grade: TimedGrade, timing: Timing): Clip {
     id: `timing-${grade}-${timing}`,
     mode: 'once',
     duration: tokens.time.clear[grade],
-    draw: (t, ctx) => drawTiming(timing, grade, t, ctx),
+    draw: (t, ctx) => drawTiming(timing, grade, t, ctx, 'centre'),
     note: `“${TIMING_TEXT[timing]}” under ${grade.toUpperCase()} — chevron points along the time axis; drawn around the label centre.`,
   }
 }
