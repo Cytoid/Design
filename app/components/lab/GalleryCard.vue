@@ -40,7 +40,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
     })
     return
   }
-  const { state, t, span } = lifecycle(props.kind, elapsed, review.grade, review.timingSide)
+  const { state, t } = lifecycle(props.kind, elapsed, review.grade, review.timingSide)
   const dc = createContext(props.kind, { palette: palette.value, direction: review.direction, scale: review.scale })
   const hold = designs[props.kind].hold
   const up = review.direction === 'up'
@@ -54,18 +54,24 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   const drop = props.kind.startsWith('drop-')
   const anchor = hold ? (props.kind === 'hold' ? (up ? -100 : 100) : (up ? -1 : 1) * height * 0.325) : 0
   const near = (up ? 1 : -1) * (height / 2 - (hold ? 36 : 0))
-  const scanY = drop ? 0 : near + ((anchor - near) / (hold ? span : 1.5)) * t
+  // a missed hold never starts holding: keep the scanner on the full hold
+  // timeline so it still crosses the head at the hit
+  const scanY = drop ? 0 : near + ((anchor - near) / (hold ? 1.5 + DEMO_HOLD_SECONDS : 1.5)) * t
   const onCard = Math.abs(scanY) <= height / 2 + (hold ? 36 : 0)
   if (!state) {
     if (onCard)
       drawScanline(ctx, width, scanY)
     return
   }
-  if (hold && holdBodyAlpha(props.kind, state) > 0.001) {
+  const bodyAlpha = hold ? holdBodyAlpha(props.kind, state) : 0
+  if (hold && bodyAlpha > 0.001) {
     const progress = state.phase === 'holding' ? state.progress : 0
     const appear = state.phase === 'enter' ? state.p : 1
-    drawScene(ctx, props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: state.phase === 'holding' ? state.t : 0 }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc))
+    const body = props.kind === 'hold' ? holdBody({ length: 100, progress, appear, t: state.phase === 'holding' ? state.t : 0 }, dc) : longHoldBody({ top: height, bottom: height, progress, appear, t: state.phase === 'holding' ? state.t : 0, holdDuration: DEMO_HOLD_SECONDS }, dc)
+    // on the exit the body fades on its own, faster curve
+    drawScene(ctx, bodyAlpha < 0.999 ? group([body], { opacity: bodyAlpha, isolate: true }) : body)
   }
+
   // Hold clears play where the scanline is the moment the hold ends:
   // the body end for holds, a representative line position for the full-height
   // pillar — exactly where the virtual scanner crosses at the end of holding.

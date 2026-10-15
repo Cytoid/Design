@@ -1,5 +1,6 @@
-import type { Direction, Grade, NoteKind, Palette, Timing } from '@cytoid/notes'
+import type { Direction, Grade, NoteKind, NoteState, Palette, Timing } from '@cytoid/notes'
 import { clamp01, createContext, dragLine, drawScene, renderNote, tokens } from '@cytoid/notes'
+import { MISS_DEADLINE } from '~/composables/clips'
 
 /**
  * Scanline recipe shared by the gallery cards, hero stage and drag chains:
@@ -52,8 +53,12 @@ export function paintDragChain(ctx: CanvasRenderingContext2D, opts: DragChainOpt
     : [{ x: -spreadX, y: -step * stepY / 2 }, { x: 0, y: 0 }, { x: spreadX, y: step * stepY / 2 }]
   const kinds: NoteKind[] = [headKind, childKind, childKind]
   const hits = nodes.map(n => 1.5 * (near - n.y * (up ? 1 : -1)) / near)
+  const miss = opts.grade === 'miss'
+  // a missed head exits from its hit and is judged MISS at the deadline; its
+  // dead-chain children exit and show MISS at their own times
+  const lateOf = (i: number) => (miss && i === 0 ? MISS_DEADLINE : 0)
   const clearDur = tokens.time.clear[opts.grade]
-  const t = elapsed % (hits[2]! + clearDur + 0.35)
+  const t = elapsed % (hits[2]! + clearDur + 0.35 + lateOf(0))
   ctx.translate(width / 2, height / 2)
   const base = { palette: opts.palette, direction: opts.direction, scale: opts.scale }
   const headingTo = (a: { x: number, y: number }, b: { x: number, y: number }) => Math.atan2(b.x - a.x, -(b.y - a.y))
@@ -80,12 +85,18 @@ export function paintDragChain(ctx: CanvasRenderingContext2D, opts: DragChainOpt
       if (p > 0)
         drawScene(ctx, renderNote(kind, { phase: 'enter', p }, createContext(kind, { ...base, heading: headingTo(n, nodes[i + 1] ?? n) }), { judgement: false }))
     }
-    else if (t - hit <= clearDur) {
+    else if (t - hit <= clearDur + lateOf(i)) {
       const since = t - hit
+      // drag heads point along the chain — the exit rewinds the head with its arrow
+      const nctx = createContext(kind, { ...base, heading: headingTo(n, nodes[i + 1] ?? n) })
       // only the head is pressed — auto-cleared children never carry a timing
       const timing = i === 0 ? opts.timing ?? undefined : undefined
-      const burst = opts.grade === 'miss' ? { phase: 'miss' as const, t: since } : { phase: 'clear' as const, grade: opts.grade, t: since, timing }
-      drawScene(ctx, renderNote(kind, burst, createContext(kind, base), { judgement: opts.judgement }))
+      const state: NoteState = !miss
+        ? { phase: 'clear', grade: opts.grade as Exclude<Grade, 'miss'>, t: since, timing }
+        : since < lateOf(i)
+          ? { phase: 'exit', t: since }
+          : { phase: 'miss', t: since - lateOf(i), since }
+      drawScene(ctx, renderNote(kind, state, nctx, { judgement: opts.judgement }))
     }
     ctx.restore()
   }
