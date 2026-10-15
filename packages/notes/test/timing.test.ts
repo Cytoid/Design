@@ -1,12 +1,16 @@
+import type { TimingSlot } from '../src'
 import { describe, expect, it } from 'vitest'
 import {
   bounds,
   createContext,
   drawText,
+  judgementCapHeight,
   renderNote,
+  renderTiming,
   showsTiming,
   TIMED_GRADES,
   TIMING_COLOR,
+  timingCapHeight,
   timingClips,
   timingOf,
   timingOffset,
@@ -85,5 +89,16 @@ describe('timing label (FAST / SLOW)', () => {
     expect(stacked.y).toBeGreaterThan(0)
     // stays inside the clear effect (note radius)
     expect(stacked.y).toBeLessThan(ctx.size / 2)
+  })
+
+  it('takes the judgement text size alone, shrinks to 0.6 stacked', () => {
+    const ctx = createContext('click')
+    expect(timingCapHeight(ctx, 'centre')).toBe(judgementCapHeight(ctx))
+    expect(timingCapHeight(ctx, 'stacked')).toBeCloseTo(judgementCapHeight(ctx) * 0.6)
+    const width = (slot: TimingSlot) => {
+      const b = bounds(renderTiming('fast', 'great', 0.25, ctx, slot))!
+      return b[2] - b[0]
+    }
+    expect(width('centre')).toBeGreaterThan(width('stacked'))
   })
 })

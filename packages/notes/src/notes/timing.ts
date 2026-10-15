@@ -14,9 +14,12 @@
  *                 judgement underline, inside the effect.
  *      `centre`   judgement text off: the label takes the vacated centre —
  *                 the position Cytoid's EARLY / LATE always had.
- *  - Same chamfered monoline face as the judgement (no font files), cap
- *    height 0.6 × the judgement's, slightly heavier stroke so it survives
- *    the smaller size.
+ *  - Same chamfered monoline face as the judgement (no font files), with a
+ *    slightly heavier stroke. Two sizes: alone in the centre it takes the
+ *    judgement's full cap height — the slot Cytoid's EARLY / LATE always
+ *    had; stacked under the judgement text it shrinks to 0.6 × so it stays
+ *    a second line, not a rival. Stroke and chevron scale with the cap
+ *    height.
  *  - Colour (experiment): fixed per direction, not per grade — red = FAST,
  *    green = SLOW, so direction reads by colour alone at a glance. The base
  *    design ties the colour to the grade it explains (every hue is taken by
@@ -62,8 +65,10 @@ export function timingOf(error: number): Timing {
 /** Where the label sits: under the judgement text, or alone in the centre. */
 export type TimingSlot = 'stacked' | 'centre'
 
-/** Cap height in px: 0.6 × the judgement text. */
-export const timingCapHeight = (ctx: DrawContext) => judgementCapHeight(ctx) * 0.6
+/** Cap height in px: the judgement's full size alone in the centre, 0.6 × stacked under it. */
+export function timingCapHeight(ctx: DrawContext, slot: TimingSlot): number {
+  return judgementCapHeight(ctx) * (slot === 'centre' ? 1 : 0.6)
+}
 
 /** Label centre relative to the note centre. */
 export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y: number } {
@@ -71,7 +76,7 @@ export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y
     return { x: 0, y: 0 }
   // judgement underline bottom (0.88 Hj) + a 0.3 Hj gap + half the label
   const Hj = judgementCapHeight(ctx)
-  return { x: 0, y: Hj * 1.18 + timingCapHeight(ctx) / 2 }
+  return { x: 0, y: Hj * 1.18 + timingCapHeight(ctx, 'stacked') / 2 }
 }
 
 /** Static label around its own centre (no animation). */
@@ -110,9 +115,9 @@ export const TIMING_COLOR: Record<Timing, string> = {
 }
 
 /** One animated frame around the label centre (t = seconds since judgement). */
-export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext): SceneNode {
+export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
   const u = t / tokens.time.clear[grade]
-  const H = timingCapHeight(ctx)
+  const H = timingCapHeight(ctx, slot)
   const dir = timing === 'fast' ? -1 : 1
   const k = outCubic(seg(u, 0.06, 0.4))
   const pop = (i: number) => outBack(seg(u, 0.06 + i * 0.03, 0.24 + i * 0.03), 1.6)
@@ -124,10 +129,14 @@ export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: Dr
 
 /** Placed label (t = seconds since judgement). */
 export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
-  return group([drawTiming(timing, grade, t, ctx)], { transform: timingOffset(ctx, slot) })
+  return group([drawTiming(timing, grade, t, ctx, slot)], { transform: timingOffset(ctx, slot) })
 }
 
-/** One clip per timed grade × timing, drawn around the label centre. */
+/**
+ * One clip per timed grade × timing, drawn around the label centre. Baked at
+ * the centre (full) size — the larger of the two slots — so consumers shrink
+ * it to 0.6 for the stacked slot (see the bake manifest's `timing.scale`).
+ */
 export const timingClips: Record<TimedGrade, Record<Timing, Clip>> = Object.fromEntries(TIMED_GRADES.map(g => [g, {
   fast: clip(g, 'fast'),
   slow: clip(g, 'slow'),
@@ -138,7 +147,7 @@ function clip(grade: TimedGrade, timing: Timing): Clip {
     id: `timing-${grade}-${timing}`,
     mode: 'once',
     duration: tokens.time.clear[grade],
-    draw: (t, ctx) => drawTiming(timing, grade, t, ctx),
+    draw: (t, ctx) => drawTiming(timing, grade, t, ctx, 'centre'),
     note: `“${TIMING_TEXT[timing]}” under ${grade.toUpperCase()} — chevron points along the time axis; drawn around the label centre.`,
   }
 }
