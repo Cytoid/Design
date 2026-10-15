@@ -132,9 +132,10 @@ export const tokens = {
     s: [0.7, 0.75],
     click: { spawn: 0.319, peak: 1.06, peakP: 0.878, settleP: 0.976 },
     // derived from the click's (same spawn and S shape) but distinguishable:
-    // a touch ahead, and it lands on the hit size without the +6 % overshoot
-    // and settle — a hold carries no timing gauge
-    hold: { spawn: 0.34, peak: 1, peakP: 0.7, settleP: 0.7 },
+    // a touch ahead to 0.95 by p 0.7, then a slow S creep onto the hit size
+    // at p 1 — no +6 % overshoot (a hold carries no timing gauge), but never
+    // frozen either: the head keeps swelling gently through the late phase
+    hold: { spawn: 0.34, peak: 0.95, peakP: 0.7, settleP: 1 },
     dragHead: { spawn: 0.293, peak: 1.05, peakP: 0.766, settleP: 0.872 },
     dragChild: { spawn: 0.259, peak: 1.03, peakP: 0.766, settleP: 0.851 },
   },
