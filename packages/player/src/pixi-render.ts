@@ -300,7 +300,7 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
           e.mask = new Graphics() as Graphics & { signatureKey?: string }
           e.container.addChild(e.mask)
         }
-        // rebuild in place — the hold body's clip changes every frame while unrolling
+        // rebuild in place — the hold body's clip changes every frame while it stretches in
         if (e.mask.signatureKey !== key) {
           e.mask.clear()
           buildMaskShape(e.mask, n.clip)

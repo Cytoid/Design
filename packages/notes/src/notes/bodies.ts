@@ -21,6 +21,24 @@ export interface HoldBodyOptions {
   appear?: number
 }
 
+/**
+ * Body entrance, keyed on the head's enter progress (`appear`): the body
+ * fades in while it stretches the last 20 % of its length — from
+ * `BODY_REVEAL.from` × to full — over one short window once the head is mostly
+ * built. A full 0 → 1 unroll read as a slow crawl; this keeps a hint of
+ * motion and lands the body early.
+ */
+export const BODY_REVEAL = { start: 0.08, end: 0.35, fadeEnd: 0.22, from: 0.8 }
+
+/** Length factor (BODY_REVEAL.from → 1) and opacity (0 → 1) of the body at `appear`. */
+export function bodyReveal(appear: number): { stretch: number, alpha: number } {
+  const { start, end, fadeEnd, from } = BODY_REVEAL
+  return {
+    stretch: lerp(from, 1, outCubic(seg(appear, start, end))),
+    alpha: seg(appear, start, fadeEnd),
+  }
+}
+
 /** Integer dash period of the hold body conveyor (= tile height of the baked strip). */
 export function holdDashPeriod(ctx: DrawContext): number {
   return Math.max(2, Math.round(ctx.unit * tokens.stroke.holdBody * 1.1))
@@ -48,9 +66,9 @@ export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   const hair = ctx.unit * tokens.stroke.hair
   const L = Math.max(0, o.length)
   const appear = clamp01(o.appear ?? 1)
-  // body unrolls from the head once the head is mostly built (hidden under it before)
-  const unroll = outCubic(seg(appear, 0.3, 0.9))
-  const shown = L * unroll
+  // body fades in while stretching 0.8 → 1 of its length (see BODY_REVEAL)
+  const reveal = bodyReveal(appear)
+  const shown = L * reveal.stretch
   const p = clamp01(o.progress)
   const done = L * p
   const dash = holdDashPeriod(ctx) / 2
@@ -82,7 +100,7 @@ export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   // rounded far end: clip the whole body to a capsule whose near end hides under the head
   const rx = Math.min(r, (shown + r) / 2)
   return group(items, {
-    opacity: seg(appear, 0.3, 0.45),
+    opacity: reveal.alpha,
     clip: { type: 'rect', x: -r, y: s > 0 ? -r : -shown, w: Wb, h: shown + r, rx },
   })
 }
@@ -129,9 +147,9 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
   const WbFull = ctx.unit * tokens.stroke.holdBody
   const hair = ctx.unit * tokens.stroke.hair
   const appear = clamp01(o.appear ?? 1)
-  const a = outCubic(seg(appear, 0.3, 0.9))
-  const top = o.top * a
-  const bottom = o.bottom * a
+  const reveal = bodyReveal(appear)
+  const top = o.top * reveal.stretch
+  const bottom = o.bottom * reveal.stretch
   const p = clamp01(o.progress)
   // live collapse: fixed 0.6 s, ending exactly at the hold's finish; holds
   // shorter than that collapse across their whole length. Static consumers
@@ -183,7 +201,7 @@ export function longHoldBody(o: LongHoldBodyOptions, ctx: DrawContext): SceneNod
     if (bottom > 0)
       items.push(conveyor(bottom * p, 0, dash, ctx.palette[800], 0.55 * seal))
   }
-  return group(items, { opacity: seg(appear, 0.3, 0.45) })
+  return group(items, { opacity: reveal.alpha })
 }
 
 export interface DragLineOptions {
