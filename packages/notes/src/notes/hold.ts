@@ -13,7 +13,8 @@
  *    converging approach ring, double blink in p 0.7–1). A hold's lands
  *    early: two outer bracket arcs (Cytus II-style lock) fade in and spin
  *    in on a heavily damped (viscous) decay, slowing into a faint drift that
- *    lands perpendicular to the body at p 1 — a fixed radius, never converging,
+ *    lands perpendicular to the body ≈ 4 frames before the hit (so a press
+ *    on the beat finds it still) — a fixed radius, never converging,
  *    so it never reads as a timing ring, but the late phase stays alive.
  *  - **Size.** Derived from the click's S-curve (same shape, spawn 0.34) but
  *    a touch ahead to 0.95 at p 0.7, then a slow creep onto the hit size at
@@ -76,15 +77,25 @@ const GLYPH = 0.2
 /** Outer lock brackets: radius (× R), half span (rad), stroke (× hair). */
 const BRACKET = { r: 1.2, half: TAU * 0.16, width: 2.6 }
 /**
- * Bracket motion: fade p 0.1–0.25; one heavily damped spin (`turns` over
- * p 0.1–1) on a viscous, exponential decay (`damping` = k in
+ * Bracket motion: fade p 0.1–0.25; one heavily damped spin (`turns` from
+ * p 0.1) on a viscous, exponential decay (`damping` = k in
  * (1 − e^(−k·u)) / (1 − e^(−k))): a fast spin-in that bleeds off into an
- * ever slower drift — ≈ 20° over the last 40 %, still creeping (≈ 12°/s)
- * as it lands on the rest pose (perpendicular to the body) exactly at p 1,
- * where the press clamps them onto the ring. It never stops, so the late
- * phase stays alive, but it slows monotonically — no timing to read.
+ * ever slower drift — ≈ 20° over the last 40 %, still creeping as it lands
+ * on the rest pose (perpendicular to the body). It never stalls mid-way, so
+ * the late phase stays alive, but it slows monotonically — no timing to read.
+ *
+ * It lands `settle` seconds (≈ 4 frames @ 60 fps) *before* the hit — real
+ * time, from `ctx.approach`, so the margin holds at every scroll speed — and
+ * rests there: a press on the beat finds a still head, and the press clamps
+ * the brackets onto the ring from that pose. The landing speed (≈ 12°/s)
+ * is far below what a stop could show.
  */
-const BRACKET_TIMING = { from: 0.1, fadeTo: 0.25, turns: 1.05, damping: 5 }
+const BRACKET_TIMING = { from: 0.1, fadeTo: 0.25, turns: 1.05, damping: 5, settle: 4 / 60 }
+
+/** Enter progress at which the brackets land: `settle` seconds before the hit (capped to the last 20 %). */
+function bracketLandP(ctx: DrawContext): number {
+  return 1 - Math.min(0.2, BRACKET_TIMING.settle / Math.max(1e-3, ctx.approach))
+}
 
 /** Viscous decay 0 → 1 over u ∈ [0, 1]: fast start, never-zero slowing tail. */
 function damped(u: number, k: number): number {
@@ -155,7 +166,7 @@ function holdEnter(long: boolean) {
     const wake = holdWake(p)
     const head = holdHead(ctx, long, k, glyph, split, wake)
     const { from, fadeTo, turns, damping } = BRACKET_TIMING
-    const spin = -TAU * turns * (1 - damped(seg(p, from, 1), damping))
+    const spin = -TAU * turns * (1 - damped(seg(p, from, bracketLandP(ctx)), damping))
     const lock = brackets(ctx, R * BRACKET.r, spin, ringTone(ctx.palette, wake), seg(p, from, fadeTo))
     return group([lock, head].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p) } })
   }
@@ -232,8 +243,8 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, still creeping onto their rest pose at p 1; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
-        : 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, still creeping onto their rest pose at p 1; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
+        ? 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
+        : 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
