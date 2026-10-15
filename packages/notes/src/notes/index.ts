@@ -136,7 +136,9 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
  */
 export function missExitTime(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>): number | null {
   const since = state.since ?? state.t
-  if (!d.exit || (d.miss && since - state.t >= d.exit.duration))
+  // judged at the deadline (= the exit's end, Cytoid's miss threshold) still
+  // counts as riding it; the epsilon absorbs float error in since − t
+  if (!d.exit || (d.miss && since - state.t > d.exit.duration + 1e-3))
     return null
   return since
 }

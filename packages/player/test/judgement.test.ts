@@ -1,7 +1,7 @@
 import type { Chart } from '../src/types'
 import { describe, expect, it } from 'vitest'
 import { parseChart } from '../src/chart'
-import { JUDGE_WINDOWS, JudgeEngine } from '../src/judgement'
+import { JudgeEngine, missThreshold } from '../src/judgement'
 
 const board = { width: 800, height: 600 }
 
@@ -39,8 +39,8 @@ describe('press grading windows', () => {
     expect(engine.score().perfect).toBe(1)
   })
 
-  it('accepts inside the bad window and grades great/good/bad', () => {
-    for (const [dt, want] of [[0.07, 'great'], [0.12, 'good'], [0.18, 'bad']] as const) {
+  it('accepts inside the bad window and grades great/good/bad (ranked, late)', () => {
+    for (const [dt, want] of [[0.06, 'great'], [0.12, 'good'], [0.18, 'bad']] as const) {
       const engine = new JudgeEngine(parseChart(clickChart()), { radiusPx: R, board })
       engine.press(400, 300, 1.5 + dt, 1)
       expect(engine.score()[want]).toBe(1)
@@ -49,7 +49,7 @@ describe('press grading windows', () => {
 
   it('rejects presses outside the time window or the hit radius', () => {
     const engine = new JudgeEngine(parseChart(clickChart()), { radiusPx: R, board })
-    expect(engine.press(400, 300, 1.5 + JUDGE_WINDOWS.bad + 0.01, 1)).toBeNull()
+    expect(engine.press(400, 300, 1.5 + 0.21, 1)).toBeNull()
     expect(engine.press(400, 300 + R * 1.7, 1.5, 1)).toBeNull()
     expect(engine.press(400 + R * 1.7, 300, 1.5, 1)).toBeNull()
   })
@@ -91,9 +91,12 @@ describe('pending → miss lifecycle', () => {
     const engine = new JudgeEngine(parsed, { radiusPx: R, board })
     expect(engine.gradeOf(note)).toBe('pending')
     engine.update(1.55)
-    expect(engine.gradeOf(note)).toBe('pending') // still inside 0.2 s
-    engine.update(1.72)
+    expect(engine.gradeOf(note)).toBe('pending') // still inside the window
+    engine.update(1.78)
+    expect(engine.gradeOf(note)).toBe('pending') // past the last band, before the 0.3 s miss threshold
+    engine.update(1.81)
     expect(engine.gradeOf(note)).toBe('miss')
+    expect(engine.anchorOf(note)).toBeCloseTo(1.8) // anchored at the deadline, not the frame
   })
 
   it('pending does not render as miss inside the window (the bug this guards)', () => {
@@ -131,8 +134,40 @@ describe('hold judgement', () => {
 
   it('misses when never pressed', () => {
     const engine = new JudgeEngine(parseChart(holdChart()), { radiusPx: R, board })
-    engine.update(1.75) // past hit time + bad window
+    engine.update(1.85) // past hit time + miss threshold
     expect(engine.score().miss).toBe(1)
+  })
+})
+
+describe('ranked / practice (Cytoid windows)', () => {
+  it('asymmetric bands: early presses get more room', () => {
+    for (const [dt, want] of [[-0.05, 'great'], [-0.18, 'good'], [-0.35, 'bad'], [0.16, 'bad']] as const) {
+      const engine = new JudgeEngine(parseChart(clickChart()), { radiusPx: R, board })
+      engine.press(400, 300, 1.5 + dt, 1)
+      expect(engine.score()[want], `${dt}`).toBe(1)
+    }
+  })
+  it('ranked ignores late presses between the last band and the miss threshold', () => {
+    const engine = new JudgeEngine(parseChart(clickChart()), { radiusPx: R, board })
+    expect(engine.press(400, 300, 1.75, 1)).toBeNull()
+  })
+  it('practice widens the bands; the miss threshold stays 0.3 s', () => {
+    const parsed = parseChart(clickChart())
+    const engine = new JudgeEngine(parsed, { radiusPx: R, board, mode: 'practice' })
+    expect(engine.press(400, 300, 1.78, 1)).toBe(0)
+    expect(engine.score().bad).toBe(1)
+    const idle = new JudgeEngine(parsed, { radiusPx: R, board, mode: 'practice' })
+    idle.update(1.79)
+    expect(idle.gradeOf(parsed.notes[0]!)).toBe('pending')
+    idle.update(1.81)
+    expect(idle.gradeOf(parsed.notes[0]!)).toBe('miss')
+  })
+  it('miss thresholds per kind (Cytoid GetDefaultMissThreshold)', () => {
+    expect(missThreshold('click')).toBe(0.3)
+    expect(missThreshold('flick')).toBe(0.3)
+    expect(missThreshold('hold')).toBe(0.3)
+    expect(missThreshold('drag_child')).toBe(0.15)
+    expect(missThreshold('drop_click')).toBe(0.2)
   })
 })
 
@@ -247,7 +282,7 @@ describe('anchors & combo', () => {
     const engine = new JudgeEngine(parseChart(chart), { radiusPx: R, board })
     engine.press(160, 300, 0.5, 1) // perfect → combo 1
     expect(engine.score().combo).toBe(1)
-    engine.update(1.3) // note 1 passes its window → miss
+    engine.update(1.35) // note 1 passes its miss threshold → miss
     expect(engine.score().combo).toBe(0)
     expect(engine.score().maxCombo).toBe(1)
     expect(engine.score().miss).toBe(1)

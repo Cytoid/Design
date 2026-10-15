@@ -221,6 +221,9 @@ describe('exit fade', () => {
     expect(toSVG(early)).toBe(toSVG(designs.hold.miss!.draw(0.1, ctx)))
     const late = renderNote('hold', { phase: 'miss', t: 0, since: 0.2 }, ctx, { judgement: false })
     expect(toSVG(late)).toBe(toSVG(designs.hold.exit!.draw(0.2, ctx)))
+    // judged exactly at the 0.3 s miss threshold: the exit has ended, nothing pops back
+    const deadline = renderNote('hold', { phase: 'miss', t: 0.05, since: 0.35 }, ctx, { judgement: false })
+    expect(bounds(deadline)).toBeNull()
   })
   it('taps: a miss keeps riding the exit fade', () => {
     for (const kind of ['click', 'flick', 'drag-head', 'click-drag-head'] as const) {

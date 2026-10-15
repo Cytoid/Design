@@ -19,6 +19,9 @@ const offsetMs = ref(0)
 const judgement = ref(true)
 const timing = ref(true)
 const playMode = ref(false)
+/** Cytoid game mode: ranked / practice judgement windows (same 0.3 s miss deadline) */
+const judgeMode = ref<'ranked' | 'practice'>('ranked')
+const judgeModeItems = [{ label: 'Ranked', value: 'ranked' }, { label: 'Practice', value: 'practice' }]
 const stats = ref<{ combo: number, maxCombo: number, perfect: number, great: number, good: number, bad: number, miss: number, judged: number, fast: number, slow: number } | null>(null)
 const dragging = ref(false)
 const isDemo = ref(false)
@@ -46,6 +49,7 @@ async function mount() {
     deviceOffset: offsetMs.value / 1000,
     rate: speed.value,
     playMode: playMode.value,
+    judgeMode: judgeMode.value,
   })
   await player.attach(hostEl.value)
   uiTimer = window.setInterval(() => {
@@ -81,6 +85,7 @@ watch(playMode, () => {
   stats.value = null
   player?.updateOptions({ playMode: playMode.value })
 })
+watch(judgeMode, () => player?.updateOptions({ judgeMode: judgeMode.value }))
 watch(speed, () => {
   player?.updateOptions({ rate: speed.value })
   if (playing.value)
@@ -230,6 +235,10 @@ function onUp(e: PointerEvent) {
           <USelect v-model="speed" :items="speedItems" class="w-20" />
         </label>
         <UCheckbox v-model="playMode" label="Play mode (tap to judge)" />
+        <label v-if="playMode" class="flex items-center gap-2.5 text-xs text-muted">
+          Judge
+          <USelect v-model="judgeMode" :items="judgeModeItems" class="w-28" />
+        </label>
         <label class="flex items-center gap-2.5 text-xs text-muted">
           Offset
           <USlider v-model="offsetMs" :min="-200" :max="200" :step="5" class="w-24" />
