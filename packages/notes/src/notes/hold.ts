@@ -15,15 +15,17 @@
  *    ¾ turn into place, perpendicular to the body, by the wake (p 0.6) — a
  *    fixed radius, never converging, so it never reads as a timing ring.
  *    From then on the head is still until the hit.
- *  - **Size.** No shared S-curve: the head rises once to the hit size by
- *    p 0.35 (`tokens.sizeCurve.hold`) — no late swell, no overshoot. A click
- *    grows toward the hit; a hold is already there.
+ *  - **Size.** Derived from the click's S-curve (same shape, spawn 0.34) but
+ *    a touch ahead, landing on the hit size at p 0.7 with no +6 % overshoot
+ *    and settle (`tokens.sizeCurve.hold`) — close enough to read as the same
+ *    family, without the click's late swell.
  *
  * Entry still speaks the click shade language on the palette scale: the head
  * spawns as one 600 ball, then the socket contracts out of it and sinks to
  * 900 as the band rises to 400. Every shade (and the brackets) stays
- * WAKE_DROP steps darker until the click's WAKE window (0.45–0.7) — a page
- * cue, not a gauge. No arrows: arrows would suggest dragging.
+ * WAKE_DROP steps darker until the hold's own wake (`HOLD_WAKE`, 0.3–0.85,
+ * sine — same midpoint as the click's WAKE, twice as gentle) — a page cue,
+ * not a gauge. No arrows: arrows would suggest dragging.
  *
  * Holding is split into independent layers (frame-friendly), composed as
  * press → loop → progress (bottom to top):
@@ -41,11 +43,11 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { inOutQuad, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
+import { inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
-import { ringWidth, wakeAmount, wakeShade } from './click'
+import { ringWidth, wakeShade } from './click'
 import { makeClearClips, makeExitClip, makeMissClip } from './effects'
 import { arc, assemblingRing, disk, ring } from './parts'
 
@@ -113,18 +115,31 @@ function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, spl
   ].filter(Boolean) as SceneNode[])
 }
 
-/** Size: one early rise to the hit size, no overshoot (`tokens.sizeCurve.hold`). */
+/**
+ * Hold wake (0 asleep → 1 lit): the click's WAKE window is too short for a
+ * hold — its lit band, ring and brackets are a large bright area, and
+ * brightening them all inside 0.3 s read as a glitch. Same midpoint as the
+ * shared WAKE (≈ 0.575, so pages still separate the same way), spread over
+ * twice the span with a gentler sine ease.
+ */
+export const HOLD_WAKE = { from: 0.3, to: 0.85 }
+
+export function holdWake(p: number): number {
+  return inOutSine(seg(p, HOLD_WAKE.from, HOLD_WAKE.to))
+}
+
+/** Size: the click's S-curve, a touch ahead and without the overshoot (`tokens.sizeCurve.hold`). */
 export const holdSize = riseSettleCurve(tokens.sizeCurve.hold, tokens.sizeCurve.s)
 
 function holdEnter(long: boolean) {
   return (p: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
-    // steady by p = 0.35 — no timing to read on a hold head
+    // internals steady by p = 0.35 — no timing to read on a hold head
     const k = outCubic(seg(p, 0, 0.35))
     const glyph = seg(p, 0.2, 0.42)
     // split starts after the fade-in (0.08) and lands with the steady pose (0.35)
     const split = inOutQuad(seg(p, 0.08, 0.35))
-    const wake = wakeAmount(p)
+    const wake = holdWake(p)
     const head = holdHead(ctx, long, k, glyph, split, wake)
     const { from, fadeTo, spinTo, turns } = BRACKET_TIMING
     const spin = lerp(-TAU * turns, 0, outCubic(seg(p, from, spinTo)))
@@ -204,8 +219,8 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Reads apart from a click: one early rise to the hit size (no overshoot), two lock brackets spin ¾ turn into place by p 0.6, then still. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours dim until p 0.45–0.7 (page cue).'
-        : 'Reads apart from a click: one early rise to the hit size (no overshoot), two lock brackets spin ¾ turn into place by p 0.6, then still. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours dim until p 0.45–0.7 (page cue).',
+        ? 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin ¾ turn into place by p 0.6, then still. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
+        : 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin ¾ turn into place by p 0.6, then still. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },

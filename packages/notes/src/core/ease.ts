@@ -24,6 +24,7 @@ export const inQuad: Ease = t => t * t
 export const outQuad: Ease = t => 1 - (1 - t) * (1 - t)
 export const outSine: Ease = t => Math.sin((t * Math.PI) / 2)
 export const inSine: Ease = t => 1 - Math.cos((t * Math.PI) / 2)
+export const inOutSine: Ease = t => (1 - Math.cos(t * Math.PI)) / 2
 export const inOutQuad: Ease = t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 export const inCubic: Ease = t => t * t * t
 export const outCubic: Ease = t => 1 - (1 - t) ** 3

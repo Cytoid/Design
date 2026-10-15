@@ -131,11 +131,10 @@ export const tokens = {
   sizeCurve: {
     s: [0.7, 0.75],
     click: { spawn: 0.319, peak: 1.06, peakP: 0.878, settleP: 0.976 },
-    // deliberately *not* the click's: a hold carries no timing gauge, so it
-    // skips the late swell + overshoot and rises once, early, to the hit size
-    // (settled with the head's internals at p 0.35) — click grows *toward*
-    // the hit, a hold is already there
-    hold: { spawn: 0.62, peak: 1, peakP: 0.35, settleP: 0.35 },
+    // derived from the click's (same spawn and S shape) but distinguishable:
+    // a touch ahead, and it lands on the hit size without the +6 % overshoot
+    // and settle — a hold carries no timing gauge
+    hold: { spawn: 0.34, peak: 1, peakP: 0.7, settleP: 0.7 },
     dragHead: { spawn: 0.293, peak: 1.05, peakP: 0.766, settleP: 0.872 },
     dragChild: { spawn: 0.259, peak: 1.03, peakP: 0.766, settleP: 0.851 },
   },
