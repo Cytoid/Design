@@ -1,4 +1,4 @@
-import type { Direction, Grade, NoteKind, Palette } from '@cytoid/notes'
+import type { Direction, Grade, NoteKind, Palette, Timing } from '@cytoid/notes'
 import { clamp01, createContext, dragLine, drawScene, renderNote, tokens } from '@cytoid/notes'
 
 /**
@@ -21,6 +21,8 @@ export interface DragChainOptions {
   grade: Grade
   scale: number
   judgement: boolean
+  /** FAST / SLOW label on the head's clear (children auto-clear: no timing) */
+  timing?: Timing | null
   palette: Palette
 }
 
@@ -80,7 +82,9 @@ export function paintDragChain(ctx: CanvasRenderingContext2D, opts: DragChainOpt
     }
     else if (t - hit <= clearDur) {
       const since = t - hit
-      const burst = opts.grade === 'miss' ? { phase: 'miss' as const, t: since } : { phase: 'clear' as const, grade: opts.grade, t: since }
+      // only the head is pressed — auto-cleared children never carry a timing
+      const timing = i === 0 ? opts.timing ?? undefined : undefined
+      const burst = opts.grade === 'miss' ? { phase: 'miss' as const, t: since } : { phase: 'clear' as const, grade: opts.grade, t: since, timing }
       drawScene(ctx, renderNote(kind, burst, createContext(kind, base), { judgement: opts.judgement }))
     }
     ctx.restore()

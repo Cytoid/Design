@@ -64,6 +64,26 @@ describe('press grading windows', () => {
   })
 })
 
+describe('fast / slow timing', () => {
+  it('records FAST before the beat and SLOW after it, for great/good/bad only', () => {
+    for (const [dt, want] of [[-0.07, 'fast'], [0.12, 'slow'], [-0.18, 'fast'], [0.03, null], [-0.03, null]] as const) {
+      const parsed = parseChart(clickChart())
+      const engine = new JudgeEngine(parsed, { radiusPx: R, board })
+      engine.press(400, 300, 1.5 + dt, 1)
+      expect(engine.timingFor(parsed.notes[0]!), `dt ${dt}`).toBe(want)
+      expect(engine.score().fast).toBe(want === 'fast' ? 1 : 0)
+      expect(engine.score().slow).toBe(want === 'slow' ? 1 : 0)
+    }
+  })
+
+  it('misses carry no timing', () => {
+    const parsed = parseChart(clickChart())
+    const engine = new JudgeEngine(parsed, { radiusPx: R, board })
+    engine.update(1.8)
+    expect(engine.timingFor(parsed.notes[0]!)).toBeNull()
+  })
+})
+
 describe('pending → miss lifecycle', () => {
   it('keeps unpressed notes at hit pose, misses after the deadline', () => {
     const parsed = parseChart(clickChart())

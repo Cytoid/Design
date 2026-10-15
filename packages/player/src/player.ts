@@ -1,4 +1,4 @@
-import type { Grade, Palette } from '@cytoid/notes'
+import type { Grade, Palette, Timing } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { Clock } from './clock'
 import type { StageOptions } from './stage'
@@ -21,12 +21,16 @@ export interface PlayerOptions {
   palette: Palette
   scale: number
   judgement: boolean
+  /** FAST / SLOW timing label — independent of `judgement` */
+  timing: boolean
   deviceOffset: number
   /** playback rate 0.25–2 */
   rate: number
   /** play mode: taps are judged; false = autoplay all-perfect */
   playMode?: boolean
   grades?: (index: number) => Grade
+  /** autoplay preview timings (play mode uses the judge's) */
+  timings?: (index: number) => Timing | null
 }
 
 export class Player {
@@ -51,6 +55,12 @@ export class Player {
       palette: this.options.palette,
       scale: this.options.scale,
       judgement: this.options.judgement,
+      timing: this.options.timing,
+      timings: this.options.playMode && this.judge
+        ? n => this.judge!.timingFor(n)
+        : this.options.timings
+          ? (_n, i) => this.options.timings!(i)
+          : undefined,
       grades: this.options.playMode && this.judge
         ? n => this.judge!.gradeOf(n)
         : this.options.grades

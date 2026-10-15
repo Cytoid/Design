@@ -4,7 +4,8 @@
  * Typeface: a custom monoline, chamfered (45°) geometric capital set drawn
  * with the same polyline primitives as the notes — no font files, identical
  * in Canvas, SVG/resvg bakes and a Unity port. The 14 judgement letters plus
- * digits and '%' (combo / score UI) are defined.
+ * digits and '%' (combo / score UI) are defined, plus L / W for the
+ * FAST / SLOW timing label (`timing.ts`).
  *
  * Motion (u = t / duration, duration = the grade's clear duration):
  *  0.00–0.40  tracking closes in (1.0 H → 0.32 H letter gap)
@@ -36,7 +37,7 @@ const M = 0.82
 const GLYPHS: Record<string, Glyph> = {
   'P': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]]] },
   'E': { w: W, strokes: [[[W, 0], [0, 0], [0, 1], [W, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
-  'R': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W * 0.42, 0.5], [W, 1]]] },
+  'R': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W * 0.2, 0.5], [W * 0.42, 0.5], [W, 0.5 + W * 0.58], [W, 1]]] }, // leg: lead-in along the bowl line, 45° run, vertical foot — bare diagonal ends poke their square caps past the bowl line / baseline
   'F': { w: W, strokes: [[[W, 0], [0, 0], [0, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
   'C': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 1 - K], [K, 1], [W, 1]]] },
   'T': { w: W, strokes: [[[0, 0], [W, 0]], [[W / 2, 0], [W / 2, 1]]] },
@@ -45,10 +46,16 @@ const GLYPHS: Record<string, Glyph> = {
   'O': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
   'D': { w: W, strokes: [[[0, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [0, 1]]], closed: [true] },
   'B': { w: W, strokes: [[[0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1], [0, 0]]] },
-  'M': { w: M, strokes: [[[0, 1], [0, 0], [M / 2, 0.55], [M, 0], [M, 1]]] },
+  // chamfered top corners + a centre stem (pairs with W) — no acute V-joints
+  'M': { w: M, strokes: [[[0, 1], [0, K], [K, 0], [M - K, 0], [M, K], [M, 1]], [[M / 2, 0], [M / 2, 0.6]]] },
   'I': { w: 0, strokes: [[[0, 0], [0, 1]]] },
   'S': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 0.5 - K], [K, 0.5], [W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1]]] },
   'X': { w: W * 0.9, strokes: [[[0, 0], [W * 0.9, 1]], [[W * 0.9, 0], [0, 1]]] },
+  // FAST / SLOW timing label
+  'L': { w: W * 0.9, strokes: [[[0, 0], [0, 1], [W * 0.9, 1]]] },
+  // M flipped: a V-joint would meet the stems at an acute angle and the miter
+  // join would spike past the baseline
+  'W': { w: M, strokes: [[[0, 0], [0, 1 - K], [K, 1], [M - K, 1], [M, 1 - K], [M, 0]], [[M / 2, 0.4], [M / 2, 1]]] },
   // digits — same chamfered stroke language as the letters (combo / score UI)
   '0': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
   '1': { w: 0.34, strokes: [[[0, 0.16], [0.17, 0], [0.17, 1]]] },

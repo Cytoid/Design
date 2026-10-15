@@ -11,6 +11,7 @@ import { dropClick, dropDrag } from './drop'
 import { flick } from './flick'
 import { hold, longHold } from './hold'
 import { judgementClips, judgementOffset } from './judgement'
+import { renderTiming, showsTiming } from './timing'
 
 export const designs: Record<NoteKind, NoteDesign> = {
   'click': click,
@@ -71,6 +72,12 @@ export function clipsOf(design: NoteDesign): Clip[] {
 export interface RenderOptions {
   /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
   judgement?: boolean
+  /**
+   * draw the FAST / SLOW timing label when the clear state carries a `timing`
+   * (GREAT / GOOD / BAD only). Independent of `judgement`: stacked under the
+   * judgement text when both are on, alone in the centre otherwise. Default true.
+   */
+  timing?: boolean
 }
 
 /** Judgement text placed above the note (t = seconds since judgement). */
@@ -101,7 +108,12 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
     }
     case 'clear': {
       const fx = d.clear[state.grade].draw(state.t, ctx)
-      return text ? group([fx, renderJudgement(state.grade, state.t, ctx)]) : fx
+      const layers = [fx]
+      if (text)
+        layers.push(renderJudgement(state.grade, state.t, ctx))
+      if (state.timing && (options.timing ?? true) && showsTiming(state.grade))
+        layers.push(renderTiming(state.timing, state.grade, state.t, ctx, text ? 'stacked' : 'centre'))
+      return layers.length > 1 ? group(layers) : fx
     }
     case 'miss': {
       const fx = d.miss.draw(state.t, ctx)
@@ -112,4 +124,5 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
 
 export * from './bodies'
 export * from './judgement'
+export * from './timing'
 export type * from './types'
