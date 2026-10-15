@@ -1,6 +1,7 @@
 import type { Grade, Palette, Timing } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { Clock } from './clock'
+import type { JudgeMode } from './judgement'
 import type { StageOptions } from './stage'
 import { tokens } from '@cytoid/notes'
 /**
@@ -28,6 +29,8 @@ export interface PlayerOptions {
   rate: number
   /** play mode: taps are judged; false = autoplay all-perfect */
   playMode?: boolean
+  /** Cytoid game mode for play-mode judging (ranked / practice windows). Default ranked. */
+  judgeMode?: JudgeMode
   grades?: (index: number) => Grade
   /** autoplay preview timings (play mode uses the judge's) */
   timings?: (index: number) => Timing | null
@@ -169,6 +172,7 @@ export class Player {
     return new JudgeEngine(this.parsed!, {
       radiusPx: (tokens.unit / 2) * this.options.scale,
       board: { width: this.lastBoard.width, height: this.lastBoard.height },
+      mode: this.options.judgeMode,
     })
   }
 
@@ -193,6 +197,8 @@ export class Player {
     Object.assign(this.options, o)
     if (modeChanged && this.parsed)
       this.judge = this.options.playMode ? this.makeJudge() : null
+    if (o.judgeMode !== undefined)
+      this.judge?.setMode(o.judgeMode)
     if (o.scale !== undefined && this.judge)
       this.judge.setRadius((tokens.unit / 2) * this.options.scale)
     this.stage.setOptions(this.stageOptions)

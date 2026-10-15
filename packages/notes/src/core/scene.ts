@@ -86,6 +86,13 @@ export interface GroupNode extends BaseNode {
   transform?: Transform
   /** optional clip (in group-local coordinates) */
   clip?: ClipShape
+  /**
+   * Composite the children as one layer before applying `opacity` (SVG group
+   * semantics). Without it, live renderers distribute the opacity to every
+   * primitive and stacked layers show through each other — fine for loose
+   * effects, a visible ghost on a solid note fading as a whole (e.g. exit).
+   */
+  isolate?: boolean
   children: SceneNode[]
 }
 

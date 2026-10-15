@@ -54,6 +54,49 @@ function clipPath(ctx: Ctx2D, c: ClipShape) {
   ctx.clip()
 }
 
+/** Offscreen layers for isolated groups, one per nesting depth (reused across frames). */
+const layers: (OffscreenCanvas | HTMLCanvasElement)[] = []
+let layerDepth = 0
+
+function layerCanvas(w: number, h: number): OffscreenCanvas | HTMLCanvasElement {
+  let c = layers[layerDepth]
+  if (!c) {
+    c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : document.createElement('canvas')
+    layers[layerDepth] = c
+  }
+  if (c.width !== w || c.height !== h) {
+    c.width = w
+    c.height = h
+  }
+  return c
+}
+
+/**
+ * Isolated group: draw the children at full opacity into an offscreen layer
+ * with the same device transform, then composite it once at `alpha`. The
+ * target's current clip still applies to the final drawImage.
+ */
+function drawIsolated(ctx: Ctx2D, node: Extract<SceneNode, { type: 'group' }>, alpha: number) {
+  const layer = layerCanvas(ctx.canvas.width, ctx.canvas.height)
+  const l = layer.getContext('2d') as Ctx2D
+  l.setTransform(1, 0, 0, 1, 0, 0)
+  l.clearRect(0, 0, layer.width, layer.height)
+  l.setTransform(ctx.getTransform())
+  layerDepth++
+  try {
+    drawScene(l, { ...node, opacity: 1, blend: 'normal', isolate: false }, 1)
+  }
+  finally {
+    layerDepth--
+  }
+  ctx.save()
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.globalAlpha = alpha
+  ctx.globalCompositeOperation = node.blend === 'add' ? 'lighter' : 'source-over'
+  ctx.drawImage(layer, 0, 0)
+  ctx.restore()
+}
+
 /** Draw a scene node. The caller sets up the origin (note centre). */
 export function drawScene(ctx: Ctx2D, node: SceneNode, parentAlpha = 1): void {
   const alpha = parentAlpha * (node.opacity ?? 1)
@@ -106,6 +149,10 @@ export function drawScene(ctx: Ctx2D, node: SceneNode, parentAlpha = 1): void {
       stroke(ctx, node)
       break
     case 'group':
+      if (node.isolate && alpha < 0.999) {
+        drawIsolated(ctx, node, alpha)
+        break
+      }
       ctx.save()
       applyTransform(ctx, node.transform)
       if (node.clip)

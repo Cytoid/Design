@@ -33,7 +33,7 @@ import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, outQuart, riseSettleC
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
-import { makeClearClips, makeMissClip } from './effects'
+import { makeClearClips, makeExitClip } from './effects'
 import { arrowHead, assemblingRing, disk, ring } from './parts'
 
 /** Ring stroke for a note of this size (thinner on small notes). */
@@ -184,7 +184,11 @@ export const click: NoteDesign = {
     note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %. Ring (and the click-drag arrow) wake neutral 400 → 50 with the shade split.',
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.45, sectors: 24, extra: 'double', seed: 1 }),
-  miss: makeMissClip('circle'),
+  exit: makeExitClip((p, ctx) => clickEnter(p, ctx)),
+}
+
+function clickDragHeadEnter(p: number, ctx: DrawContext): SceneNode {
+  return clickEnter(p, ctx, { glyph: (pp, c, inner) => dragArrow(c, inner * 0.62, outCubic(seg(pp, 0.1, 0.3)), splitShades(pp, c).k) })
 }
 
 export const clickDragHead: NoteDesign = {
@@ -192,7 +196,9 @@ export const clickDragHead: NoteDesign = {
   kind: 'click-drag-head',
   enter: {
     ...click.enter,
-    draw: (p, ctx) => clickEnter(p, ctx, { glyph: (pp, c, inner) => dragArrow(c, inner * 0.62, outCubic(seg(pp, 0.1, 0.3)), splitShades(pp, c).k) }),
+    draw: clickDragHeadEnter,
     note: 'Click timing + white arrow pointing along the chain (rotate by heading).',
   },
+  // its own enter rewinds (the click's would drop the arrow)
+  exit: makeExitClip(clickDragHeadEnter),
 }

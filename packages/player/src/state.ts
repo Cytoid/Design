@@ -7,7 +7,7 @@
 import type { Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
 import type { JudgeGrade } from './judgement'
-import { clamp01 } from '@cytoid/notes'
+import { clamp01, tokens } from '@cytoid/notes'
 import { HOLD_TYPES, KIND_OF, pageAtTime, scanlineRatio } from './chart'
 
 export interface BoardTransform {
@@ -72,6 +72,11 @@ export function notePos(note: ParsedNote, ratioY: number, board: BoardTransform)
   }
 }
 
+const CHILD_TYPES = new Set(['drag_child', 'cdrag_child'])
+
+/** Longest exit fade — a miss stays derived at least this long past the chart time. */
+const EXIT_MAX = Math.max(...Object.values(tokens.time.exit).map(c => (typeof c === 'number' ? 0 : c.duration)))
+
 /** Cytoid clear-effect window per grade (seconds). */
 export function clearDuration(grade: Grade): number {
   return grade === 'miss' ? 0.5 : ({ perfect: 0.42, great: 0.46, good: 0.52, bad: 0.56 } as const)[grade]
@@ -84,14 +89,24 @@ export function clearDuration(grade: Grade): number {
 export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anchor: number | null = null, timing: Timing | null = null): NoteState | null {
   if (t < note.timein)
     return null
+  const enter = (): NoteState => ({ phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1 })
   if (t < note.time && anchor == null)
-    return { phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1 }
-  if (grade === 'pending')
-    return { phase: 'enter', p: 1 } // waiting at the scanline for input
+    return enter()
+  if (grade === 'pending') // waiting at the scanline for input: the exit fade keys off the chart hit time
+    return t < note.time ? { phase: 'enter', p: 1 } : { phase: 'exit', t: t - note.time }
   // past the hit time: effects key off the actual press when one happened
   const hit = anchor ?? note.time
-  if (grade === 'miss')
-    return t - hit <= clearDuration('miss') ? { phase: 'miss', t: t - hit } : null
+  if (grade === 'miss') {
+    // dead-chain children are judged as soon as the head misses: they keep
+    // approaching and only fade (and show MISS) at their own time
+    const at = CHILD_TYPES.has(note.kind) ? Math.max(hit, note.time) : hit
+    if (t < at)
+      return enter()
+    // alive while the MISS text plays or the exit fade (keyed to the chart time) runs
+    return t - at <= clearDuration('miss') || t - note.time <= EXIT_MAX
+      ? { phase: 'miss', t: t - at, since: t - note.time }
+      : null
+  }
   if (HOLD_TYPES.has(note.kind) && t < note.timeout) {
     const span = Math.max(1e-6, note.timeout - hit)
     return { phase: 'holding', t: t - hit, progress: clamp01((t - hit) / span) }

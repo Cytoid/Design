@@ -1,5 +1,7 @@
 export { parseChart } from './chart'
 export type { ParsedChart } from './chart'
+export { JUDGE_MODES, missThreshold } from './judgement'
+export type { JudgeMode } from './judgement'
 export { loadLevelFromUrl, loadLevelFromZip } from './level'
 export type { LoadedLevel } from './level'
 export { Player } from './player'

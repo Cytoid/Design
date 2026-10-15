@@ -10,7 +10,7 @@ import type { ClipShape, SceneNode, StrokeStyle, Transform } from '@cytoid/notes
  * geometry/style signature changes. This keeps steady poses cheap and makes
  * animated arcs/dashes the only per-frame tessellation.
  */
-import { Color, Container, Graphics } from 'pixi.js'
+import { AlphaFilter, Color, Container, Graphics } from 'pixi.js'
 
 const colorCache = new Map<string, number>()
 
@@ -32,6 +32,8 @@ interface Entry {
   sig?: string
   /** mask graphics for groups with a clip */
   mask?: Graphics & { signatureKey?: string }
+  /** flattening filter for isolated groups (`GroupNode.isolate`) */
+  isolate?: AlphaFilter
 }
 
 /** Per-container bookkeeping (one entry per scene child, positional). */
@@ -242,6 +244,7 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
   while (entries.length > nodes.length) {
     const old = entries.pop()!
     old.mask?.destroy()
+    old.isolate?.destroy()
     old.container.destroy({ children: true })
   }
   for (let i = 0; i < nodes.length; i++) {
@@ -259,6 +262,7 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
       const fresh = wantKind === 'group' ? new Container() : new Graphics()
       const idx = parent.children.indexOf(e.container)
       e.mask?.destroy()
+      e.isolate?.destroy()
       e.container.destroy({ children: true })
       e = { kind: wantKind, container: fresh }
       entries[i] = e
@@ -266,7 +270,24 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
     }
     const alpha = n.opacity ?? 1
     e.container.visible = alpha > 0.001
-    e.container.alpha = alpha
+    // isolated groups flatten their children first (AlphaFilter renders the
+    // subtree to one texture), so stacked layers don't show through each other
+    const isolate = n.type === 'group' && n.isolate && alpha < 0.999
+    if (isolate) {
+      e.isolate ??= new AlphaFilter({ alpha, resolution: 'inherit', antialias: 'inherit' })
+      e.isolate.alpha = alpha
+      if (e.container.filters?.[0] !== e.isolate)
+        e.container.filters = [e.isolate]
+      e.container.alpha = 1
+    }
+    else {
+      if (e.isolate) {
+        e.container.filters = null
+        e.isolate.destroy()
+        e.isolate = undefined
+      }
+      e.container.alpha = alpha
+    }
     e.container.blendMode = n.blend === 'add' ? 'add' : 'normal'
     if (n.type === 'group') {
       const t = groupTransform(n.transform)

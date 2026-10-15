@@ -8,6 +8,7 @@ import { tokens } from '../tokens'
 import { click, clickDragHead } from './click'
 import { clickDragChild, dragChild, dragHead } from './drag'
 import { dropClick, dropDrag } from './drop'
+import { exitAlpha } from './effects'
 import { flick } from './flick'
 import { hold, longHold } from './hold'
 import { judgementClips, judgementOffset } from './judgement'
@@ -65,7 +66,8 @@ export function clipsOf(design: NoteDesign): Clip[] {
     design.clear.great,
     design.clear.good,
     design.clear.bad,
-    design.miss,
+    ...(design.exit ? [design.exit] : []),
+    ...(design.miss ? [design.miss] : []),
   ]
 }
 
@@ -115,10 +117,57 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
         layers.push(renderTiming(state.timing, state.grade, state.t, ctx, text ? 'stacked' : 'centre'))
       return layers.length > 1 ? group(layers) : fx
     }
+    case 'exit':
+      return d.exit ? d.exit.draw(state.t, ctx) : d.enter.draw(1, ctx)
     case 'miss': {
-      const fx = d.miss.draw(state.t, ctx)
-      return text ? group([fx, renderJudgement('miss', state.t, ctx)]) : fx
+      const fx = missBody(d, state, ctx)
+      const layers = [fx, text ? renderJudgement('miss', state.t, ctx) : null].filter(Boolean) as SceneNode[]
+      return layers.length === 1 ? layers[0]! : group(layers)
     }
+  }
+}
+
+/**
+ * Seconds past the chart hit time a miss rides the exit fade, or null when it
+ * plays the design's own miss clip. A miss judged before the exit ran out
+ * (deadline misses, dead-chain children judged ahead of their time) keeps the
+ * exit timeline; one judged later — a hold released early, alive until then —
+ * has no exit left to ride.
+ */
+export function missExitTime(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>): number | null {
+  const since = state.since ?? state.t
+  // judged at the deadline (= the exit's end, Cytoid's miss threshold) still
+  // counts as riding it; the epsilon absorbs float error in since − t
+  if (!d.exit || (d.miss && since - state.t > d.exit.duration + 1e-3))
+    return null
+  return since
+}
+
+function missBody(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>, ctx: DrawContext): SceneNode | null {
+  const since = missExitTime(d, state)
+  if (since == null)
+    return d.miss?.draw(state.t, ctx) ?? null
+  return since < d.exit!.duration ? d.exit!.draw(since, ctx) : null
+}
+
+/**
+ * Hold body opacity for a note state: full while entering /
+ * holding; on the exit (and a miss riding it) it fades on its own curve —
+ * gone in half the head's window. 0 = don't draw the body.
+ */
+export function holdBodyAlpha(kind: NoteKind, state: NoteState): number {
+  switch (state.phase) {
+    case 'enter':
+    case 'holding':
+      return 1
+    case 'exit':
+      return exitAlpha(state.t, tokens.time.exit.holdBody)
+    case 'miss': {
+      const since = missExitTime(designs[kind], state)
+      return since == null ? 0 : exitAlpha(since, tokens.time.exit.holdBody)
+    }
+    default:
+      return 0
   }
 }
 

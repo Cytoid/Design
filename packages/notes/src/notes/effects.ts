@@ -184,6 +184,54 @@ export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, ghos
   return group(parts, { opacity: EFFECT_ALPHA * op, transform: { y: lerp(0, ctx.unit * 0.08, k) } })
 }
 
+/** One exit fade curve (see `tokens.time.exit`). */
+export interface ExitCurve { duration: number, drop: number, fall: number, power: number }
+
+/**
+ * Exit opacity: drop − fall · p^power over the curve's duration,
+ * clamped, 0 from the end. t = seconds since the chart hit time; 1 before it.
+ * The default (`tap`) steps from 1 to 0.8 the moment the hit time passes — a
+ * discrete "you're late" cue — then falls as 0.8 − p³, readable through the
+ * hit window and gone at ≈ 0.93 of it.
+ */
+export function exitAlpha(t: number, curve: ExitCurve = tokens.time.exit.tap): number {
+  if (t < 0)
+    return 1
+  const p = t / curve.duration
+  return p >= 1 ? 0 : Math.max(0, curve.drop - curve.fall * p ** curve.power)
+}
+
+/**
+ * Enter progress while exiting: the enter animation rewinds from the hit
+ * pose at `rewind` × its real speed (`ctx.approach` seconds per p 0 → 1).
+ * t = seconds since the chart hit time.
+ */
+export function exitRewind(t: number, ctx: DrawContext): number {
+  const { rewind } = tokens.time.exit
+  return Math.max(0, 1 - Math.max(0, t) * rewind / Math.max(1e-6, ctx.approach))
+}
+
+/**
+ * Exit clip: the enter animation played backwards (`exitRewind`) under
+ * `exitAlpha` (x = seconds since the hit time). Isolated: the note fades as
+ * one flattened layer, so its stacked parts never show through each other.
+ */
+export function makeExitClip(enter: (p: number, ctx: DrawContext) => SceneNode, curve: ExitCurve = tokens.time.exit.tap, note?: string): Clip {
+  return {
+    id: 'exit',
+    mode: 'once',
+    duration: curve.duration,
+    draw: (t, ctx) => group([enter(exitRewind(t, ctx), ctx)], { opacity: exitAlpha(t, curve), isolate: true }),
+    note: note ?? `Unjudged past the hit time: the enter animation rewinds at its real speed while the opacity follows ${curveText(curve)} — two independent clocks. Absolute seconds since the chart hit time; a miss keeps riding it (only the MISS text is added).`,
+  }
+}
+
+function curveText(c: ExitCurve): string {
+  const p = c.power === 1 ? 'p' : `p${c.power === 3 ? '³' : `^${c.power}`}`
+  const fall = c.fall === 1 ? p : `${c.fall}·${p}`
+  return `${c.drop} − ${fall} over ${c.duration} s`
+}
+
 export function makeClearClips(flavor: ClearFlavor): Record<ClearGrade, Clip> {
   const mk = (grade: ClearGrade): Clip => ({
     id: `clear-${grade}`,

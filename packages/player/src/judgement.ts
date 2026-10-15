@@ -11,18 +11,74 @@
  */
 import type { Grade, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
+import type { NoteKindId } from './types'
 import { showsTiming, timingOf } from '@cytoid/notes'
-import { DRAG_TYPES } from './chart'
+import { DRAG_TYPES, DROP_TYPES } from './chart'
 
-export interface JudgeWindows {
-  perfect: number
-  great: number
-  good: number
-  bad: number
+/** One grade band: a hit up to `early` s before / `late` s after the beat earns `grade`. */
+export interface GradeBand {
+  grade: HitGrade
+  early: number
+  late: number
 }
 
-/** Half-widths in seconds (Cytoid-like defaults — tune in one place). */
-export const JUDGE_WINDOWS: JudgeWindows = { perfect: 0.05, great: 0.1, good: 0.15, bad: 0.2 }
+/** Grade bands, best first, per note family (Cytoid `CalculateGrade`). */
+export interface JudgeWindows {
+  /** click / hold / long hold / drag heads */
+  tap: GradeBand[]
+  /** flicks: PERFECT / GREAT only */
+  flick: GradeBand[]
+  /** drop click / drop drag */
+  drop: GradeBand[]
+}
+
+export type JudgeMode = 'ranked' | 'practice'
+
+const band = (grade: HitGrade, early: number, late: number): GradeBand => ({ grade, early, late })
+
+/**
+ * Cytoid's windows (seconds). Asymmetric — early presses get more room than
+ * late ones — and the mode only changes the *windows*: the miss deadline
+ * (`MISS_THRESHOLD`) is the same in both. In ranked a late press between the
+ * last band (0.2 s) and the deadline (0.3 s) is ignored: the note stays
+ * pending (and keeps fading) until it misses. Practice lets the bad band run
+ * all the way to the deadline; practice drops ignore BAD presses.
+ */
+export const JUDGE_MODES: Record<JudgeMode, JudgeWindows> = {
+  ranked: {
+    tap: [band('perfect', 0.04, 0.04), band('great', 0.07, 0.07), band('good', 0.2, 0.15), band('bad', 0.4, 0.2)],
+    flick: [band('perfect', 0.06, 0.06), band('great', 0.15, 0.15)],
+    drop: [band('perfect', 0.04, 0.04), band('great', 0.07, 0.07), band('good', 0.2, 0.15), band('bad', 0.4, 0.2)],
+  },
+  practice: {
+    tap: [band('perfect', 0.07, 0.07), band('great', 0.2, 0.15), band('good', 0.4, 0.2), band('bad', 0.8, 0.3)],
+    flick: [band('perfect', 0.2, 0.1), band('great', 0.8, 0.3)],
+    drop: [band('perfect', 0.07, 0.07), band('great', 0.2, 0.15), band('good', 0.4, 0.2)],
+  },
+}
+
+/** Default windows: ranked. */
+export const JUDGE_WINDOWS: JudgeWindows = JUDGE_MODES.ranked
+
+/**
+ * Seconds after the beat an unhit note turns into a MISS (Cytoid
+ * `GetDefaultMissThreshold`, identical in ranked and practice). It is also
+ * the length of the notes' exit fade, so a note vanishes as it misses.
+ */
+export function missThreshold(kind: NoteKindId): number {
+  if (kind === 'drop_click' || kind === 'drop_drag')
+    return 0.2
+  return kind === 'drag_child' || kind === 'cdrag_child' ? 0.15 : 0.3
+}
+
+/** Grade of a hit `error` s off the beat (negative = early), or null outside every band. */
+export function gradeFor(bands: GradeBand[], error: number): HitGrade | null {
+  for (const b of bands) {
+    if (error < 0 ? -error <= b.early : error <= b.late)
+      return b.grade
+  }
+  return null
+}
 
 /** Minimum travel (px) for a pointer move to count as a swipe. */
 export const SWIPE_MIN = 36
@@ -49,7 +105,10 @@ interface PointerTrace {
 }
 
 export interface JudgeOptions {
+  /** grade bands; defaults to `JUDGE_MODES[mode]` */
   windows?: JudgeWindows
+  /** Cytoid game mode (ranked / practice windows). Default ranked. */
+  mode?: JudgeMode
   /** hit radius in board px; presses beyond ×1.6 of it whiff */
   radiusPx: number
   /** board size for x/y hit tests */
@@ -85,7 +144,7 @@ export class JudgeEngine {
   private stats: JudgeStats = emptyStats()
 
   constructor(private parsed: ParsedChart, opts: JudgeOptions) {
-    this.windows = opts.windows ?? JUDGE_WINDOWS
+    this.windows = opts.windows ?? JUDGE_MODES[opts.mode ?? 'ranked']
     this.radiusPx = opts.radiusPx
     this.board = opts.board
     for (const n of parsed.notes) {
@@ -97,6 +156,11 @@ export class JudgeEngine {
   /** Update the hit-test board (call on resize). */
   setBoard(board: { width: number, height: number }) {
     this.board = board
+  }
+
+  /** Switch ranked / practice windows (takes effect on the next press). */
+  setMode(mode: JudgeMode) {
+    this.windows = JUDGE_MODES[mode]
   }
 
   /** Update the hit radius (call when the note scale changes). */
@@ -126,13 +190,15 @@ export class JudgeEngine {
     return this.timings.get(note.id) ?? null
   }
 
+  /** Bands for this note's family. */
+  private bandsOf(note: ParsedNote): GradeBand[] {
+    return note.kind === 'flick' ? this.windows.flick : DROP_TYPES.has(note.kind) ? this.windows.drop : this.windows.tap
+  }
+
   /** Grade a press / swipe against the chart time, recording its timing. */
   private hit(note: ParsedNote, t: number) {
     const error = t - note.time
-    const dt = Math.abs(error)
-    const grade: Grade = dt <= this.windows.perfect
-      ? 'perfect'
-      : dt <= this.windows.great ? 'great' : dt <= this.windows.good ? 'good' : 'bad'
+    const grade: Grade = gradeFor(this.bandsOf(note), error) ?? 'bad'
     this.assign(note.id, grade, t)
     if (showsTiming(grade)) {
       const timing = timingOf(error)
@@ -156,7 +222,6 @@ export class JudgeEngine {
 
   /** Notes a press can possibly hit right now, nearest first (flicks need swipes). */
   private tapCandidates(x: number, y: number, t: number): ParsedNote[] {
-    const { bad } = this.windows
     const out: { n: ParsedNote, dt: number, dist: number }[] = []
     for (const note of this.parsed.notes) {
       if (note.kind === 'flick')
@@ -164,9 +229,9 @@ export class JudgeEngine {
       const s = this.statuses.get(note.id)!
       if (s.grade || s.triggered || this.isAutoChild(note))
         continue
-      const dt = Math.abs(t - note.time)
-      if (dt > bad)
+      if (!gradeFor(this.bandsOf(note), t - note.time))
         continue
+      const dt = Math.abs(t - note.time)
       const dist = this.distTo(note, x, y)
       if (dist > this.radiusPx * 1.6)
         continue
@@ -178,7 +243,6 @@ export class JudgeEngine {
 
   /** Flicks a swipe can clear right now, nearest first. */
   private flickCandidates(x: number, y: number, t: number): ParsedNote[] {
-    const { bad } = this.windows
     const out: { n: ParsedNote, dt: number, dist: number }[] = []
     for (const note of this.parsed.notes) {
       if (note.kind !== 'flick')
@@ -186,9 +250,9 @@ export class JudgeEngine {
       const s = this.statuses.get(note.id)!
       if (s.grade)
         continue
-      const dt = Math.abs(t - note.time)
-      if (dt > bad)
+      if (!gradeFor(this.bandsOf(note), t - note.time))
         continue
+      const dt = Math.abs(t - note.time)
       const dist = this.distTo(note, x, y)
       if (dist > this.radiusPx * 1.6)
         continue
@@ -286,7 +350,6 @@ export class JudgeEngine {
 
   /** Progress a frame: auto-children clear on pass, deadlines turn into misses. */
   update(t: number) {
-    const { bad } = this.windows
     for (const note of this.parsed.notes) {
       const s = this.statuses.get(note.id)!
       if (s.grade)
@@ -302,9 +365,11 @@ export class JudgeEngine {
         this.assign(note.id, 'miss', t)
         continue
       }
-      // pressables (incl. flicks): miss once the hit window has passed
-      if (t > note.time + bad)
-        this.assign(note.id, 'miss', Math.max(t, note.time + bad))
+      // pressables (incl. flicks): miss at Cytoid's miss threshold — past the
+      // last grade band, never earlier (same deadline in ranked and practice)
+      const deadline = note.time + missThreshold(note.kind)
+      if (t > deadline)
+        this.assign(note.id, 'miss', deadline)
     }
   }
 
