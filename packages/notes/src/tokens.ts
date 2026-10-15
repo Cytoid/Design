@@ -131,9 +131,11 @@ export const tokens = {
   sizeCurve: {
     s: [0.7, 0.75],
     click: { spawn: 0.319, peak: 1.06, peakP: 0.878, settleP: 0.976 },
-    // = click on purpose: a hold must read the same size flow as the click
-    // during the approach (only its internals differ)
-    hold: { spawn: 0.319, peak: 1.06, peakP: 0.878, settleP: 0.976 },
+    // one smooth ease (cubic-bezier x1/x2, y 0→1) from `spawn` straight to
+    // the hit size — no +6 % overshoot (a hold carries no timing gauge) and
+    // no mid-way stall: a long ease-out tail keeps it gently growing late,
+    // landing together with the lock brackets ≈ 4 frames before the hit
+    hold: { spawn: 0.34, ease: [0.75, 0.3] },
     dragHead: { spawn: 0.293, peak: 1.05, peakP: 0.766, settleP: 0.872 },
     dragChild: { spawn: 0.259, peak: 1.03, peakP: 0.766, settleP: 0.851 },
   },
