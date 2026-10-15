@@ -52,7 +52,9 @@ const GLYPHS: Record<string, Glyph> = {
   'X': { w: W * 0.9, strokes: [[[0, 0], [W * 0.9, 1]], [[W * 0.9, 0], [0, 1]]] },
   // FAST / SLOW timing label
   'L': { w: W * 0.9, strokes: [[[0, 0], [0, 1], [W * 0.9, 1]]] },
-  'W': { w: M, strokes: [[[0, 0], [0, 1], [M / 2, 0.45], [M, 1], [M, 0]]] },
+  // chamfered bottom corners + a centre stem (A flipped) — a V-joint meets the
+  // stems at an acute angle and the miter join spikes below the baseline
+  'W': { w: M, strokes: [[[0, 0], [0, 1 - K], [K, 1], [M - K, 1], [M, 1 - K], [M, 0]], [[M / 2, 0.4], [M / 2, 1]]] },
   // digits — same chamfered stroke language as the letters (combo / score UI)
   '0': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
   '1': { w: 0.34, strokes: [[[0, 0.16], [0.17, 0], [0.17, 1]]] },
