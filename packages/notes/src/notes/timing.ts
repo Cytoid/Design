@@ -17,10 +17,11 @@
  *  - Same chamfered monoline face as the judgement (no font files), cap
  *    height 0.6 × the judgement's, slightly heavier stroke so it survives
  *    the smaller size.
- *  - Colour: the grade colour lifted toward white — tied to the judgement it
- *    explains, and no new hue competes with the grade palette (blue / yellow
- *    / green / red are all taken; a "blue = fast, red = slow" scheme would
- *    read as PERFECT / BAD).
+ *  - Colour (experiment): fixed per direction, not per grade — red = FAST,
+ *    green = SLOW, so direction reads by colour alone at a glance. The base
+ *    design ties the colour to the grade it explains (every hue is taken by
+ *    the grade palette); this variant trades that tie for the instant read,
+ *    at full strength like the judgement text.
  *  - Direction is carried by shape and motion, not colour — the horizontal
  *    axis is time: FAST gets a ‹ chevron on its left and slides in leftward
  *    (ahead of the beat), SLOW gets a › chevron on its right and slides in
@@ -35,7 +36,6 @@
 import type { SceneNode } from '../core/scene'
 import type { Grade } from '../tokens'
 import type { ClearGrade, Clip, DrawContext } from './types'
-import { mix } from '../core/color'
 import { lerp, outBack, outCubic, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { tokens } from '../tokens'
@@ -98,9 +98,15 @@ export function drawTimingLabel(timing: Timing, H: number, color: string, pop?: 
   return group([chevron, group([drawText(text, H, color, { stroke: sw, pop })], { transform: { x: tx } })])
 }
 
-/** Colour of the label for a grade: the grade colour lifted toward white. */
-export function timingColor(grade: TimedGrade, ctx: DrawContext): string {
-  return mix(ctx.grades[grade], '#FFFFFF', 0.45)
+/**
+ * Fixed label colours (experiment): red = FAST, green = SLOW, independent of
+ * the grade. The bases are the grade palette's own red / green hues, at full
+ * strength — the same treatment the judgement text gets — so the direction
+ * read is as strong as this scheme can be.
+ */
+export const TIMING_COLOR: Record<Timing, string> = {
+  fast: tokens.grade.bad,
+  slow: tokens.grade.good,
 }
 
 /** One animated frame around the label centre (t = seconds since judgement). */
@@ -112,7 +118,7 @@ export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: Dr
   const pop = (i: number) => outBack(seg(u, 0.06 + i * 0.03, 0.24 + i * 0.03), 1.6)
   const dx = dir * H * 0.5 * (k - 1)
   const dy = -judgementCapHeight(ctx) * 0.12 * outCubic(u)
-  const body = drawTimingLabel(timing, H, timingColor(grade, ctx), pop)
+  const body = drawTimingLabel(timing, H, TIMING_COLOR[timing], pop)
   return group([body], { opacity: lerp(0, 1, seg(u, 0.06, 0.2)) * (1 - seg(u, 0.7, 1)), transform: { x: dx, y: dy } })
 }
 

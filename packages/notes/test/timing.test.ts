@@ -6,6 +6,7 @@ import {
   renderNote,
   showsTiming,
   TIMED_GRADES,
+  TIMING_COLOR,
   timingClips,
   timingOf,
   timingOffset,
@@ -46,6 +47,19 @@ describe('timing label (FAST / SLOW)', () => {
     const f = toSVG(timingClips.great.fast.draw(0.3, ctx))
     const s = toSVG(timingClips.great.slow.draw(0.3, ctx))
     expect(f).not.toBe(s)
+  })
+
+  it('colour is fixed per direction, independent of the grade', () => {
+    expect(TIMING_COLOR.fast).not.toBe(TIMING_COLOR.slow)
+    // at the same point in the window the drawing depends only on the timing
+    const ctx = createContext('click')
+    for (const timing of ['fast', 'slow'] as const) {
+      const svgs = TIMED_GRADES.map((grade) => {
+        const clip = timingClips[grade][timing]
+        return toSVG(clip.draw(clip.duration * 0.5, ctx))
+      })
+      for (const svg of svgs) expect(svg, timing).toBe(svgs[0])
+    }
   })
 
   it('is toggled independently of the judgement text', () => {
