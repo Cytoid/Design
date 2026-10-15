@@ -37,7 +37,7 @@ const M = 0.82
 const GLYPHS: Record<string, Glyph> = {
   'P': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]]] },
   'E': { w: W, strokes: [[[W, 0], [0, 0], [0, 1], [W, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
-  'R': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W * 0.42, 0.5], [W, 1]]] },
+  'R': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W * 0.2, 0.5], [W * 0.42, 0.5], [W, 0.5 + W * 0.58], [W, 1]]] }, // leg: lead-in along the bowl line, 45° run, vertical foot — bare diagonal ends poke their square caps past the bowl line / baseline
   'F': { w: W, strokes: [[[W, 0], [0, 0], [0, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
   'C': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 1 - K], [K, 1], [W, 1]]] },
   'T': { w: W, strokes: [[[0, 0], [W, 0]], [[W / 2, 0], [W / 2, 1]]] },
