@@ -29,6 +29,7 @@ export const sidebarSections: SidebarSection[] = [
     links: [
       { title: 'Overview', path: '/notes' },
       { title: 'Palette', path: '/notes/palette' },
+      { title: 'Judgement', path: '/notes/judgement' },
     ],
     families: [
       { label: 'Classic', links: [kindLink('click'), kindLink('hold'), kindLink('drag-head'), kindLink('drag-child')] },

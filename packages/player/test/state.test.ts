@@ -49,6 +49,11 @@ describe('noteStateAt', () => {
     expect(noteStateAt(note, 1.95, 'bad')).toEqual({ phase: 'clear', grade: 'bad', t: expect.closeTo(0.45, 3) })
   })
 
+  it('carries the press timing into the clear state', () => {
+    expect(noteStateAt(note, 1.6, 'good', 1.58, 'slow')).toEqual({ phase: 'clear', grade: 'good', t: expect.closeTo(0.02, 3), timing: 'slow' })
+    expect(noteStateAt(note, 1.6, 'good', 1.58)).not.toHaveProperty('timing')
+  })
+
   it('shows miss for the miss window', () => {
     expect(noteStateAt(note, 1.7, 'miss')).toEqual({ phase: 'miss', t: expect.closeTo(0.2, 3) })
     expect(noteStateAt(note, 2.01, 'miss')).toBeNull()

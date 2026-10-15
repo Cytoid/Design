@@ -1,6 +1,7 @@
 import type { SceneNode } from '../core/scene'
 import type { NotePalette } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
+import type { Timing } from './timing'
 
 /** Everything a clip needs to draw one frame. */
 export interface DrawContext {
@@ -66,5 +67,6 @@ export interface NoteDesign {
 export type NoteState
   = | { phase: 'enter', p: number }
     | { phase: 'holding', t: number, progress: number }
-    | { phase: 'clear', grade: ClearGrade, t: number }
+    /** `timing`: FAST / SLOW of the hit (shown for GREAT / GOOD / BAD only) */
+    | { phase: 'clear', grade: ClearGrade, t: number, timing?: Timing }
     | { phase: 'miss', t: number }

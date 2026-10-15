@@ -22,8 +22,14 @@ export interface StageOptions {
   scale: number
   /** draw judgement text with clear/miss effects */
   judgement: boolean
+  /** draw the FAST / SLOW timing label (independent of `judgement`) */
+  timing: boolean
   grades?: DeriveOptions['grades']
+  timings?: DeriveOptions['timings']
 }
+
+/** Which text layers ride on clear / miss effects. */
+interface TextOptions { judgement: boolean, timing: boolean }
 
 /** Live play stats for the in-game HUD (play mode only). */
 export interface HudData {
@@ -89,8 +95,8 @@ export class PlayStage {
 
   /** One frame: derive + sync. `board` = note field, `screen` = player box (scanline spans it). */
   update(parsed: ParsedChart, t: number, board: BoardRect, screen: BoardRect, hud?: HudData | null) {
-    const { palette, scale, judgement, grades } = this.options
-    const frame = deriveFrame(parsed, t, { board, grades })
+    const { palette, scale, judgement, timing, grades, timings } = this.options
+    const frame = deriveFrame(parsed, t, { board, grades, timings })
 
     this.root.position.set(board.x, board.y)
 
@@ -110,7 +116,7 @@ export class PlayStage {
     }
 
     this.syncSegments(frame, palette, scale, board)
-    this.syncNotes(frame, palette, scale, judgement, board, screen)
+    this.syncNotes(frame, palette, scale, { judgement, timing }, board, screen)
     this.syncHud(hud ?? null, board, screen, t)
     this.cullUnseen(frame)
   }
@@ -199,7 +205,7 @@ export class PlayStage {
     frame: DerivedFrame,
     palette: Palette,
     scale: number,
-    judgement: boolean,
+    text: TextOptions,
     board: BoardRect,
     screen: BoardRect,
   ) {
@@ -213,7 +219,7 @@ export class PlayStage {
         this.layers.notes.addChild(view)
       }
       this.layers.notes.setChildIndex(view, i)
-      this.syncNote(view, d, palette, scale, judgement, board, screen)
+      this.syncNote(view, d, palette, scale, text, board, screen)
     }
   }
 
@@ -222,7 +228,7 @@ export class PlayStage {
     d: DerivedNote,
     palette: Palette,
     scale: number,
-    judgement: boolean,
+    text: TextOptions,
     board: BoardRect,
     screen: BoardRect,
   ) {
@@ -271,7 +277,7 @@ export class PlayStage {
       // the clear/miss burst stays at the trigger point, on top — only while
       // the effect is actually playing (not after it faded)
       if (d.state) {
-        parts.push(group([renderNote(d.kind, d.state, ctx, { judgement })], {
+        parts.push(group([renderNote(d.kind, d.state, ctx, text)], {
           transform: { x: d.pos.x - d.follow.x, y: d.pos.y - d.follow.y },
         }))
       }
@@ -281,8 +287,8 @@ export class PlayStage {
       // the burst is anchored at the note's end position
       const tail = clearAnchor(d, board)
       parts.push(tail
-        ? group([renderNote(d.kind, d.state, ctx, { judgement })], { transform: { x: tail.x - d.pos.x, y: tail.y - d.pos.y } })
-        : renderNote(d.kind, d.state, ctx, { judgement }))
+        ? group([renderNote(d.kind, d.state, ctx, text)], { transform: { x: tail.x - d.pos.x, y: tail.y - d.pos.y } })
+        : renderNote(d.kind, d.state, ctx, text))
     }
 
     const live = d.follow ?? d.pos

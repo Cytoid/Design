@@ -9,8 +9,9 @@
  * - Hold bodies / clear effects can key off `anchorOf` (the actual press
  *   time) instead of chart time.
  */
-import type { Grade } from '@cytoid/notes'
+import type { Grade, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
+import { showsTiming, timingOf } from '@cytoid/notes'
 import { DRAG_TYPES } from './chart'
 
 export interface JudgeWindows {
@@ -64,6 +65,10 @@ export interface JudgeStats {
   bad: number
   miss: number
   judged: number
+  /** GREAT / GOOD / BAD hits pressed ahead of the beat (Cytoid "Early") */
+  fast: number
+  /** … and behind it (Cytoid "Late") */
+  slow: number
 }
 
 export class JudgeEngine {
@@ -75,7 +80,9 @@ export class JudgeEngine {
   private pointers = new Map<number, PointerTrace>()
   /** actual press/release time per judged note (anchor for effects) */
   private anchors = new Map<number, number>()
-  private stats: JudgeStats = { combo: 0, maxCombo: 0, perfect: 0, great: 0, good: 0, bad: 0, miss: 0, judged: 0 }
+  /** FAST / SLOW per timed hit (GREAT / GOOD / BAD on press or swipe) */
+  private timings = new Map<number, Timing>()
+  private stats: JudgeStats = emptyStats()
 
   constructor(private parsed: ParsedChart, opts: JudgeOptions) {
     this.windows = opts.windows ?? JUDGE_WINDOWS
@@ -112,6 +119,26 @@ export class JudgeEngine {
   /** Actual press time of a judged note (null while pending) — hold bodies / effects anchor here. */
   anchorOf = (note: ParsedNote): number | null => {
     return this.anchors.get(note.id) ?? null
+  }
+
+  /** FAST / SLOW of a timed hit (null for PERFECT / MISS / auto-cleared / pending). */
+  timingFor = (note: ParsedNote): Timing | null => {
+    return this.timings.get(note.id) ?? null
+  }
+
+  /** Grade a press / swipe against the chart time, recording its timing. */
+  private hit(note: ParsedNote, t: number) {
+    const error = t - note.time
+    const dt = Math.abs(error)
+    const grade: Grade = dt <= this.windows.perfect
+      ? 'perfect'
+      : dt <= this.windows.great ? 'great' : dt <= this.windows.good ? 'good' : 'bad'
+    this.assign(note.id, grade, t)
+    if (showsTiming(grade)) {
+      const timing = timingOf(error)
+      this.timings.set(note.id, timing)
+      this.stats[timing]++
+    }
   }
 
   private assign(id: number, grade: Grade, t: number) {
@@ -183,10 +210,7 @@ export class JudgeEngine {
     const nearest = this.tapCandidates(x, y, t)[0]
     if (!nearest)
       return null
-    const dt = Math.abs(t - nearest.time)
-    this.assign(nearest.id, dt <= this.windows.perfect
-      ? 'perfect'
-      : dt <= this.windows.great ? 'great' : dt <= this.windows.good ? 'good' : 'bad', t)
+    this.hit(nearest, t)
     const s = this.statuses.get(nearest.id)!
     s.pointer = pointerId
     s.triggered = true
@@ -208,10 +232,7 @@ export class JudgeEngine {
     const flick = this.flickCandidates(x, y, t)[0]
     if (!flick)
       return null
-    const dt = Math.abs(t - flick.time)
-    this.assign(flick.id, dt <= this.windows.perfect
-      ? 'perfect'
-      : dt <= this.windows.great ? 'great' : dt <= this.windows.good ? 'good' : 'bad', t)
+    this.hit(flick, t)
     p.startX = x
     p.startY = y
     return flick.id
@@ -320,7 +341,7 @@ export function autoplayStats(
   t: number,
   gradeOf: (note: ParsedNote, index: number) => Grade = () => 'perfect',
 ): JudgeStats {
-  const stats: JudgeStats = { combo: 0, maxCombo: 0, perfect: 0, great: 0, good: 0, bad: 0, miss: 0, judged: 0 }
+  const stats = emptyStats()
   for (let i = 0; i < parsed.sorted.length; i++) {
     const note = parsed.sorted[i]!
     if (note.timeout > t)
@@ -335,4 +356,8 @@ export function autoplayStats(
     stats.maxCombo = Math.max(stats.maxCombo, stats.combo)
   }
   return stats
+}
+
+function emptyStats(): JudgeStats {
+  return { combo: 0, maxCombo: 0, perfect: 0, great: 0, good: 0, bad: 0, miss: 0, judged: 0, fast: 0, slow: 0 }
 }

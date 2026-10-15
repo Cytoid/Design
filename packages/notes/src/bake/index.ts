@@ -11,7 +11,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { bounds, group } from '../core/scene'
-import { clipsOf, createContext, designs, dragLine, holdBody, holdDashPeriod, holdEndLength, judgementCapHeight, judgementClips, longHoldBody } from '../notes'
+import { clipsOf, createContext, designs, dragLine, holdBody, holdDashPeriod, holdEndLength, judgementCapHeight, judgementClips, longHoldBody, TIMED_GRADES, timingCapHeight, timingClips, timingOffset } from '../notes'
 import { createPalette, exportPalette } from '../palette'
 import { toSVGMarkup } from '../render/svg'
 import { GRADES, NOTE_KINDS, tokens } from '../tokens'
@@ -64,6 +64,12 @@ export interface FrameManifest {
    * text; place the text centre on the note centre (it sits inside the effect).
    */
   judgement: Partial<Record<Grade, ClipManifest>> & { capHeight?: number, placement?: string }
+  /**
+   * FAST / SLOW timing label per timed grade (GREAT / GOOD / BAD), centred on
+   * the label. `offset` = label centre relative to the note centre (px) for
+   * each slot: `stacked` when the judgement text is shown, `centre` when not.
+   */
+  timing: Partial<Record<Grade, Record<string, ClipManifest>>> & { capHeight?: number, offset?: Record<string, [number, number]>, placement?: string }
   bodies: Partial<Record<Direction, Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }>>>
 }
 
@@ -166,6 +172,7 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     palette: exportPalette(palette),
     notes: {},
     judgement: {},
+    timing: {},
     bodies: {},
   }
   await mkdir(options.outDir, { recursive: true })
@@ -187,6 +194,16 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     manifest.judgement.capHeight = judgementCapHeight(ctx)
     manifest.judgement.placement = 'text centre on the note centre (inside the clear / miss effect)'
     log('judgement')
+    for (const grade of TIMED_GRADES) {
+      manifest.timing[grade] = {}
+      for (const [timing, clip] of Object.entries(timingClips[grade]))
+        manifest.timing[grade]![timing] = await bakeClip(clip, ctx, options.outDir, `timing/${grade}-${timing}`, o)
+    }
+    const stacked = timingOffset(ctx, 'stacked')
+    manifest.timing.capHeight = timingCapHeight(ctx)
+    manifest.timing.offset = { stacked: [stacked.x, stacked.y], centre: [0, 0] }
+    manifest.timing.placement = 'GREAT / GOOD / BAD only; label centre at note centre + offset.stacked when the judgement text is on, offset.centre when it is off'
+    log('timing')
   }
   for (const direction of directions) {
     manifest.bodies[direction] = {}

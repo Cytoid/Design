@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Direction, NoteKind } from '@cytoid/notes'
+import type { Direction, NoteKind, Timing } from '@cytoid/notes'
 import { clipsOf, designs } from '@cytoid/notes'
 import { computed, ref } from 'vue'
 import { clipMax } from '../../composables/clips'
@@ -26,6 +26,11 @@ const directions: { label: string, value: Direction }[] = [
   { label: 'up', value: 'up' },
   { label: 'down', value: 'down' },
 ]
+const timingItems: { label: string, value: Timing }[] = [
+  { label: 'Fast', value: 'fast' },
+  { label: 'Slow', value: 'slow' },
+]
+const timing = computed(() => review.timing ? review.timingSide : null)
 const fpsItems = [{ label: '30', value: 30 }, { label: '60', value: 60 }]
 const speedItems = [0.25, 0.5, 1, 2].map(s => ({ label: `${s}×`, value: s }))
 const countItems = [{ label: '5', value: 5 }, { label: '9', value: 9 }, { label: '13', value: 13 }]
@@ -55,6 +60,8 @@ const surfaceClass = computed(() => ({
         </label>
         <UCheckbox v-model="compare" label="Compare ↑ / ↓" />
         <UCheckbox v-model="review.judgement" label="Judgement text" />
+        <UCheckbox v-model="review.timing" label="Fast / slow" />
+        <USelect v-model="review.timingSide" :items="timingItems" :disabled="!review.timing" class="w-24" aria-label="Timing" />
       </div>
 
       <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -112,11 +119,11 @@ const surfaceClass = computed(() => ({
     <div class="mt-4 border border-default rounded-xl h-[470px] grid overflow-hidden" :class="[surfaceClass, compare ? 'grid-cols-2' : 'grid-cols-1']">
       <div class="relative min-w-0 overflow-hidden">
         <span class="absolute top-5 left-6 text-[10px] tracking-[1.5px] text-gray-400">{{ compare ? 'UP' : review.direction.toUpperCase() }} / LIVE VECTOR</span>
-        <LabNoteCanvas :kind="kind" :direction="compare ? 'up' : review.direction" :clip="clip" :x="x" :scale="zoom" :onion="onion" :fps="fps" :show-bounds="showBounds" :judgement="review.judgement" />
+        <LabNoteCanvas :kind="kind" :direction="compare ? 'up' : review.direction" :clip="clip" :x="x" :scale="zoom" :onion="onion" :fps="fps" :show-bounds="showBounds" :judgement="review.judgement" :timing="timing" />
       </div>
       <div v-if="compare" class="relative min-w-0 overflow-hidden border-l border-default">
         <span class="absolute top-5 left-6 text-[10px] tracking-[1.5px] text-gray-400">DOWN / LIVE VECTOR</span>
-        <LabNoteCanvas :kind="kind" direction="down" :clip="clip" :x="x" :scale="zoom" :onion="onion" :fps="fps" :show-bounds="showBounds" :judgement="review.judgement" />
+        <LabNoteCanvas :kind="kind" direction="down" :clip="clip" :x="x" :scale="zoom" :onion="onion" :fps="fps" :show-bounds="showBounds" :judgement="review.judgement" :timing="timing" />
       </div>
     </div>
 

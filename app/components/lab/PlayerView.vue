@@ -17,8 +17,9 @@ const scale = ref(0.85)
 const speed = ref(1)
 const offsetMs = ref(0)
 const judgement = ref(true)
+const timing = ref(true)
 const playMode = ref(false)
-const stats = ref<{ combo: number, maxCombo: number, perfect: number, great: number, good: number, bad: number, miss: number, judged: number } | null>(null)
+const stats = ref<{ combo: number, maxCombo: number, perfect: number, great: number, good: number, bad: number, miss: number, judged: number, fast: number, slow: number } | null>(null)
 const dragging = ref(false)
 const isDemo = ref(false)
 
@@ -41,6 +42,7 @@ async function mount() {
     palette: reviewPalette.value,
     scale: scale.value,
     judgement: judgement.value,
+    timing: timing.value,
     deviceOffset: offsetMs.value / 1000,
     rate: speed.value,
     playMode: playMode.value,
@@ -74,7 +76,7 @@ onUnmounted(() => {
 })
 
 watch(reviewPalette, (p: Palette) => player?.setPalette(p))
-watch([scale, judgement], () => player?.updateOptions({ scale: scale.value, judgement: judgement.value }))
+watch([scale, judgement, timing], () => player?.updateOptions({ scale: scale.value, judgement: judgement.value, timing: timing.value }))
 watch(playMode, () => {
   stats.value = null
   player?.updateOptions({ playMode: playMode.value })
@@ -239,6 +241,7 @@ function onUp(e: PointerEvent) {
           <span class="font-mono text-default">{{ scale.toFixed(2) }}×</span>
         </label>
         <UCheckbox v-model="judgement" label="Judgement text" />
+        <UCheckbox v-model="timing" label="Fast / slow" />
         <span class="ml-auto font-mono text-primary text-xs">{{ fmt(time) }} / {{ fmt(duration) }}</span>
       </div>
       <input
@@ -296,7 +299,7 @@ function onUp(e: PointerEvent) {
         </div>
         <div class="flex justify-between items-center gap-3 px-6 pb-5 font-mono text-[10px] text-muted">
           <span>{{ difficulty?.chart ? `${difficulty.chart.note_list.length} NOTES` : '—' }}</span>
-          <span v-if="stats">MAX COMBO {{ stats.maxCombo }} · P{{ stats.perfect }} G{{ stats.great }} Go{{ stats.good }} B{{ stats.bad }} M{{ stats.miss }}</span>
+          <span v-if="stats">MAX COMBO {{ stats.maxCombo }} · P{{ stats.perfect }} G{{ stats.great }} Go{{ stats.good }} B{{ stats.bad }} M{{ stats.miss }}<template v-if="timing"> · FAST {{ stats.fast }} SLOW {{ stats.slow }}</template></span>
           <span v-else>{{ playing ? 'PLAYING' : time > 0 ? 'PAUSED' : 'IDLE' }}</span>
           <span>{{ playMode ? 'PLAY MODE' : 'AUTOPLAY' }} · LIVE VECTOR</span>
         </div>

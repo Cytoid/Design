@@ -35,11 +35,12 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
       grade: review.grade,
       scale: review.scale,
       judgement: review.judgement,
+      timing: review.timing ? review.timingSide : null,
       palette: palette.value,
     })
     return
   }
-  const { state, t, span } = lifecycle(props.kind, elapsed, review.grade)
+  const { state, t, span } = lifecycle(props.kind, elapsed, review.grade, review.timingSide)
   const dc = createContext(props.kind, { palette: palette.value, direction: review.direction, scale: review.scale })
   const hold = designs[props.kind].hold
   const up = review.direction === 'up'
@@ -70,7 +71,7 @@ function paint({ ctx, width, height, dt }: CanvasFrame) {
   // pillar — exactly where the virtual scanner crosses at the end of holding.
   // Drops fall from above onto the locked line, landing when the approach ends.
   const fall = drop && state.phase === 'enter' ? -(1 - t / 1.5) * height * 0.35 : 0
-  const fx = renderNote(props.kind, state, dc, { judgement: review.judgement })
+  const fx = renderNote(props.kind, state, dc, { judgement: review.judgement, timing: review.timing })
   const fy = (hold && state.phase === 'clear' ? anchor : 0) + fall
   drawScene(ctx, fy ? group([fx], { transform: { y: fy } }) : fx)
   if (onCard)

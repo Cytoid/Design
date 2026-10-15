@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Clip, Direction, Grade, NoteKind, NoteState } from '@cytoid/notes'
+import type { Clip, Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { bounds, createContext, drawScene, group, renderJudgement, renderNote } from '@cytoid/notes'
+import { bounds, createContext, drawScene, group, renderJudgement, renderNote, renderTiming, showsTiming } from '@cytoid/notes'
 import { clipMax } from '../../composables/clips'
 import { palette } from '../../composables/usePalette'
 import StageCanvas from './StageCanvas.vue'
@@ -18,6 +18,8 @@ const props = withDefaults(defineProps<{
   showBounds?: boolean
   /** overlay the judgement text on clear / miss clips */
   judgement?: boolean
+  /** overlay a FAST / SLOW label on GREAT / GOOD / BAD clear clips (independent of `judgement`) */
+  timing?: Timing | null
 }>(), { x: 1, scale: 1, fps: 30 })
 function paint({ ctx, width, height }: CanvasFrame) {
   const dc = createContext(props.kind, { palette: palette.value, direction: props.direction, scale: props.scale })
@@ -36,6 +38,8 @@ function paint({ ctx, width, height }: CanvasFrame) {
   const grade = props.clip?.id.startsWith('clear-') ? props.clip.id.slice(6) as Grade : props.clip?.id === 'miss' ? 'miss' : null
   if (node && grade && props.judgement)
     node = group([node, renderJudgement(grade, props.x, dc)])
+  if (node && grade && props.timing && showsTiming(grade))
+    node = group([node, renderTiming(props.timing, grade, props.x, dc, props.judgement ? 'stacked' : 'centre')])
   if (!node)
     return
   drawScene(ctx, node)

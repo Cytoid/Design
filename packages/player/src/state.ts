@@ -4,7 +4,7 @@
  * DOM, no Pixi, fully unit-testable. `stage.ts` turns the output into
  * display objects.
  */
-import type { Direction, Grade, NoteKind, NoteState } from '@cytoid/notes'
+import type { Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
 import type { JudgeGrade } from './judgement'
 import { clamp01 } from '@cytoid/notes'
@@ -60,6 +60,8 @@ export interface DeriveOptions {
   grades?: (note: ParsedNote, index: number) => JudgeGrade
   /** actual press time per note (play mode) — effects / hold progress anchor here */
   anchorOf?: (note: ParsedNote) => number | null
+  /** FAST / SLOW per judged note (play mode) — carried into the clear state */
+  timings?: (note: ParsedNote, index: number) => Timing | null
 }
 
 /** Board-space centre of a note (x: 0..1, ratio y: 0 bottom → 1 top). */
@@ -75,8 +77,11 @@ export function clearDuration(grade: Grade): number {
   return grade === 'miss' ? 0.5 : ({ perfect: 0.42, great: 0.46, good: 0.52, bad: 0.56 } as const)[grade]
 }
 
-/** Phase of one note at time `t`, or null when off-screen. `anchor` = actual press time (play mode). */
-export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anchor: number | null = null): NoteState | null {
+/**
+ * Phase of one note at time `t`, or null when off-screen. `anchor` = actual
+ * press time (play mode), `timing` = FAST / SLOW of that press.
+ */
+export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anchor: number | null = null, timing: Timing | null = null): NoteState | null {
   if (t < note.timein)
     return null
   if (t < note.time && anchor == null)
@@ -93,7 +98,9 @@ export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anch
   }
   // hold clears start at the hold end; other notes at the press/hit
   const since = t - (HOLD_TYPES.has(note.kind) ? note.timeout : hit)
-  return since <= clearDuration(grade) ? { phase: 'clear', grade, t: since } : null
+  if (since > clearDuration(grade))
+    return null
+  return timing ? { phase: 'clear', grade, t: since, timing } : { phase: 'clear', grade, t: since }
 }
 
 /**
@@ -163,7 +170,7 @@ export function deriveFrame(parsed: ParsedChart, t: number, opts: DeriveOptions)
     const note = parsed.sorted[i]!
     const grade = gradeOf(note, i)
     const anchor = opts.anchorOf?.(note) ?? null
-    const state = noteStateAt(note, t, grade, anchor)
+    const state = noteStateAt(note, t, grade, anchor, opts.timings?.(note, i) ?? null)
     const follow = chainFollow(note, nextOf, t, board)
     if (!state && !follow)
       continue

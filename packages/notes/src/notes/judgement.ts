@@ -4,7 +4,8 @@
  * Typeface: a custom monoline, chamfered (45°) geometric capital set drawn
  * with the same polyline primitives as the notes — no font files, identical
  * in Canvas, SVG/resvg bakes and a Unity port. The 14 judgement letters plus
- * digits and '%' (combo / score UI) are defined.
+ * digits and '%' (combo / score UI) are defined, plus L / W for the
+ * FAST / SLOW timing label (`timing.ts`).
  *
  * Motion (u = t / duration, duration = the grade's clear duration):
  *  0.00–0.40  tracking closes in (1.0 H → 0.32 H letter gap)
@@ -49,6 +50,9 @@ const GLYPHS: Record<string, Glyph> = {
   'I': { w: 0, strokes: [[[0, 0], [0, 1]]] },
   'S': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 0.5 - K], [K, 0.5], [W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1]]] },
   'X': { w: W * 0.9, strokes: [[[0, 0], [W * 0.9, 1]], [[W * 0.9, 0], [0, 1]]] },
+  // FAST / SLOW timing label
+  'L': { w: W * 0.9, strokes: [[[0, 0], [0, 1], [W * 0.9, 1]]] },
+  'W': { w: M, strokes: [[[0, 0], [0, 1], [M / 2, 0.45], [M, 1], [M, 0]]] },
   // digits — same chamfered stroke language as the letters (combo / score UI)
   '0': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
   '1': { w: 0.34, strokes: [[[0, 0.16], [0.17, 0], [0.17, 1]]] },
