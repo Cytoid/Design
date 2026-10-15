@@ -16,10 +16,11 @@
  *    lands perpendicular to the body ≈ 4 frames before the hit (so a press
  *    on the beat finds it still) — a fixed radius, never converging,
  *    so it never reads as a timing ring, but the late phase stays alive.
- *  - **Size.** Derived from the click's S-curve (same shape, spawn 0.34) but
- *    a touch ahead to 0.95 at p 0.7, then a slow creep onto the hit size at
- *    p 1 (`tokens.sizeCurve.hold`) — no +6 % overshoot and settle, but the
- *    head keeps swelling gently instead of freezing.
+ *  - **Size.** One monotone ease (`tokens.sizeCurve.hold`, spawn 0.34)
+ *    tracking the click's growth closely but a touch ahead — no +6 %
+ *    overshoot and settle. Its long ease-out tail keeps the head swelling
+ *    gently late and lands together with the brackets, so the head is fully
+ *    still ≈ 4 frames before the hit.
  *
  * Entry still speaks the click shade language on the palette scale: the head
  * spawns as one 600 ball, then the socket contracts out of it and sinks to
@@ -44,7 +45,7 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
+import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
@@ -152,8 +153,18 @@ export function holdWake(p: number): number {
   return inOutSine(seg(p, HOLD_WAKE.from, HOLD_WAKE.to))
 }
 
-/** Size: the click's S-curve, a touch ahead, then a slow creep onto 1 at p 1 — no overshoot (`tokens.sizeCurve.hold`). */
-export const holdSize = riseSettleCurve(tokens.sizeCurve.hold, tokens.sizeCurve.s)
+const HOLD_SIZE_EASE = cubicBezier(tokens.sizeCurve.hold.ease[0], 0, tokens.sizeCurve.hold.ease[1], 1)
+
+/**
+ * Size: one monotone ease from spawn to the hit size, landing with the
+ * brackets (`bracketLandP`) — a single velocity hump, so growth and the
+ * damped spin wind down together and the head is fully still before the
+ * hit (a mid-way stall + re-acceleration overlapping the spin's slow-down
+ * read as a wobble).
+ */
+export function holdSize(p: number, ctx: DrawContext): number {
+  return lerp(tokens.sizeCurve.hold.spawn, 1, HOLD_SIZE_EASE(seg(p, 0, bracketLandP(ctx))))
+}
 
 function holdEnter(long: boolean) {
   return (p: number, ctx: DrawContext): SceneNode => {
@@ -168,7 +179,7 @@ function holdEnter(long: boolean) {
     const { from, fadeTo, turns, damping } = BRACKET_TIMING
     const spin = -TAU * turns * (1 - damped(seg(p, from, bracketLandP(ctx)), damping))
     const lock = brackets(ctx, R * BRACKET.r, spin, ringTone(ctx.palette, wake), seg(p, from, fadeTo))
-    return group([lock, head].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p) } })
+    return group([lock, head].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p, ctx) } })
   }
 }
 
@@ -243,8 +254,8 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
-        : 'Reads apart from a click: the click\'s S-curve, a touch ahead, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; the head creeps 0.95 → 1 late. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
+        ? 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
+        : 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
