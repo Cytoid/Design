@@ -59,6 +59,11 @@ export function holdEndLength(ctx: DrawContext): number {
  * point does not move) and the conveyor ends in a full stop: dashes, a gap,
  * one dim dot. The dot lights white as the fill arrives (progress 0.9–1),
  * meeting the white midline — the release cue.
+ *
+ * A thin border traces the capsule — unclipped, so its full hair width reads
+ * (the long-hold edge-rail recipe; user feedback: the empty track's length
+ * was too faint). The fill later covers the inner half in the same colour,
+ * leaving the border to rim the filled bar.
  */
 export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   const s = ctx.bodyDirection === 'up' ? -1 : 1
@@ -99,10 +104,11 @@ export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   })
   // rounded far end: clip the whole body to a capsule whose near end hides under the head
   const rx = Math.min(r, (shown + r) / 2)
-  return group(items, {
-    opacity: reveal.alpha,
-    clip: { type: 'rect', x: -r, y: s > 0 ? -r : -shown, w: Wb, h: shown + r, rx },
-  })
+  const nearY = s > 0 ? -r : -shown
+  return group([
+    group(items, { clip: { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r, rx } }),
+    { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r, rx, stroke: ctx.palette[400], strokeWidth: hair * 1.6, opacity: 0.9 },
+  ], { opacity: reveal.alpha })
 }
 
 export interface LongHoldBodyOptions {
