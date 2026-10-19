@@ -85,11 +85,11 @@ export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
     items.push({ type: 'line', x1: 0, y1: 0, x2: 0, y2: s * done, stroke: ctx.palette.ring, strokeWidth: hair * 2, cap: 'butt' })
   }
   // open far end: the two side rails stop on the end point (no cap line);
-  // the near end hides under the head
-  const nearY = s > 0 ? -r : -shown
-  const rail = (x: number): SceneNode => ({ type: 'line', x1: x, y1: nearY, x2: x, y2: nearY + shown + r, stroke: ctx.palette[400], strokeWidth: hair * 1.6, cap: 'butt', opacity: 0.9 })
+  // the near end stops on the head centre, hidden under the head drawn above it
+  const nearY = s > 0 ? 0 : -shown
+  const rail = (x: number): SceneNode => ({ type: 'line', x1: x, y1: nearY, x2: x, y2: nearY + shown, stroke: ctx.palette[400], strokeWidth: hair * 1.6, cap: 'butt', opacity: 0.9 })
   return group([
-    group(items, { clip: { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r } }),
+    group(items, { clip: { type: 'rect', x: -r, y: nearY, w: Wb, h: shown } }),
     rail(-r),
     rail(r),
   ], { opacity: reveal.alpha })
