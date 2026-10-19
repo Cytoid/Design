@@ -11,7 +11,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { bounds, group } from '../core/scene'
-import { clipsOf, createContext, designs, dragLine, holdBody, holdDashPeriod, holdEndLength, judgementCapHeight, judgementClips, longHoldBody, TIMED_GRADES, timingCapHeight, timingClips, timingOffset } from '../notes'
+import { clipsOf, createContext, designs, dragLine, holdBody, holdDashPeriod, judgementCapHeight, judgementClips, longHoldBody, TIMED_GRADES, timingCapHeight, timingClips, timingOffset } from '../notes'
 import { createPalette, exportPalette } from '../palette'
 import { toSVGMarkup } from '../render/svg'
 import { GRADES, NOTE_KINDS, tokens } from '../tokens'
@@ -142,12 +142,8 @@ async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (nam
     out[name] = { file, width: w, height: h, repeat, note }
   }
   const hctx: DrawContext = { ...ctx, bodyDirection: 'down' }
-  await put('hold-track', holdBody({ length: tile * 4, progress: 0, appear: 0.999 }, hctx), Wb, tile, Wb / 2, 0, 'y', 'Unheld hold body; tile vertically. Scroll V by t·4·width for the conveyor.')
+  await put('hold-track', holdBody({ length: tile * 4, progress: 0, appear: 0.999 }, hctx), Wb, tile, Wb / 2, 0, 'y', 'Unheld hold body; tile vertically from the hold end point toward the head (flat end — no end piece). Scroll V by t·4·width for the conveyor.')
   await put('hold-done', holdBody({ length: tile * 4, progress: 1, appear: 0.999 }, hctx), Wb, tile, Wb / 2, 0, 'y', 'Completed hold body; tile vertically, mask by progress.')
-  const endH = holdEndLength(ctx)
-  const endL = tile * 4
-  await put('hold-end', holdBody({ length: endL, progress: 0, appear: 0.999 }, hctx), Wb, endH, Wb / 2, endH - endL, 'none', 'Rounded far end with the dim full stop. Tile the body up to length − height, then this piece; its far edge is the hold end point.')
-  await put('hold-end-lit', holdBody({ length: endL, progress: 1, appear: 0.999 }, hctx), Wb, endH, Wb / 2, endH - endL, 'none', 'Lit far end (fill landed, white full stop). Cross-fade from hold-end over progress 0.9–1.')
   const lw = Math.ceil(ctx.unit * tokens.stroke.holdBody) + 4
   await put('long-hold-rail', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 0, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold rail with the centre conveyor; tile vertically across the full play area. Scroll the dashes toward the note at t·4·width (both halves share the dash grid at rest). Over the fill the same grid runs in 800, softer.')
   await put('long-hold-done', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
