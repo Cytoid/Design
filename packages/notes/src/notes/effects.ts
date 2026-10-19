@@ -33,10 +33,11 @@ export interface ClearFlavor {
 
 // Kept compact on purpose: dense charts stack many effects, large ones get noisy.
 /**
- * Overall opacity multiplier for the clear/miss effects (the judgement text is unaffected) —
- *  the burst marks the hit without hiding the notes around it.
+ * Overall opacity multiplier for the clear/miss effects (the judgement text is unaffected).
+ * Currently 1 — classic's burst starts at full alpha, and 0.5 read as too faint (player
+ * feedback). Kept as a knob for tuning back down.
  */
-export const EFFECT_ALPHA = 0.5
+export const EFFECT_ALPHA = 1
 /** Flick swipe arrows per grade. */
 const FLICK_ARROWS: Record<ClearGrade, number> = { perfect: 3, great: 2, good: 1, bad: 1 }
 
