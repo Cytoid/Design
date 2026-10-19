@@ -34,7 +34,7 @@
  *   press    (once, 0.2 s)   head sinks to 0.86 scale; the brackets clamp
  *                            onto the ring and merge into it (the "lock")
  *   loop     (loop, 0.6 s)   dark-socket ping inside + two outer ripples (seamless)
- *   progress (progress 0–1)  Cytoid-style progress ring: white lead (4/3·p) + fill (p)
+ *   progress (progress 0–1)  Cytoid-style progress ring: 800 track, 50 lead (4/3·p) + 500 fill (p)
  * The clear effect plays where the scanline is the moment the hold **ends**:
  * the consumer anchors the origin-centred clip at the note's end
  * position — the body's far end for a hold, the line's position mid-board for
@@ -239,8 +239,8 @@ function holdProgress(_long: boolean) {
     const done = Math.min(1, p)
     return group([
       ring(r, W, ctx.palette[800], 0.9),
-      lead > 0 ? arc(r, 0, TAU * lead, W, ctx.palette.ring) : null,
-      done > 0 ? arc(r, 0, TAU * done, W, ctx.palette[400]) : null,
+      lead > 0 ? arc(r, 0, TAU * lead, W, ctx.palette[50]) : null,
+      done > 0 ? arc(r, 0, TAU * done, W, ctx.palette[500]) : null,
     ].filter(Boolean) as SceneNode[])
   }
 }
@@ -260,7 +260,7 @@ function makeHold(long: boolean): NoteDesign {
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
       loop: { id: 'hold-loop', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoop(long), note: 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph; two outer ripples pulse. Drawn above the head. Seamless.' },
-      progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: white lead at 4/3·p, fill at p.' },
+      progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),
     // never pressed: the head rewinds and fades (no 0.8 step — still pressable);
