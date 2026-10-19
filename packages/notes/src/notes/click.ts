@@ -46,9 +46,6 @@ export function ringWidth(ctx: DrawContext) {
   return ctx.unit * tokens.stroke.ring * (ctx.size / ctx.unit) ** 0.5
 }
 
-/** Max core radius relative to `inner` — flick's diamond core; the click core rises onto the frame instead. */
-export const CORE_MAX = 0.8
-
 /** Phase boundaries (normalised). */
 export const CLICK_TIMING = {
   splitFrom: 0.4,

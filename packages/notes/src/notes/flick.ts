@@ -11,6 +11,9 @@
  *             body–arrow gap only ever closes — the pairs sit locked
  *             from 0.875 through the hit
  *  0.70–1.00  a fainter approach chevron pair converges linearly onto them (Click's approach ring)
+ *  0.70–1.00  the outline thickens inward by half a stroke width (Click's frame
+ *             thickening, outer edge pinned) while the core has risen onto its
+ *             final inner edge — core and frame coincide exactly at p = 1
  *  0.00–1.00  the diamond body plays Click's fitted S-curve (`tokens.sizeCurve.click`)
  */
 import type { SceneNode } from '../core/scene'
@@ -19,7 +22,7 @@ import { cubicBezier, lerp, outCubic, outQuart, seg } from '../core/ease'
 import { group, regularPolygon } from '../core/scene'
 import { ringTone } from '../palette'
 import { tokens } from '../tokens'
-import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, CORE_MAX, coreGrowth, splitShades } from './click'
+import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, coreGrowth, frameThickening, splitShades } from './click'
 import { makeClearClips, makeExitClip } from './effects'
 import { diamond, flickChevron } from './parts'
 
@@ -104,6 +107,16 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
   const g = coreGrowth(p)
   const blink = blinkAmount(p)
   const split = splitShades(p, ctx)
+  // frame thickening (as Click): outer edge pinned at the outline's original
+  // outer boundary — the centreline shifts inward by (thick−1)·W/2cos45°, and
+  // the keyline band (shifted by (width−e)/2cos45° inside `buildingDiamond`)
+  // stays pinned with it
+  const thick = frameThickening(p)
+  const fw = lerp(W * 0.45, W, build) * thick
+  const fr = rv - ((thick - 1) * W) / (2 * Math.cos(Math.PI / 4))
+  // the core rises exactly onto the thickened frame's inner edge: a core
+  // diamond with vertex radius rv − √2·W has its edges on that boundary
+  const coreMax = rv - W / Math.cos(Math.PI / 4)
   // the settled chevrons are note material: they ride the ring's neutral wake;
   // the late approach pair is a timing gauge and stays at the resting tone
   const arrows = group(pair(x, W * 0.85, ringTone(ctx.palette, split.k)), { opacity: arrowOpacity })
@@ -116,11 +129,11 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
   const body = group([
     diamond(inner + W * 0.15, { fill: split.base }),
     // fades in with the shade split (same stacking artifact as the click core otherwise)
-    split.k > 0 ? diamond(inner * CORE_MAX * g, { fill: split.core, opacity: split.k }) : null,
-    blink > 0 ? diamond(inner * CORE_MAX * g, { fill: ctx.palette.ring, opacity: BLINK_PEAK * blink }) : null,
+    split.k > 0 ? diamond(coreMax * g, { fill: split.core, opacity: split.k }) : null,
+    blink > 0 ? diamond(coreMax * g, { fill: ctx.palette.ring, opacity: BLINK_PEAK * blink }) : null,
     // centre slit: flat nod to Cytoid's split-diamond flick fill
     { type: 'line', x1: 0, y1: -inner * 0.5 * g, x2: 0, y2: inner * 0.5 * g, stroke: ctx.palette[600], strokeWidth: W * 0.5, opacity: outCubic(seg(p, CLICK_TIMING.splitFrom, 0.75)) },
-    buildingDiamond(rv, lerp(W * 0.45, W, build), ringTone(ctx.palette, split.k), build, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    buildingDiamond(fr, fw, ringTone(ctx.palette, split.k), build, { color: tokens.edge, fraction: tokens.stroke.edge }),
   ].filter(Boolean) as SceneNode[], { transform: { scale: clickSize(p) } })
 
   return group([approach, arrows, body].filter(Boolean) as SceneNode[], { opacity: a })
@@ -133,7 +146,7 @@ export const flick: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: flickEnter,
-    note: 'Diamond outline grows from edge midpoints; dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back across the diamond\'s growth so the body–arrow gap only closes; locked from p 0.875. Outline and chevrons wake neutral 400 → 50 with the split.',
+    note: 'Diamond outline grows from edge midpoints; dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back across the diamond\'s growth so the body–arrow gap only closes; locked from p 0.875; from p 0.7 the outline thickens inward by half a stroke width (Click\'s frame thickening) onto the core risen to its inner edge — the two coincide exactly at the hit. Outline and chevrons wake neutral 400 → 50 with the split.',
   },
   clear: makeClearClips({ shape: 'diamond', reach: 1.4, sectors: 4, extra: 'streaks', seed: 2 }),
   exit: makeExitClip(flickEnter),
