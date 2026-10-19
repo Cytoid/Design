@@ -34,7 +34,8 @@
  * Motion (u = t / grade clear duration — exactly the judgement's window):
  *  0.06–0.40  slides 0.5 H in along its direction (outCubic) and pops in
  *  0.00–1.00  rises with the judgement text (0.12 judgement H)
- *  0.70–1.00  fade out
+ *  0.45–0.75  fade out — same window as the judgement text, so the two
+ *             layers leave together
  */
 import type { SceneNode } from '../core/scene'
 import type { Grade } from '../tokens'
@@ -124,7 +125,7 @@ export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: Dr
   const dx = dir * H * 0.5 * (k - 1)
   const dy = -judgementCapHeight(ctx) * 0.12 * outCubic(u)
   const body = drawTimingLabel(timing, H, TIMING_COLOR[timing], pop)
-  return group([body], { opacity: lerp(0, 1, seg(u, 0.06, 0.2)) * (1 - seg(u, 0.7, 1)), transform: { x: dx, y: dy } })
+  return group([body], { opacity: lerp(0, 1, seg(u, 0.06, 0.2)) * (1 - seg(u, 0.45, 0.75)), transform: { x: dx, y: dy } })
 }
 
 /** Placed label (t = seconds since judgement). */
