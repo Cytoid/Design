@@ -24,9 +24,8 @@ export interface ClearFlavor {
    * What the opening colour flash shows. 'note' (default): the note's own
    * steady shape — the thing that was hit. 'tail': a body-width disc — the
    * hold family plays its clear at the hold end, where there is no note to
-   * flash; the disc is the release dot (lit white at progress 0.9–1)
-   * detonating. Deliberately rotation-free so baked frames work for either
-   * body direction.
+   * flash; the disc is the body's flat end detonating. Deliberately
+   * rotation-free so baked frames work for either body direction.
    */
   flash?: 'note' | 'tail'
   seed: number
@@ -80,7 +79,7 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
 
   // 1. core flash: a faint grade-colour pop that collapses (no white, and peak
   // opacity only 0.25 — it marks the hit without pulling the eye). The hold
-  // family flashes the release dot (body width) instead of a phantom note.
+  // family flashes a body-width disc at the hold end instead of a phantom note.
   const flashK = seg(u, 0, 0.32)
   const grow = lerp(1, 1.08, outCubic(flashK)) * (1 - outQuad(seg(u, 0.12, 0.32)))
   const flash = flavor.flash === 'tail'

@@ -38,8 +38,8 @@
  * The clear effect plays where the scanline is the moment the hold **ends**:
  * the consumer anchors the origin-centred clip at the note's end
  * position — the body's far end for a hold, the line's position mid-board for
- * the full-height long-hold pillar — where the release dot has just lit; the
- * opening flash is that dot detonating (`ClearFlavor.flash = 'tail'`), not a
+ * the full-height long-hold pillar — where the body's flat end has just met the line; the
+ * opening flash is the body end detonating (`ClearFlavor.flash = 'tail'`), not a
  * phantom note.
  * Bodies (see ./bodies.ts) are stretched elements, not frame clips.
  */
