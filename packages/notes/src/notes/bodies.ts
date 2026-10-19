@@ -5,9 +5,8 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext } from './types'
-import { clamp01, inSine, lerp, outBack, outCubic, seg } from '../core/ease'
+import { clamp01, inSine, lerp, outCubic, seg } from '../core/ease'
 import { group } from '../core/scene'
-import { ringTone } from '../palette'
 import { tokens } from '../tokens'
 
 export interface HoldBodyOptions {
@@ -45,25 +44,20 @@ export function holdDashPeriod(ctx: DrawContext): number {
 }
 
 /**
- * Length of the hold body's end piece (whole px): the rounded end, the full
- * stop and the gap before it — no conveyor dashes inside it.
- */
-export function holdEndLength(ctx: DrawContext): number {
-  return Math.max(2, Math.round(ctx.unit * tokens.stroke.holdBody * 0.9))
-}
-
-/**
  * Hold body in note-local space. Extends toward -y for `up`, +y for `down`.
  *
- * The far end is rounded (half-circle, inside the hold length — the end
- * point does not move) and the conveyor ends in a full stop: dashes, a gap,
- * one dim dot. The dot lights white as the fill arrives (progress 0.9–1),
- * meeting the white midline — the release cue.
+ * No end piece: the body is cut flat at the hold end — no rounded cap, no
+ * release dot. (User feedback: every note detonates when its centre meets the
+ * scanline, but the old rounded tail read as a small circle the line only
+ * touched tangentially. Neither reference design has a tail either.) The
+ * flat edge sits exactly on the end point, so it meets the scanline the
+ * moment the hold completes.
  *
- * A thin border traces the capsule — unclipped, so its full hair width reads
- * (the long-hold edge-rail recipe; user feedback: the empty track's length
- * was too faint). The fill later covers the inner half in the same colour,
- * leaving the border to rim the filled bar.
+ * Two thin side rails run along the body — unclipped, so their full hair
+ * width reads (the long-hold edge-rail recipe; user feedback: the empty
+ * track's length was too faint). The far end stays open: no cap line across
+ * it. The fill later covers the rails' inner half in the same colour,
+ * leaving them to rim the filled bar.
  */
 export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   const s = ctx.bodyDirection === 'up' ? -1 : 1
@@ -78,36 +72,26 @@ export function holdBody(o: HoldBodyOptions, ctx: DrawContext): SceneNode {
   const done = L * p
   const dash = holdDashPeriod(ctx) / 2
   const r = Wb / 2
-  const dashEnd = shown - holdEndLength(ctx)
   const items: SceneNode[] = [
     // track
     { type: 'rect', x: -r, y: s > 0 ? 0 : -shown, w: Wb, h: shown, fill: ctx.palette[800], opacity: 0.92 },
   ]
   // centre conveyor dashes (scroll toward the head while holding); phase stays anchored at the far end
-  if (dashEnd > done) {
-    items.push({ type: 'line', x1: 0, y1: s * dashEnd, x2: 0, y2: s * done, stroke: ctx.palette[400], strokeWidth: hair * 2.4, dash: [dash, dash], dashOffset: (o.t ?? 0) * Wb * 4 + shown - dashEnd, opacity: 0.75 })
+  if (shown > done) {
+    items.push({ type: 'line', x1: 0, y1: s * shown, x2: 0, y2: s * done, stroke: ctx.palette[400], strokeWidth: hair * 2.4, dash: [dash, dash], dashOffset: (o.t ?? 0) * Wb * 4, opacity: 0.75 })
   }
   if (done > 0) {
     items.push({ type: 'rect', x: -r, y: s > 0 ? 0 : -done, w: Wb, h: done, fill: ctx.palette[400] })
-    if (dashEnd > 0)
-      items.push({ type: 'line', x1: 0, y1: 0, x2: 0, y2: s * Math.min(done, dashEnd), stroke: ctx.palette.ring, strokeWidth: hair * 2, cap: 'butt' })
+    items.push({ type: 'line', x1: 0, y1: 0, x2: 0, y2: s * done, stroke: ctx.palette.ring, strokeWidth: hair * 2, cap: 'butt' })
   }
-  // full stop: dim neutral at rest, lights white as the fill lands
-  const lit = outCubic(seg(p, 0.9, 1))
-  items.push({
-    type: 'circle',
-    cx: 0,
-    cy: s * (shown - r),
-    r: lerp(hair * 2.2, hair * 3.2, outBack(lit, 2)),
-    fill: lit > 0 ? ctx.palette.ring : ringTone(ctx.palette, 0),
-    opacity: lerp(0.75, 1, lit),
-  })
-  // rounded far end: clip the whole body to a capsule whose near end hides under the head
-  const rx = Math.min(r, (shown + r) / 2)
+  // open far end: the two side rails stop on the end point (no cap line);
+  // the near end hides under the head
   const nearY = s > 0 ? -r : -shown
+  const rail = (x: number): SceneNode => ({ type: 'line', x1: x, y1: nearY, x2: x, y2: nearY + shown + r, stroke: ctx.palette[400], strokeWidth: hair * 1.6, cap: 'butt', opacity: 0.9 })
   return group([
-    group(items, { clip: { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r, rx } }),
-    { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r, rx, stroke: ctx.palette[400], strokeWidth: hair * 1.6, opacity: 0.9 },
+    group(items, { clip: { type: 'rect', x: -r, y: nearY, w: Wb, h: shown + r } }),
+    rail(-r),
+    rail(r),
   ], { opacity: reveal.alpha })
 }
 
