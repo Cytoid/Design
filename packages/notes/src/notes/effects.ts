@@ -5,7 +5,7 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { ClearGrade, Clip, DrawContext } from './types'
-import { lerp, outCubic, outExpo, outQuad, outQuart, seg, TAU } from '../core/ease'
+import { lerp, outCubic, outExpo, outQuad, outQuart, outQuint, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { tokens } from '../tokens'
 import { arc, capsule, dashedRing, diamond, disk, flickChevron, ring, shards } from './parts'
@@ -87,10 +87,12 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
     ? disk(ctx.unit * tokens.stroke.holdBody * grow, color, 0.25 * (1 - seg(u, 0.2, 0.32)))
     : solid(shape, R * grow, color, ctx, 0.25 * (1 - seg(u, 0.2, 0.32)))
 
-  // 2. shock ring, thickness 1.333 → 0.333 (Cytoid FlatFX); peak opacity 0.5 —
-  // a full-strength ring pulled the eye away from the notes around it
+  // 2. shock ring, thickness 1.333 → 0.333 (Cytoid FlatFX); the fade rides
+  // classic's curve — 1 − quintic-out over the whole effect, no delay or early
+  // cutoff — at the design's 0.5 peak (a full-strength ring pulled the eye away
+  // from the notes around it)
   const sk = outExpo(seg(u, 0, 0.85))
-  const shock = outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, 0.5 * (1 - outCubic(seg(u, 0.12, 0.8))))
+  const shock = outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, 0.5 * (1 - outQuint(u)))
 
   // 3. double ring (hold family)
   const second = flavor.extra === 'double'
