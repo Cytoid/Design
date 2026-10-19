@@ -30,6 +30,7 @@ export const inCubic: Ease = t => t * t * t
 export const outCubic: Ease = t => 1 - (1 - t) ** 3
 export const inOutCubic: Ease = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 export const outQuart: Ease = t => 1 - (1 - t) ** 4
+export const outQuint: Ease = t => 1 - (1 - t) ** 5
 export const outExpo: Ease = t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t))
 export const inExpo: Ease = t => (t <= 0 ? 0 : 2 ** (10 * t - 10))
 export function outBack(t: number, s = 1.70158): number {
