@@ -19,9 +19,14 @@
  *             colour), the background sinks 700 → 800 (full, uncompressed
  *             contrast — ΔL ≈ 0.3 at the hit)
  *  0.42–0.94  the core (already at 0.36 — barely moving early, stable) swells
- *             ease-in to 0.8·inner — most of the growth lands in the last third
+ *             ease-in onto the frame's final inner edge — most of the growth
+ *             lands in the last third
  *  0.70–1.00  approach ring contracts *linearly in time* from 1.83 R onto the ring
  *             (≈ 0.08 R thick, ≤ 50 % opacity)
+ *  0.70–1.00  the frame thickens inward by half a stroke width (ease-in —
+ *             fast at contact) while the core has risen to its final inner
+ *             edge: at p = 1 core and frame coincide exactly — one
+ *             "core meets frame" closure with no separate layer
  *  0.86–1.00  double blink: a lead-in flash (0.86–0.89) then the final blink (0.92–1);
  *             the core flashes white twice — the ring's own width stays a stable
  *             build-only motion, settling exactly at p = 1
@@ -41,7 +46,7 @@ export function ringWidth(ctx: DrawContext) {
   return ctx.unit * tokens.stroke.ring * (ctx.size / ctx.unit) ** 0.5
 }
 
-/** Max core radius relative to the inner radius. */
+/** Max core radius relative to `inner` — flick's diamond core; the click core rises onto the frame instead. */
 export const CORE_MAX = 0.8
 
 /** Phase boundaries (normalised). */
@@ -51,6 +56,7 @@ export const CLICK_TIMING = {
   coreFrom: 0.42,
   coreFull: 0.94,
   approachFrom: 0.7,
+  frameFrom: 0.7,
   readyBlinkFrom: 0.86,
   blinkFrom: 0.92,
 }
@@ -74,6 +80,18 @@ export function blinkAmount(p: number): number {
  * exactly 1.0 by p 0.976 (`tokens.sizeCurve`). The flick shares this curve.
  */
 export const clickSize = riseSettleCurve(tokens.sizeCurve.click, tokens.sizeCurve.s)
+
+/**
+ * Frame thickening: from p 0.7 the ring's stroke grows inward by half a
+ * stroke width (ease-in, so the contact is fast — no slow last frames), to
+ * 1.5·W at the hit. The core rises onto the thickened frame's inner edge, so
+ * core and frame coincide exactly at p = 1 — one "core meets frame" closure
+ * with the ring as the only moving part.
+ */
+/** Stroke-width multiplier of the frame at progress `p`: 1 → 1.5 over 0.7–1. */
+export function frameThickening(p: number): number {
+  return lerp(1, 1.5, inQuad(seg(p, CLICK_TIMING.frameFrom, 1)))
+}
 
 /** Click/Flick spawn shade: the whole ball starts here before the split. */
 export const SPAWN_SHADE = 700
@@ -136,10 +154,12 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
   const inner = R - W
   const a = outCubic(seg(p, 0, 0.1))
   const build = outQuart(seg(p, 0, 0.4))
+  const frameW = lerp(W * 0.45, W, build) * frameThickening(p)
   const scale = clickSize(p)
 
-  // the core stops at 0.8·inner: a rim of the note colour stays visible at the hit (hue identity)
-  const coreR = inner * CORE_MAX * coreGrowth(p)
+  // the core rises exactly onto the thickened frame's final inner edge
+  // (inner − W/2): at the hit core and frame coincide, no base rim between them
+  const coreR = (inner - W / 2) * coreGrowth(p)
   const blink = blinkAmount(p)
   const split = splitShades(p, ctx)
 
@@ -158,7 +178,8 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
     split.k > 0 ? disk(coreR, split.core, split.k) : null,
     blink > 0 ? disk(coreR, ctx.palette.ring, BLINK_PEAK * blink) : null,
     o.glyph?.(p, ctx, inner) ?? null,
-    assemblingRing(R - W / 2, lerp(W * 0.45, W, build), ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    // frame: outer edge pinned at R, thickens inward by half a stroke over 0.7–1
+    assemblingRing(R - (frameW) / 2, frameW, ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
   ].filter(Boolean) as SceneNode[], { transform: { scale } })
 
   return group([approach, body].filter(Boolean) as SceneNode[], { opacity: a })
@@ -181,7 +202,7 @@ export const click: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: (p, ctx) => clickEnter(p, ctx),
-    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %. Ring (and the click-drag arrow) wake neutral 400 → 50 with the shade split.',
+    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring (and the click-drag arrow) wake neutral 400 → 50 with the shade split.',
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.45, sectors: 24, extra: 'double', seed: 1 }),
   exit: makeExitClip((p, ctx) => clickEnter(p, ctx)),
