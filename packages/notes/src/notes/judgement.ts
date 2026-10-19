@@ -12,7 +12,8 @@
  *  0.02–0.35  letters pop in one after another (scale 0.4 → 1, outBack)
  *  0.05–0.40  a thin underline grows from the centre (not for MISS)
  *  0.00–1.00  text rises 0.12 H (MISS sinks instead)
- *  0.70–1.00  fade out
+ *  0.55–0.85  fade out — a short hold after the enter settles, gone before
+ *             the clear effect ends
  *
  * The clip is drawn around the *text centre*. Place it above the note with
  * `judgementOffset(ctx)` (renderNote does this): the text sits in the centre
@@ -142,7 +143,7 @@ function draw(grade: Grade) {
       ? { type: 'rect', x: (-finalW / 2 - H * 0.3) * lk, y: H * 0.8, w: (finalW + H * 0.6) * lk, h: H * 0.08, fill: color, opacity: 0.7 }
       : null
     const dy = (miss ? 1 : -1) * H * 0.12 * outCubic(u)
-    return group([body, line].filter(Boolean) as SceneNode[], { opacity: 1 - seg(u, 0.7, 1), transform: { y: dy } })
+    return group([body, line].filter(Boolean) as SceneNode[], { opacity: 1 - seg(u, 0.55, 0.85), transform: { y: dy } })
   }
 }
 
