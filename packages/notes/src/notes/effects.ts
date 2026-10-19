@@ -109,8 +109,8 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
       ? group(Array.from({ length: 4 }, (_, i) => {
           const c = i * (TAU / 4) + TAU / 8 + (shape === 'diamond' ? 0 : 0)
           return arc(r, c - 0.42 * duty * 1.6, c + 0.42 * duty * 1.6, W * 0.45, color)
-        }), { opacity: 1 - seg(u, 0.55, 1) })
-      : dashedRing(r, W * lerp(0.55, 0.25, k), color, flavor.sectors, duty, k * 0.35, 1 - seg(u, 0.55, 1))
+        }), { opacity: 1 - seg(u, 0.5, 0.725) })
+      : dashedRing(r, W * lerp(0.55, 0.25, k), color, flavor.sectors, duty, k * 0.35, 1 - seg(u, 0.5, 0.725))
   }
 
   // 5. shards
