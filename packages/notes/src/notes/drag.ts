@@ -11,7 +11,7 @@
  *   chain (`ctx.heading`; frames are baked pointing up — rotate the sprite).
  * Drag child (0.65): solid bead, like Cytoid. Only a faint 600 hairline ring
  *   inside; the stepped edge sits on the bead's own silhouette.
- * Click drag head: Click curve + the same arrow (see click.ts).
+ * Click drag head: identical to Click (experiment — no arrow, see click.ts).
  * Click drag child: identical to drag child, click colours.
  */
 import type { SceneNode } from '../core/scene'

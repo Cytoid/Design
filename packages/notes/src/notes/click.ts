@@ -129,7 +129,7 @@ export function wakeShade(lit: number, w: number): number {
 }
 
 export interface ClickOptions {
-  /** extra glyph drawn above the core (click-drag head arrow) */
+  /** extra glyph drawn above the core (e.g. a drag arrow) */
   glyph?: (p: number, ctx: DrawContext, inner: number) => SceneNode | null
 }
 
@@ -199,24 +199,21 @@ export const click: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: (p, ctx) => clickEnter(p, ctx),
-    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring (and the click-drag arrow) wake neutral 400 → 50 with the shade split.',
+    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring wakes neutral 400 → 50 with the shade split.',
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.45, sectors: 24, extra: 'double', seed: 1 }),
   exit: makeExitClip((p, ctx) => clickEnter(p, ctx)),
 }
 
-function clickDragHeadEnter(p: number, ctx: DrawContext): SceneNode {
-  return clickEnter(p, ctx, { glyph: (pp, c, inner) => dragArrow(c, inner * 0.62, outCubic(seg(pp, 0.1, 0.3)), splitShades(pp, c).k) })
-}
-
+/**
+ * Experiment: no arrow. The head is drawn exactly like a click — only the
+ * chain (child beads + path) says it is a drag start.
+ */
 export const clickDragHead: NoteDesign = {
   ...click,
   kind: 'click-drag-head',
   enter: {
     ...click.enter,
-    draw: clickDragHeadEnter,
-    note: 'Click timing + white arrow pointing along the chain (rotate by heading).',
+    note: 'Experiment: identical to click, no arrow — the chain alone marks the drag start.',
   },
-  // its own enter rewinds (the click's would drop the arrow)
-  exit: makeExitClip(clickDragHeadEnter),
 }
