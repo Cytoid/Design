@@ -69,13 +69,29 @@ export const tokens = {
     /** main white ring, relative to unit */
     ring: 0.085,
     /**
-     * Dark keyline on the ring's outer edge, as a fraction of the ring band
-     * (`ringWidth`). The band is *split*, not widened — total width and the
-     * outer radius stay exactly as calibrated. This is the flat answer to
-     * overlapping notes: two white rings would merge; the keyline (a solid
-     * dark rim) keeps a boundary.
+     * Dark edge on the ring's outer silhouette — the flat answer to
+     * overlapping notes: two white rings would merge; the edge keeps a
+     * boundary. Instead of one solid keyline it is a stepped falloff: abutting,
+     * non-overlapping bands of `tokens.edge` (widths as fractions of the ring
+     * band, `ringWidth`), listed from the silhouette away, opacity falling off
+     * — a shadow read without blur, filters or gradients.
+     *
+     * `placement`:
+     *  - 'inside'  — bands eat into the ring band from its outer edge; the
+     *               silhouette and outer radius stay exactly as calibrated.
+     *  - 'outside' — bands sit beyond the silhouette (radius R outward): a
+     *               cast-shadow halo. Near-invisible on the stage (edge ≈
+     *               stage colour); `bounds` (and so bake canvases) grow by
+     *               the total band width.
      */
-    edge: 0.34,
+    edge: {
+      placement: 'inside' as 'inside' | 'outside',
+      bands: [
+        { fraction: 0.10, opacity: 0.9 },
+        { fraction: 0.10, opacity: 0.5 },
+        { fraction: 0.10, opacity: 0.2 },
+      ] as readonly { fraction: number, opacity: number }[],
+    },
     /** secondary / decorative hairlines */
     hair: 0.022,
     /** hold progress ring */

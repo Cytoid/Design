@@ -17,6 +17,7 @@
  *  0.00–1.00  the diamond body plays Click's fitted S-curve (`tokens.sizeCurve.click`)
  */
 import type { SceneNode } from '../core/scene'
+import type { EdgeSpec } from './parts'
 import type { DrawContext, NoteDesign } from './types'
 import { cubicBezier, lerp, outCubic, outQuart, seg } from '../core/ease'
 import { group, regularPolygon } from '../core/scene'
@@ -24,7 +25,7 @@ import { ringTone } from '../palette'
 import { tokens } from '../tokens'
 import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, coreGrowth, frameThickening, splitShades } from './click'
 import { makeClearClips, makeExitClip } from './effects'
-import { diamond, flickChevron } from './parts'
+import { diamond, edgeBands, flickChevron, ringEdge } from './parts'
 
 /**
  * Flight window of the side arrows: a delayed, short 0.30u dash over
@@ -56,16 +57,17 @@ function flickArrow(size: number, width: number, color: string): SceneNode {
 }
 
 /**
- * Diamond outline drawn edge by edge; k ∈ [0,1]. `edge` = dark keyline on the
- * band's outer edge (flat overlap separator, `tokens.stroke.edge`): for a
- * stroked square the centreline shifts outward by (width−e)/2 along the edge
- * normal — i.e. (width−e)/(2·cos 45°) per vertex radius — so the keyline's
- * outer boundary (miter tips included) coincides with the white band's.
+ * Diamond outline drawn edge by edge; k ∈ [0,1]. `edge` = stepped dark
+ * falloff on the band's outer silhouette (flat overlap separator,
+ * `tokens.stroke.edge`, `edgeBands`): a band whose centreline sits `offset`
+ * from the silhouette along the edge normal has vertex radius
+ * r + (width/2 + offset)/cos 45°, so every band's boundaries (miter tips
+ * included) stay parallel to the white band's.
  */
-function buildingDiamond(r: number, width: number, color: string, k: number, edge?: { color: string, fraction: number }): SceneNode {
-  const band = (rr: number, w: number, c: string): SceneNode => {
+function buildingDiamond(r: number, width: number, color: string, k: number, edge?: EdgeSpec): SceneNode {
+  const band = (rr: number, w: number, c: string, o = 1): SceneNode => {
     if (k >= 0.999)
-      return diamond(rr, { stroke: c, strokeWidth: w })
+      return diamond(rr, { stroke: c, strokeWidth: w, opacity: o })
     const pts = regularPolygon(4, rr)
     const lines: SceneNode[] = []
     for (let i = 0; i < 4; i++) {
@@ -76,12 +78,13 @@ function buildingDiamond(r: number, width: number, color: string, k: number, edg
       const my = (y1 + y2) / 2
       lines.push({ type: 'line', x1: lerp(mx, x1, k), y1: lerp(my, y1, k), x2: lerp(mx, x2, k), y2: lerp(my, y2, k), stroke: c, strokeWidth: w, cap: 'square' })
     }
-    return group(lines)
+    return group(lines, { opacity: o })
   }
-  const e = edge ? width * Math.min(1, Math.max(0, edge.fraction)) : 0
-  if (!edge || !(e > 0))
+  const bands = edgeBands(width, edge)
+  if (!bands.length)
     return band(r, width, color)
-  return group([band(r, width, color), band(r + (width - e) / (2 * Math.cos(Math.PI / 4)), e, edge.color)])
+  const c45 = Math.cos(Math.PI / 4)
+  return group([band(r, width, color), ...bands.map(b => band(r + (width / 2 + b.offset) / c45, b.width, edge!.color, b.opacity))])
 }
 
 function flickEnter(p: number, ctx: DrawContext): SceneNode {
@@ -133,7 +136,7 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
     blink > 0 ? diamond(coreMax * g, { fill: ctx.palette.ring, opacity: BLINK_PEAK * blink }) : null,
     // centre slit: flat nod to Cytoid's split-diamond flick fill
     { type: 'line', x1: 0, y1: -inner * 0.5 * g, x2: 0, y2: inner * 0.5 * g, stroke: ctx.palette[600], strokeWidth: W * 0.5, opacity: outCubic(seg(p, CLICK_TIMING.splitFrom, 0.75)) },
-    buildingDiamond(fr, fw, ringTone(ctx.palette, split.k), build, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    buildingDiamond(fr, fw, ringTone(ctx.palette, split.k), build, ringEdge()),
   ].filter(Boolean) as SceneNode[], { transform: { scale: clickSize(p) } })
 
   return group([approach, arrows, body].filter(Boolean) as SceneNode[], { opacity: a })

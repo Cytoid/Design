@@ -51,7 +51,7 @@ import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { ringWidth, wakeShade } from './click'
 import { makeClearClips, makeExitClip, makeMissClip } from './effects'
-import { arc, assemblingRing, disk, ring } from './parts'
+import { arc, assemblingRing, disk, ring, ringEdge } from './parts'
 
 const PRESSED = 0.86
 /** Cytoid ProgressRing: outer radius ≈ 1.42 R, thickness ≈ 0.083 u */
@@ -136,7 +136,7 @@ function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, spl
     disk(inner + 0.5, tone(ctx.palette, ball)),
     disk(lerp(inner + 0.5, R * CORE_R, split), tone(ctx.palette, core)),
     glyph > 0 ? group([glyphShape(long, R * GLYPH, gw, ringTone(ctx.palette, wake))], { opacity: seg(glyph, 0, 0.5), transform: { scale: lerp(0.4, 1, outBack(glyph, 2)) } }) : null,
-    assemblingRing(R - W / 2, lerp(W * 0.5, W, k), ringTone(ctx.palette, wake), 2, outQuart(k), lerp(-TAU / 4, 0, k), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    assemblingRing(R - W / 2, lerp(W * 0.5, W, k), ringTone(ctx.palette, wake), 2, outQuart(k), lerp(-TAU / 4, 0, k), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[])
 }
 

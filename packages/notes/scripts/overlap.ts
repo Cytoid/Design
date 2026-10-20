@@ -1,8 +1,8 @@
 import type { NoteKind } from '../src'
 // Dev helper: render deliberately overlapping notes at their hit pose to
-// review the ring-edge keyline (the flat overlap separator).
+// review the ring-edge falloff (the flat overlap separator).
 //   pnpm exec tsx scripts/overlap.ts
-// Left column = keyline off (the old look), right column = current tokens.
+// Left column = edge off (the old look), right column = current tokens.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import { createContext, designs, tokens, toSVGMarkup } from '../src'
@@ -71,19 +71,20 @@ const colX = (col: number) => col * cell + cell / 2
 const rowY = (row: number) => row * cell + cell / 2
 
 // Two passes: the designs read tokens at draw time, so render the "old look"
-// with the keyline fraction zeroed first, then restore and render current.
-const saved = tokens.stroke.edge
-;(tokens.stroke as { edge: number }).edge = 0
+// with no edge bands first, then restore and render current.
+const stroke = tokens.stroke as { edge: typeof tokens.stroke.edge }
+const saved = stroke.edge
+stroke.edge = { ...saved, bands: [] }
 const oldCells = clusters.map((c, r) => c.notes.map(n => note(n, colX(0) + n.x, rowY(r) + n.y)).join(''))
-;(tokens.stroke as { edge: number }).edge = saved
+stroke.edge = saved
 const newCells = clusters.map((c, r) => c.notes.map(n => note(n, colX(1) + n.x, rowY(r) + n.y)).join(''))
 const cells = clusters.map((_, r) => oldCells[r]! + newCells[r]!).join('')
 
 const labels = `${clusters
   .map((c, r) => `<text x="6" y="${rowY(r) - cell / 2 + 14}" fill="#666" font-size="11" font-family="monospace">${c.name}</text>`)
   .join('')
-}<text x="${colX(0) - 46}" y="14" fill="#888" font-size="11" font-family="monospace">no keyline</text>`
-+ `<text x="${colX(1) - 62}" y="14" fill="#888" font-size="11" font-family="monospace">edge keyline</text>`
+}<text x="${colX(0) - 46}" y="14" fill="#888" font-size="11" font-family="monospace">no edge</text>`
++ `<text x="${colX(1) - 62}" y="14" fill="#888" font-size="11" font-family="monospace">edge bands</text>`
 
 const W = cell * 2
 const H = clusters.length * cell

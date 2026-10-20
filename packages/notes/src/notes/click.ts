@@ -39,7 +39,7 @@ import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { makeClearClips, makeExitClip } from './effects'
-import { arrowHead, assemblingRing, disk, ring } from './parts'
+import { arrowHead, assemblingRing, disk, ring, ringEdge } from './parts'
 
 /** Ring stroke for a note of this size (thinner on small notes). */
 export function ringWidth(ctx: DrawContext) {
@@ -176,7 +176,7 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
     blink > 0 ? disk(coreR, ctx.palette.ring, BLINK_PEAK * blink) : null,
     o.glyph?.(p, ctx, inner) ?? null,
     // frame: outer edge pinned at R, thickens inward by half a stroke over 0.7–1
-    assemblingRing(R - (frameW) / 2, frameW, ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    assemblingRing(R - (frameW) / 2, frameW, ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { transform: { scale } })
 
   return group([approach, body].filter(Boolean) as SceneNode[], { opacity: a })

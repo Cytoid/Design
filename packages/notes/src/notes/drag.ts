@@ -21,7 +21,7 @@ import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
-import { assemblingRing, disk, ring } from './parts'
+import { assemblingRing, disk, ring, ringEdge } from './parts'
 
 /** steady by this p */
 const STEADY = 0.2
@@ -43,7 +43,7 @@ function headDraw(p: number, ctx: DrawContext): SceneNode {
     disk(R - W + 0.5, tone(ctx.palette, wakeShade(400, w))),
     dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), w),
     // ring + arrow are white material: they wake neutral 400 → 50 with the page cue
-    assemblingRing(R - W / 2, W, ringTone(ctx.palette, w), 2, k, lerp(-TAU / 4, 0, k), 1, { color: tokens.edge, fraction: tokens.stroke.edge }),
+    assemblingRing(R - W / 2, W, ringTone(ctx.palette, w), 2, k, lerp(-TAU / 4, 0, k), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
 

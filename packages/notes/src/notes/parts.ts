@@ -5,6 +5,7 @@
 import type { SceneNode } from '../core/scene'
 import { lerp, outCubic, outQuart, rng, seg, TAU } from '../core/ease'
 import { group, polar, regularPolygon } from '../core/scene'
+import { tokens } from '../tokens'
 
 export function disk(r: number, fill: string, opacity = 1): SceneNode {
   return { type: 'circle', r: Math.max(0, r), fill, opacity }
@@ -18,14 +19,62 @@ export function arc(r: number, start: number, end: number, width: number, stroke
   return { type: 'arc', r, start, end, strokeWidth: width, stroke, cap: opts.cap ?? 'butt', opacity: opts.opacity }
 }
 
+/** One band of the stepped edge falloff (`tokens.stroke.edge`). */
+export interface EdgeBand {
+  /** band width as a fraction of the ring band width */
+  fraction: number
+  opacity: number
+}
+
+/** Stepped dark edge on a band's outer silhouette (see `tokens.stroke.edge`). */
+export interface EdgeSpec {
+  color: string
+  /** listed from the silhouette away; abutting, never overlapping */
+  bands: readonly EdgeBand[]
+  placement?: 'inside' | 'outside'
+}
+
+/** The design edge, read from tokens at call time (dev scripts swap tokens). */
+export function ringEdge(): EdgeSpec {
+  return { color: tokens.edge, ...tokens.stroke.edge }
+}
+
+/**
+ * Resolve an edge spec against a band of `width` into concrete bands:
+ * `offset` = signed distance of the band's centreline from the silhouette
+ * (negative = inward), `width`, `opacity`. Bands abut exactly — no overlap,
+ * so semi-transparent steps never double up. Inside bands are clamped to the
+ * ring band (they can't eat past its inner edge).
+ */
+export function edgeBands(width: number, edge?: EdgeSpec): { offset: number, width: number, opacity: number }[] {
+  if (!edge || !(width > 0))
+    return []
+  const inside = (edge.placement ?? 'inside') === 'inside'
+  const out: { offset: number, width: number, opacity: number }[] = []
+  let cursor = 0
+  for (const b of edge.bands) {
+    let w = width * Math.max(0, b.fraction)
+    if (inside)
+      w = Math.min(w, width - cursor)
+    if (!(w > 0) || !(b.opacity > 0)) {
+      cursor += Math.max(0, w)
+      continue
+    }
+    const c = cursor + w / 2
+    out.push({ offset: inside ? -c : c, width: w, opacity: Math.min(1, b.opacity) })
+    cursor += w
+  }
+  return out
+}
+
 /**
  * Ring assembled from `n` equal arcs that grow from their own centre.
  * `k` = 0 → nothing, 1 → closed ring. `spin` rotates the whole set.
  *
- * `edge` draws a dark keyline over the outer fraction of the band (see
- * `tokens.stroke.edge`) — the flat overlap separator. The band is split,
- * not widened: the keyline rides the band's outer edge (centreline shifted
- * out by (width−e)/2) so the silhouette is unchanged, and it shares the
+ * `edge` draws the stepped dark falloff on the band's outer silhouette (see
+ * `tokens.stroke.edge`, `edgeBands`) — the flat overlap separator. Inside
+ * placement splits the band (silhouette unchanged); outside placement rings
+ * it with a halo beyond `r + width/2`. Either way the bands share the
  * assembly motion — no second envelope.
  */
 export function assemblingRing(
@@ -36,25 +85,26 @@ export function assemblingRing(
   k: number,
   spin = 0,
   opacity = 1,
-  edge?: { color: string, fraction: number },
+  edge?: EdgeSpec,
 ): SceneNode {
   const closed = k >= 0.999
   const span = TAU / n
   const half = (span * k) / 2
-  const band = (rr: number, w: number, color: string): SceneNode =>
+  const band = (rr: number, w: number, color: string, o = 1): SceneNode =>
     closed
-      ? ring(rr, w, color, opacity)
+      ? ring(rr, w, color, opacity * o)
       : group(
           Array.from({ length: n }, (_, i) => {
             const c = spin + i * span
             return arc(rr, c - half, c + half, w, color)
           }),
-          { opacity },
+          { opacity: opacity * o },
         )
-  const e = edge ? width * Math.min(1, Math.max(0, edge.fraction)) : 0
-  if (!edge || !(e > 0))
+  const bands = edgeBands(width, edge)
+  if (!bands.length)
     return band(r, width, stroke)
-  return group([band(r, width, stroke), band(r + (width - e) / 2, e, edge.color)])
+  const outer = r + width / 2
+  return group([band(r, width, stroke), ...bands.map(b => band(outer + b.offset, b.width, edge!.color, b.opacity))])
 }
 
 /** Dashed ring made of `n` dashes, duty in (0, 1]. */
