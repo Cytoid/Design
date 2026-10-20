@@ -96,6 +96,17 @@ describe('designs', () => {
     }
   })
 
+  // Edge bands (`tokens.stroke.edge`) are the only nodes stroked in `tokens.edge`;
+  // `body` strips them, `halo` is how far (in ring widths) they reach past the silhouette.
+  const isEdge = (n: SceneNode) => 'stroke' in n && n.stroke === tokens.edge
+  const body = (n: SceneNode): SceneNode | null =>
+    isEdge(n) ? null : n.type === 'group' ? { ...n, children: n.children.map(body).filter(c => c != null) } : n
+  const edgeCount = (n: SceneNode): number =>
+    isEdge(n) ? 1 : n.type === 'group' ? n.children.reduce((s, c) => s + edgeCount(c), 0) : 0
+  const halo = tokens.stroke.edge.placement === 'outside'
+    ? tokens.stroke.edge.bands.reduce((s, b) => s + b.fraction, 0)
+    : 0
+
   it('drop notes keep the classic capsule silhouette (edge bands measured apart)', () => {
     // Classic ring sprites at the 50 %-alpha contour: Note-DropClick-Ring.png 536 × 76.8,
     // Note-DropDrag-Ring.png 404 × 76.8 (PPU = canvas width) — the body capsule (edge
@@ -105,12 +116,6 @@ describe('designs', () => {
       ['drop-click', 76.8 / 536],
       ['drop-drag', 76.8 / 404],
     ] as const
-    const isEdge = (n: SceneNode) => 'stroke' in n && n.stroke === tokens.edge
-    const body = (n: SceneNode): SceneNode | null =>
-      isEdge(n) ? null : n.type === 'group' ? { ...n, children: n.children.map(body).filter(c => c != null) } : n
-    const halo = tokens.stroke.edge.placement === 'outside'
-      ? tokens.stroke.edge.bands.reduce((s, b) => s + b.fraction, 0)
-      : 0
     for (const [kind, h] of cases) {
       const ctx = createContext(kind)
       const node = designs[kind].enter.draw(0, ctx)
@@ -121,6 +126,22 @@ describe('designs', () => {
       const [fx0, fy0, fx1, fy1] = bounds(node)!
       expect(fx1 - fx0, `${kind} width incl. edge`).toBeCloseTo(ctx.size + 2 * e)
       expect(fy1 - fy0, `${kind} height incl. edge`).toBeCloseTo(ctx.size * h + 2 * e)
+    }
+  })
+
+  it('drag children wear the same edge on the bead silhouette', () => {
+    // The bead has no ring band, so the edge sits on the disk at R and is sized off
+    // ringWidth like every other note: one node per band, body still exactly ctx.size,
+    // full bounds grown by the summed band width per side (zero for inside placement).
+    for (const kind of ['drag-child', 'click-drag-child'] as const) {
+      const ctx = createContext(kind)
+      const node = designs[kind].enter.draw(1, ctx)
+      expect(edgeCount(node), `${kind} edge bands`).toBe(tokens.stroke.edge.bands.length)
+      const [bx0, , bx1] = bounds(body(node)!)!
+      expect(bx1 - bx0, `${kind} body width`).toBeCloseTo(ctx.size)
+      const e = ringWidth(ctx) * halo
+      const [fx0, , fx1] = bounds(node)!
+      expect(fx1 - fx0, `${kind} width incl. edge`).toBeCloseTo(ctx.size + 2 * e)
     }
   })
 

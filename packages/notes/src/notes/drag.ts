@@ -9,7 +9,8 @@
  *
  * Drag head (0.8): neutral ring + full fill + matching arrow pointing along the
  *   chain (`ctx.heading`; frames are baked pointing up — rotate the sprite).
- * Drag child (0.65): solid bead, like Cytoid. Only a faint 600 hairline ring.
+ * Drag child (0.65): solid bead, like Cytoid. Only a faint 600 hairline ring
+ *   inside; the stepped edge sits on the bead's own silhouette.
  * Click drag head: Click curve + the same arrow (see click.ts).
  * Click drag child: identical to drag child, click colours.
  */
@@ -21,7 +22,7 @@ import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
-import { assemblingRing, disk, ring, ringEdge } from './parts'
+import { assemblingRing, disk, edgeBands, ring, ringEdge } from './parts'
 
 /** steady by this p */
 const STEADY = 0.2
@@ -63,14 +64,18 @@ export const dragHead: NoteDesign = {
 /**
  * Solid bead — like Cytoid's drag child. The only inner decoration is a
  * low-contrast 600 hairline ring, so the centre never draws the eye and
- * the node position stays crisp.
+ * the node position stays crisp. The bead has no ring band, so the stepped
+ * edge (`tokens.stroke.edge`) sits on the disk silhouette itself, sized off
+ * `ringWidth` so it matches the rest of the family where beads overlap.
  */
 function childDraw(p: number, ctx: DrawContext): SceneNode {
   const R = ctx.size / 2
   const k = outCubic(seg(p, 0, STEADY))
   const w = wakeAmount(p)
+  const edge = ringEdge()
   return group([
     disk(R, tone(ctx.palette, wakeShade(400, w))),
+    ...edgeBands(ringWidth(ctx), edge).map(b => ring(R + b.offset, b.width, edge.color, b.opacity)),
     ring(R * 0.62, ctx.unit * tokens.stroke.hair, tone(ctx.palette, wakeShade(600, w)), 0.7 * k),
   ], { opacity: seg(p, 0, 0.06), transform: { scale: dragChildSize(p) } })
 }
