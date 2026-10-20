@@ -94,6 +94,21 @@ describe('designs', () => {
     }
   })
 
+  it('drop notes keep the classic capsule silhouette (keyline stays inside it)', () => {
+    // Classic ring sprites: Note-DropClick-Ring.png 536×82, Note-DropDrag-Ring.png 404×82
+    // (PPU = canvas width) — the keyline's outer edge lands exactly on the capsule.
+    const cases = [
+      ['drop-click', 82 / 536],
+      ['drop-drag', 82 / 404],
+    ] as const
+    for (const [kind, h] of cases) {
+      const ctx = createContext(kind)
+      const [minX, minY, maxX, maxY] = bounds(designs[kind].enter.draw(0, ctx))!
+      expect(maxX - minX, `${kind} width`).toBeCloseTo(ctx.size)
+      expect(maxY - minY, `${kind} height`).toBeCloseTo(ctx.size * h)
+    }
+  })
+
   it('fitted size curves: growing mid-approach, peak above the hit pose, exact landing', () => {
     // click & flick peak at p 0.878 (+12 %), drag family at p 0.766 (+11 % / +6 %)
     const peaks = [
