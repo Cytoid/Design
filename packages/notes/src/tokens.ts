@@ -85,7 +85,7 @@ export const tokens = {
      *               the total band width.
      */
     edge: {
-      placement: 'inside' as 'inside' | 'outside',
+      placement: 'outside' as 'inside' | 'outside',
       bands: [
         { fraction: 0.10, opacity: 0.9 },
         { fraction: 0.10, opacity: 0.5 },

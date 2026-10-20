@@ -1,3 +1,4 @@
+import type { SceneNode } from '../src'
 import { describe, expect, it } from 'vitest'
 import {
   bounds,
@@ -15,10 +16,11 @@ import {
   renderNote,
   sampleTimes,
   SHADES,
+  tokens,
   tone,
   toSVG,
 } from '../src'
-import { clickSize } from '../src/notes/click'
+import { clickSize, ringWidth } from '../src/notes/click'
 import { dragChildSize, dragHeadSize } from '../src/notes/drag'
 
 describe('color', () => {
@@ -94,19 +96,31 @@ describe('designs', () => {
     }
   })
 
-  it('drop notes keep the classic capsule silhouette (keyline stays inside it)', () => {
+  it('drop notes keep the classic capsule silhouette (edge bands measured apart)', () => {
     // Classic ring sprites at the 50 %-alpha contour: Note-DropClick-Ring.png 536 × 76.8,
-    // Note-DropDrag-Ring.png 404 × 76.8 (PPU = canvas width) — the keyline's outer edge
-    // lands exactly on the capsule.
+    // Note-DropDrag-Ring.png 404 × 76.8 (PPU = canvas width) — the body capsule (edge
+    // bands stripped) is exactly the sprite silhouette; with the edge placed outside
+    // the silhouette, the full bounds grow by the summed band width on every side.
     const cases = [
       ['drop-click', 76.8 / 536],
       ['drop-drag', 76.8 / 404],
     ] as const
+    const isEdge = (n: SceneNode) => 'stroke' in n && n.stroke === tokens.edge
+    const body = (n: SceneNode): SceneNode | null =>
+      isEdge(n) ? null : n.type === 'group' ? { ...n, children: n.children.map(body).filter(c => c != null) } : n
+    const halo = tokens.stroke.edge.placement === 'outside'
+      ? tokens.stroke.edge.bands.reduce((s, b) => s + b.fraction, 0)
+      : 0
     for (const [kind, h] of cases) {
       const ctx = createContext(kind)
-      const [minX, minY, maxX, maxY] = bounds(designs[kind].enter.draw(0, ctx))!
-      expect(maxX - minX, `${kind} width`).toBeCloseTo(ctx.size)
-      expect(maxY - minY, `${kind} height`).toBeCloseTo(ctx.size * h)
+      const node = designs[kind].enter.draw(0, ctx)
+      const [minX, minY, maxX, maxY] = bounds(body(node)!)!
+      expect(maxX - minX, `${kind} body width`).toBeCloseTo(ctx.size)
+      expect(maxY - minY, `${kind} body height`).toBeCloseTo(ctx.size * h)
+      const e = ringWidth(ctx) * halo
+      const [fx0, fy0, fx1, fy1] = bounds(node)!
+      expect(fx1 - fx0, `${kind} width incl. edge`).toBeCloseTo(ctx.size + 2 * e)
+      expect(fy1 - fy0, `${kind} height incl. edge`).toBeCloseTo(ctx.size * h + 2 * e)
     }
   })
 
