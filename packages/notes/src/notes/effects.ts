@@ -14,6 +14,8 @@ export type EffectShape = 'circle' | 'diamond' | 'capsule'
 
 export interface ClearFlavor {
   shape: EffectShape
+  /** capsule notes only: outer silhouette, relative to `ctx.size` */
+  capsule?: { w: number, h: number }
   /** shock ring end radius, relative to note radius */
   reach: number
   /** number of sectors in the crisp outer ring (Cytoid: 24, flick 4) */
@@ -48,24 +50,24 @@ const GRADE_SCALE: Record<ClearGrade, { reach: number, shards: number, sector: b
   bad: { reach: 0.6, shards: 0, sector: false },
 }
 
-function outline(shape: EffectShape, r: number, width: number, color: string, ctx: DrawContext, opacity = 1): SceneNode {
+function outline(shape: EffectShape, r: number, width: number, color: string, ctx: DrawContext, cap: { w: number, h: number } | undefined, opacity = 1): SceneNode {
   if (shape === 'diamond')
     return diamond(r, { stroke: color, strokeWidth: width, opacity })
   if (shape === 'capsule') {
     const ratio = r / (ctx.size / 2)
-    const w = ctx.size * 1.15 * ratio
-    const h = ctx.size * 0.3 * ratio
+    const w = ctx.size * cap!.w * ratio
+    const h = ctx.size * cap!.h * ratio
     return capsule(w + width, h + width, { stroke: color, strokeWidth: width, opacity })
   }
   return ring(r, width, color, opacity)
 }
 
-function solid(shape: EffectShape, r: number, color: string, ctx: DrawContext, opacity = 1): SceneNode {
+function solid(shape: EffectShape, r: number, color: string, ctx: DrawContext, cap: { w: number, h: number } | undefined, opacity = 1): SceneNode {
   if (shape === 'diamond')
     return diamond(r, { fill: color, opacity })
   if (shape === 'capsule') {
     const ratio = r / (ctx.size / 2)
-    return capsule(ctx.size * 1.15 * ratio, ctx.size * 0.3 * ratio, { fill: color, opacity })
+    return capsule(ctx.size * cap!.w * ratio, ctx.size * cap!.h * ratio, { fill: color, opacity })
   }
   return disk(r, color, opacity)
 }
@@ -85,18 +87,18 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
   const grow = lerp(1, 1.08, outCubic(flashK)) * (1 - outQuad(seg(u, 0.12, 0.32)))
   const flash = flavor.flash === 'tail'
     ? disk(ctx.unit * tokens.stroke.holdBody * grow, color, 0.25 * (1 - seg(u, 0.2, 0.32)))
-    : solid(shape, R * grow, color, ctx, 0.25 * (1 - seg(u, 0.2, 0.32)))
+    : solid(shape, R * grow, color, ctx, flavor.capsule, 0.25 * (1 - seg(u, 0.2, 0.32)))
 
   // 2. shock ring, thickness 1.333 → 0.333 (Cytoid FlatFX); the fade rides
   // classic's curve — 1 − quintic-out over the whole effect, no delay or early
   // cutoff — at the design's 0.5 peak (a full-strength ring pulled the eye away
   // from the notes around it)
   const sk = outExpo(seg(u, 0, 0.85))
-  const shock = outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, 0.5 * (1 - outQuint(u)))
+  const shock = outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, flavor.capsule, 0.5 * (1 - outQuint(u)))
 
   // 3. double ring (hold family)
   const second = flavor.extra === 'double'
-    ? outline(shape, R * lerp(0.7, reach * 0.78, outQuart(seg(u, 0.08, 0.9))), W * lerp(0.9, 0.2, seg(u, 0.08, 0.9)), color, ctx, 1 - seg(u, 0.4, 0.95))
+    ? outline(shape, R * lerp(0.7, reach * 0.78, outQuart(seg(u, 0.08, 0.9))), W * lerp(0.9, 0.2, seg(u, 0.08, 0.9)), color, ctx, flavor.capsule, 1 - seg(u, 0.4, 0.95))
     : null
 
   // 4. crisp sector ring (perfect / great)
@@ -167,7 +169,7 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
     : group([extra, shock, second, sectors, flash, pieces], { opacity: EFFECT_ALPHA })
 }
 
-export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, ghost?: (ctx: DrawContext, R: number, W: number, k: number) => SceneNode[]): SceneNode {
+export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, cap?: { w: number, h: number }, ghost?: (ctx: DrawContext, R: number, W: number, k: number) => SceneNode[]): SceneNode {
   const R = ctx.size / 2
   const W = ctx.unit * tokens.stroke.ring
   const gray = ctx.grades.miss
@@ -179,8 +181,8 @@ export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, ghos
   const parts = ghost
     ? ghost(ctx, R, W, k)
     : [
-        solid(shape, R * lerp(0.92, 0.75, k), ctx.palette[800], ctx, 0.9),
-        outline(shape, R * lerp(1, 0.78, k) - W / 2, W * lerp(1, 0.6, k), gray, ctx),
+        solid(shape, R * lerp(0.92, 0.75, k), ctx.palette[800], ctx, cap, 0.9),
+        outline(shape, R * lerp(1, 0.78, k) - W / 2, W * lerp(1, 0.6, k), gray, ctx, cap),
       ]
   // no cross: the MISS judgement text carries the meaning
   return group(parts, { opacity: EFFECT_ALPHA * op, transform: { y: lerp(0, ctx.unit * 0.08, k) } })
@@ -244,11 +246,11 @@ export function makeClearClips(flavor: ClearFlavor): Record<ClearGrade, Clip> {
   return { perfect: mk('perfect'), great: mk('great'), good: mk('good'), bad: mk('bad') }
 }
 
-export function makeMissClip(shape: EffectShape, ghost?: (ctx: DrawContext, R: number, W: number, k: number) => SceneNode[]): Clip {
+export function makeMissClip(shape: EffectShape, cap?: { w: number, h: number }, ghost?: (ctx: DrawContext, R: number, W: number, k: number) => SceneNode[]): Clip {
   return {
     id: 'miss',
     mode: 'once',
     duration: tokens.time.clear.miss,
-    draw: (t, ctx) => missEffect(shape, t / tokens.time.clear.miss, ctx, ghost),
+    draw: (t, ctx) => missEffect(shape, t / tokens.time.clear.miss, ctx, cap, ghost),
   }
 }
