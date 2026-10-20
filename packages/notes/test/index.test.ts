@@ -95,11 +95,12 @@ describe('designs', () => {
   })
 
   it('drop notes keep the classic capsule silhouette (keyline stays inside it)', () => {
-    // Classic ring sprites: Note-DropClick-Ring.png 536×82, Note-DropDrag-Ring.png 404×82
-    // (PPU = canvas width) — the keyline's outer edge lands exactly on the capsule.
+    // Classic ring sprites at the 50 %-alpha contour: Note-DropClick-Ring.png 536 × 76.8,
+    // Note-DropDrag-Ring.png 404 × 76.8 (PPU = canvas width) — the keyline's outer edge
+    // lands exactly on the capsule.
     const cases = [
-      ['drop-click', 82 / 536],
-      ['drop-drag', 82 / 404],
+      ['drop-click', 76.8 / 536],
+      ['drop-drag', 76.8 / 404],
     ] as const
     for (const [kind, h] of cases) {
       const ctx = createContext(kind)

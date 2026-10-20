@@ -24,28 +24,30 @@ import { capsule } from './parts'
 const CORE = '#FFFFFF'
 
 /**
- * Outer capsule silhouette, from the classic sprites' alpha bounds at
- * PPU = canvas width (Note-DropClick-Ring.png 536×82, Note-DropDrag-Ring.png
- * 404×82): full `ctx.size` wide, the sprite's height fraction tall.
+ * Outer capsule silhouette, from the classic sprites' 50 %-alpha contour at
+ * PPU = canvas width (Note-DropClick-Ring.png 536 × 76.8, Note-DropDrag-Ring.png
+ * 404 × 76.8): full `ctx.size` wide, the sprite's height fraction tall. The
+ * edges are a sharp 1 px AA ramp; stray alpha ≈ 1 pixels sit ~2.5 px outside
+ * it, so an alpha > 0 bounding box overstates every layer — measure at 50 %.
  */
-export const DROP_CLICK_CAPSULE = { w: 1, h: 82 / 536 }
-export const DROP_DRAG_CAPSULE = { w: 1, h: 82 / 404 }
+export const DROP_CLICK_CAPSULE = { w: 1, h: 76.8 / 536 }
+export const DROP_DRAG_CAPSULE = { w: 1, h: 76.8 / 404 }
 
 interface ClassicSpec {
   capsule: { w: number, h: number }
-  /** fill capsule, as fractions of the body capsule (alpha bounds again) */
+  /** fill capsule, as fractions of the body capsule (50 %-alpha contour again) */
   fill: { w: number, h: number }
   core?: { w: number, h: number }
 }
 
 const CLICK: ClassicSpec = {
   capsule: DROP_CLICK_CAPSULE,
-  fill: { w: 366 / 536, h: 74 / 82 },
-  core: { w: 150 / 536, h: 38 / 82 },
+  fill: { w: 360.8 / 536, h: 68.8 / 76.8 },
+  core: { w: 144.8 / 536, h: 32.8 / 76.8 },
 }
 const DRAG: ClassicSpec = {
   capsule: DROP_DRAG_CAPSULE,
-  fill: { w: 250 / 404, h: 66 / 82 },
+  fill: { w: 244.8 / 404, h: 60.8 / 76.8 },
 }
 
 /** Static pose — drop notes are a still image, as in Cytoid. */
