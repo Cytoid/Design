@@ -18,7 +18,7 @@ import { group } from '../core/scene'
 import { tokens } from '../tokens'
 import { ringWidth } from './click'
 import { makeClearClips, makeMissClip } from './effects'
-import { capsule } from './parts'
+import { capsule, edgeBands, ringEdge } from './parts'
 
 /** The classic core bar is pure white, not palette-driven (Cytoid: Color.white). */
 const CORE = '#FFFFFF'
@@ -55,13 +55,15 @@ function dropStatic(spec: ClassicSpec) {
   return (_x: number, ctx: DrawContext): SceneNode => {
     const w = ctx.size * spec.capsule.w
     const h = ctx.size * spec.capsule.h
-    // Keyline path inset by e so the stroke's outer edge lands on the
-    // capsule silhouette: the ring-colour body's outer e becomes the rim.
-    const e = ringWidth(ctx) * tokens.stroke.edge
+    // Stepped edge (`edgeBands`): a band whose centreline sits `offset` from
+    // the silhouette is the capsule grown by 2·offset (rx = h/2 keeps it
+    // parallel). Inside bands eat the ring-colour body's rim; outside bands
+    // halo the silhouette.
+    const edge = ringEdge()
     const items: SceneNode[] = [
       capsule(w, h, { fill: ctx.palette.ring }),
       capsule(w * spec.fill.w, h * spec.fill.h, { fill: ctx.palette[400] }),
-      capsule(w - e, h - e, { stroke: tokens.edge, strokeWidth: e }),
+      ...edgeBands(ringWidth(ctx), edge).map(b => capsule(w + 2 * b.offset, h + 2 * b.offset, { stroke: edge.color, strokeWidth: b.width, opacity: b.opacity })),
     ]
     if (spec.core)
       items.push(capsule(w * spec.core.w, h * spec.core.h, { fill: CORE }))

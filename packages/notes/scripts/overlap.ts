@@ -1,8 +1,10 @@
 import type { NoteKind } from '../src'
 // Dev helper: render deliberately overlapping notes at their hit pose to
-// review the ring-edge keyline (the flat overlap separator).
+// review the ring-edge falloff (the flat overlap separator).
 //   pnpm exec tsx scripts/overlap.ts
-// Left column = keyline off (the old look), right column = current tokens.
+// One column per edge variant (see `variants`); `current tokens` is whatever
+// `tokens.stroke.edge` holds. Writes the combined sheet plus one PNG per
+// variant to .sheets/overlap*.png (2× scale).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import { createContext, designs, tokens, toSVGMarkup } from '../src'
@@ -67,29 +69,51 @@ const clusters: { name: string, notes: Placement[] }[] = [
   },
 ]
 
+type EdgeToken = typeof tokens.stroke.edge
+interface Variant { id: string, label: string, edge: EdgeToken }
+
+const variants: Variant[] = [
+  { id: 'none', label: 'no edge', edge: { placement: 'inside', bands: [] } },
+  { id: 'a-keyline', label: '(a) keyline 0.34', edge: { placement: 'inside', bands: [{ fraction: 0.34, opacity: 1 }] } },
+  { id: 'b-inside', label: '(b) 3 bands in', edge: { placement: 'inside', bands: [{ fraction: 0.1, opacity: 0.9 }, { fraction: 0.1, opacity: 0.5 }, { fraction: 0.1, opacity: 0.2 }] } },
+  { id: 'c-outside', label: '(c) 3 bands out', edge: { placement: 'outside', bands: [{ fraction: 0.1, opacity: 0.9 }, { fraction: 0.1, opacity: 0.5 }, { fraction: 0.1, opacity: 0.2 }] } },
+  { id: 'd-soft', label: '(d) 0.25 @ 0.5', edge: { placement: 'inside', bands: [{ fraction: 0.25, opacity: 0.5 }] } },
+]
+
 const colX = (col: number) => col * cell + cell / 2
 const rowY = (row: number) => row * cell + cell / 2
+const SCALE = 2
 
-// Two passes: the designs read tokens at draw time, so render the "old look"
-// with the keyline fraction zeroed first, then restore and render current.
-const saved = tokens.stroke.edge
-;(tokens.stroke as { edge: number }).edge = 0
-const oldCells = clusters.map((c, r) => c.notes.map(n => note(n, colX(0) + n.x, rowY(r) + n.y)).join(''))
-;(tokens.stroke as { edge: number }).edge = saved
-const newCells = clusters.map((c, r) => c.notes.map(n => note(n, colX(1) + n.x, rowY(r) + n.y)).join(''))
-const cells = clusters.map((_, r) => oldCells[r]! + newCells[r]!).join('')
+// The designs read tokens at draw time: swap `tokens.stroke.edge` per pass.
+const stroke = tokens.stroke as { edge: EdgeToken }
+const saved = stroke.edge
+function column(v: Variant, col: number) {
+  stroke.edge = v.edge
+  const cells = clusters.map((c, r) => c.notes.map(n => note(n, colX(col) + n.x, rowY(r) + n.y)).join('')).join('')
+  stroke.edge = saved
+  return cells
+}
 
-const labels = `${clusters
+const rowLabels = clusters
   .map((c, r) => `<text x="6" y="${rowY(r) - cell / 2 + 14}" fill="#666" font-size="11" font-family="monospace">${c.name}</text>`)
   .join('')
-}<text x="${colX(0) - 46}" y="14" fill="#888" font-size="11" font-family="monospace">no keyline</text>`
-+ `<text x="${colX(1) - 62}" y="14" fill="#888" font-size="11" font-family="monospace">edge keyline</text>`
+const colLabel = (v: Variant, col: number) => `<text x="${colX(col)}" y="${cell * clusters.length - 8}" text-anchor="middle" fill="#888" font-size="12" font-family="monospace">${v.label}</text>`
 
-const W = cell * 2
-const H = clusters.length * cell
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${tokens.stage}"/>${labels}${cells}</svg>`
+function sheet(cols: Variant[]) {
+  const W = cell * cols.length
+  const H = clusters.length * cell
+  const body = cols.map((v, i) => column(v, i) + colLabel(v, i)).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * SCALE}" height="${H * SCALE}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${tokens.stage}"/>${rowLabels}${body}</svg>`
+}
+
+function write(name: string, svg: string) {
+  writeFileSync(`.sheets/${name}.svg`, svg)
+  writeFileSync(`.sheets/${name}.png`, new Resvg(svg, { font: { loadSystemFonts: true } }).render().asPng())
+  console.log(`ok → .sheets/${name}.png`)
+}
 
 mkdirSync('.sheets', { recursive: true })
-writeFileSync('.sheets/overlap.svg', svg)
-writeFileSync('.sheets/overlap.png', new Resvg(svg, { font: { loadSystemFonts: true } }).render().asPng())
-console.log('ok → .sheets/overlap.png')
+const current: Variant = { id: 'current', label: 'current tokens', edge: saved }
+write('overlap', sheet([...variants, current]))
+for (const v of [...variants.slice(1), current])
+  write(`overlap-${v.id}`, sheet([v]))
