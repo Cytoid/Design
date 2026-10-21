@@ -4,7 +4,6 @@ import {
   bounds,
   createContext,
   drawText,
-  judgementCapHeight,
   renderNote,
   renderTiming,
   showsTiming,
@@ -91,10 +90,10 @@ describe('timing label (FAST / SLOW)', () => {
     expect(stacked.y).toBeLessThan(ctx.size / 2)
   })
 
-  it('takes the judgement text size alone, shrinks to 0.6 stacked', () => {
+  it('keeps its own cap height, shrinking to 0.6 stacked', () => {
     const ctx = createContext('click')
-    expect(timingCapHeight(ctx, 'centre')).toBe(judgementCapHeight(ctx))
-    expect(timingCapHeight(ctx, 'stacked')).toBeCloseTo(judgementCapHeight(ctx) * 0.6)
+    expect(timingCapHeight(ctx, 'centre')).toBe(ctx.unit * 0.10)
+    expect(timingCapHeight(ctx, 'stacked')).toBeCloseTo(ctx.unit * 0.10 * 0.6)
     const width = (slot: TimingSlot) => {
       const b = bounds(renderTiming('fast', 'great', 0.25, ctx, slot))!
       return b[2] - b[0]

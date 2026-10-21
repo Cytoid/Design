@@ -8,7 +8,7 @@
  * FAST / SLOW timing label (`timing.ts`).
  *
  * Motion (u = t / duration, duration = the grade's clear duration):
- *  0.00–0.40  tracking closes in (1.0 H → 0.32 H letter gap)
+ *  0.00–0.40  tracking closes in (1.0 H → 0.75 H letter gap)
  *  0.02–0.35  letters pop in one after another (scale 0.4 → 1, outBack)
  *  0.05–0.40  a thin underline grows from the centre (not for MISS)
  *  0.00–1.00  text rises 0.12 H (MISS sinks instead)
@@ -33,6 +33,7 @@ interface Glyph { w: number, strokes: Stroke[], closed?: boolean[] }
 const W = 0.62
 const K = 0.18 // chamfer
 const M = 0.82
+const GAP = 0.75 // resting letter gap, × cap height
 
 /** Glyphs in a 1-unit-high box, y down. */
 const GLYPHS: Record<string, Glyph> = {
@@ -80,12 +81,12 @@ export const JUDGEMENT_TEXT: Record<Grade, string> = {
   miss: 'MISS',
 }
 
-/** Cap height in px for a context (reduced from the original 0.17 — smaller text glares less). */
-export const judgementCapHeight = (ctx: DrawContext) => ctx.unit * 0.12
+/** Cap height in px for a context (0.17 → 0.12 → 0.10 → 0.09 — smaller text glares less). */
+export const judgementCapHeight = (ctx: DrawContext) => ctx.unit * 0.09
 
 /** Width of a rendered string in px (same metrics as `drawText`). Unknown glyphs are skipped. */
 export function measureText(text: string, H: number, gap?: number): number {
-  const g = gap ?? H * 0.32
+  const g = gap ?? H * GAP
   const glyphs = [...text].map(ch => GLYPHS[ch]!).filter(Boolean)
   return glyphs.reduce((a, gl) => a + gl.w * H, 0) + g * Math.max(0, glyphs.length - 1)
 }
@@ -97,7 +98,7 @@ export function judgementOffset(_ctx: DrawContext): { x: number, y: number } {
 
 /** Static text layout (no animation): useful for previews and tests. */
 export function drawText(text: string, H: number, color: string, opts: { gap?: number, stroke?: number, pop?: (i: number) => number } = {}): SceneNode {
-  const gap = opts.gap ?? H * 0.32
+  const gap = opts.gap ?? H * GAP
   const sw = opts.stroke ?? H * 0.18
   const glyphs = [...text].map(ch => GLYPHS[ch]!).filter(Boolean)
   const total = glyphs.reduce((a, g) => a + g.w * H, 0) + gap * (glyphs.length - 1)
@@ -133,11 +134,11 @@ function draw(grade: Grade) {
     const color = grade === 'miss' ? mix(ctx.grades.miss, '#FFFFFF', 0.35) : ctx.grades[grade]
     const miss = grade === 'miss'
     const text = JUDGEMENT_TEXT[grade]
-    const gap = lerp(H, H * 0.32, outCubic(seg(u, 0, 0.4)))
+    const gap = lerp(H, H * GAP, outCubic(seg(u, 0, 0.4)))
     const pop = (i: number) => outBack(seg(u, 0.02 + i * 0.035, 0.2 + i * 0.035), 2)
     const body = drawText(text, H, color, { gap, pop })
     // underline: full final text width, grows from the centre
-    const finalW = [...text].reduce((a, ch) => a + (GLYPHS[ch]?.w ?? 0) * H, 0) + H * 0.32 * (text.length - 1)
+    const finalW = [...text].reduce((a, ch) => a + (GLYPHS[ch]?.w ?? 0) * H, 0) + H * GAP * (text.length - 1)
     const lk = outCubic(seg(u, 0.05, 0.4))
     const line: SceneNode | null = !miss && lk > 0
       ? { type: 'rect', x: (-finalW / 2 - H * 0.3) * lk, y: H * 0.8, w: (finalW + H * 0.6) * lk, h: H * 0.08, fill: color, opacity: 0.7 }

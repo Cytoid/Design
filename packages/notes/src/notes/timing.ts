@@ -15,11 +15,13 @@
  *      `centre`   judgement text off: the label takes the vacated centre —
  *                 the position Cytoid's EARLY / LATE always had.
  *  - Same chamfered monoline face as the judgement (no font files), with a
- *    slightly heavier stroke. Two sizes: alone in the centre it takes the
- *    judgement's full cap height — the slot Cytoid's EARLY / LATE always
- *    had; stacked under the judgement text it shrinks to 0.6 × so it stays
- *    a second line, not a rival. Stroke and chevron scale with the cap
- *    height.
+ *    slightly heavier stroke. Its metrics are its own — cap height unit ×
+ *    0.10 with the judgement text's original 0.32 H letter gap: the size
+ *    shrank, the tracking did not follow the judgement's widening. Two
+ *    sizes: alone in the centre it takes the full cap height — the slot
+ *    Cytoid's EARLY / LATE always had; stacked under the judgement text it
+ *    shrinks to 0.6 × so it stays a second line, not a rival. Stroke and
+ *    chevron scale with the cap height.
  *  - Colour (experiment): fixed per direction, not per grade — red = FAST,
  *    green = SLOW, so direction reads by colour alone at a glance. The base
  *    design ties the colour to the grade it explains (every hue is taken by
@@ -50,6 +52,9 @@ export type Timing = typeof TIMINGS[number]
 
 export const TIMING_TEXT: Record<Timing, string> = { fast: 'FAST', slow: 'SLOW' }
 
+const CAP = 0.10 // cap height, × unit — the judgement text's original 0.12, shrunk
+const GAP = 0.32 // resting letter gap, × cap height — the judgement text's original tracking
+
 /** Grades that carry a timing label. */
 export const TIMED_GRADES = ['great', 'good', 'bad'] as const satisfies readonly ClearGrade[]
 export type TimedGrade = typeof TIMED_GRADES[number]
@@ -66,9 +71,9 @@ export function timingOf(error: number): Timing {
 /** Where the label sits: under the judgement text, or alone in the centre. */
 export type TimingSlot = 'stacked' | 'centre'
 
-/** Cap height in px: the judgement's full size alone in the centre, 0.6 × stacked under it. */
+/** Cap height in px: unit × 0.10 full in the centre, 0.6 × stacked under it. */
 export function timingCapHeight(ctx: DrawContext, slot: TimingSlot): number {
-  return judgementCapHeight(ctx) * (slot === 'centre' ? 1 : 0.6)
+  return ctx.unit * CAP * (slot === 'centre' ? 1 : 0.6)
 }
 
 /** Label centre relative to the note centre. */
@@ -84,7 +89,7 @@ export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y
 export function drawTimingLabel(timing: Timing, H: number, color: string, pop?: (i: number) => number): SceneNode {
   const text = TIMING_TEXT[timing]
   const sw = H * 0.22
-  const textW = measureText(text, H)
+  const textW = measureText(text, H, H * GAP)
   const chevW = H * 0.34
   const gap = H * 0.72
   const total = textW + gap + chevW
@@ -101,7 +106,7 @@ export function drawTimingLabel(timing: Timing, H: number, color: string, pop?: 
     join: 'miter',
     cap: 'square',
   }
-  return group([chevron, group([drawText(text, H, color, { stroke: sw, pop })], { transform: { x: tx } })])
+  return group([chevron, group([drawText(text, H, color, { gap: H * GAP, stroke: sw, pop })], { transform: { x: tx } })])
 }
 
 /**
