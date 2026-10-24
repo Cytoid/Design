@@ -166,12 +166,6 @@ export const tokens = {
   } satisfies Record<Grade, string>,
 
   /**
-   * Resting ring tone: neutral 50 (oklch 0.985 0 0). The ring is a neutral
-   * material, not pure white — it spawns at neutral 400 (oklch 0.708) and
-   * rises to this tone on the note's wake envelope (`ringTone` in palette.ts).
-   */
-  ring: '#FAFAFA',
-  /**
    * Ring edge keyline (`tokens.stroke.edge`): an achromatic near-black sitting
    * between the stage (#16171D) and ink (#1C1D24) — near-invisible against the
    * stage (an isolated note's silhouette is unchanged, no added noise) and
