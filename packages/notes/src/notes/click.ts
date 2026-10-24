@@ -6,13 +6,17 @@
  * one — then a late, accelerating core, a visible converging ring and a
  * blink right before the hit.
  *
- *  0.00–0.10  fade in
  *  0.00–1.00  size follows the fitted S-curve (`tokens.sizeCurve.click`):
  *             a small dim spawn (0.32), one smooth slow-fast-slow growth into a
  *             +6 % peak at p 0.88 — together with the lead-in blink and the
  *             converging ring — then a smooth settle, exactly 1.0 (the hit
  *             pose) from p 0.976
- *  0.00–0.10  fade in; 0–0.40 the outer ring assembles from 3 arcs
+ *  0.00–0.10  fade in; the ring is complete from the first frame — the
+ *             entrance is carried by the fade, the S-curve size and the shade
+ *             wake alone
+ *  0.00–0.40  ring entrance: the frame enters darker (ring band 800) and rises
+ *             to the 400 anchor (inCubic; the old arc assembly's slot), then
+ *             wakes 400 → resting on the shared gentle ring wake (0.3–0.85)
  *  0.00–0.40  one flat ball: the core sits at 0.36, blended into the 700 shade —
  *             no internal motion to read
  *  0.40–0.85  shade split: the core is differentiated out (rises 700 → 400, true
@@ -28,18 +32,18 @@
  *             edge: at p = 1 core and frame coincide exactly — one
  *             "core meets frame" closure with no separate layer
  *  0.86–1.00  double blink: a lead-in flash (0.86–0.89) then the final blink (0.92–1);
- *             the core flashes white twice — the ring's own width stays a stable
- *             build-only motion, settling exactly at p = 1
+ *             the core flashes white twice — the ring's own width only moves
+ *             with the late frame thickening, settling exactly at p = 1
  *             (the hit pose is calm and full)
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
+import { bump, inCubic, inOutQuad, inOutSine, inQuad, lerp, outCubic, outQuad, riseSettleCurve, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { makeClearClips, makeExitClip } from './effects'
-import { arrowHead, assemblingRing, disk, ring, ringEdge } from './parts'
+import { arrowHead, disk, edgedRing, ring, ringEdge } from './parts'
 
 /** Ring stroke for a note of this size (thinner on small notes). */
 export function ringWidth(ctx: DrawContext) {
@@ -109,15 +113,46 @@ export function splitShades(p: number, ctx: DrawContext) {
 
 /**
  * Page cue for notes without a timing gauge (hold, long hold, drag family):
- * their shape settles early but every shade sits WAKE_DROP steps darker until the
- * second half of the approach, so next-page notes read darker than the ones
- * about to be played — pages separate by this dim → lit arc, not
- * by direction colour.
+ * their shape settles early but every fill shade sits WAKE_DROP steps darker
+ * until the second half of the approach, so next-page notes read darker than
+ * the ones about to be played — pages separate by this dim → lit arc, not
+ * by direction colour. The ring wakes on its own gentler curve
+ * (`RING_WAKE`) after its entrance.
  */
 export const WAKE = { from: 0.45, to: 0.7 }
 
 export function wakeAmount(p: number): number {
   return inOutQuad(seg(p, WAKE.from, WAKE.to))
+}
+
+/**
+ * Ring wake: the gentle sine the hold originally used for its large lit
+ * area — the ring is a bright band too, and the fills' faster eases (the
+ * split's outQuad, WAKE's inOutQuad) sprint it and read as a pop. Window
+ * 0.3–0.85, same midpoint as the fills' WAKE, spread over twice the span.
+ */
+export const RING_WAKE = { from: 0.3, to: 0.85 }
+
+export function ringWake(p: number): number {
+  return inOutSine(seg(p, RING_WAKE.from, RING_WAKE.to))
+}
+
+/**
+ * Ring entrance: colour takes the slot the deleted arc assembly used to
+ * occupy — the frame enters darker than the old pose (band 800) and rises to
+ * the 400 anchor by p 0.4, inCubic so the dark pose survives the opacity
+ * fade-in (0–0.1). From there `ringWake` carries 400 → resting on the same
+ * curve for the whole family. Shared by every ring-riding element (frames,
+ * chevrons, arrow, brackets, glyph).
+ */
+export const RING_ENTER = { from: 0, to: 0.4, fromShade: 800, anchor: 400 }
+
+/** Ring band step at `p`: the dark entrance, then the shared wake down to resting 50. */
+export function ringStep(p: number): number {
+  const enter = seg(p, RING_ENTER.from, RING_ENTER.to)
+  return enter < 1
+    ? lerp(RING_ENTER.fromShade, RING_ENTER.anchor, inCubic(enter))
+    : lerp(RING_ENTER.anchor, 50, ringWake(p))
 }
 
 /** How many scale steps darker a note sits while asleep. */
@@ -150,8 +185,7 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
   const hair = ctx.unit * tokens.stroke.hair
   const inner = R - W
   const a = outCubic(seg(p, 0, 0.1))
-  const build = outQuart(seg(p, 0, 0.4))
-  const frameW = lerp(W * 0.45, W, build) * frameThickening(p)
+  const frameW = W * frameThickening(p)
   const scale = clickSize(p)
 
   // the core rises exactly onto the thickened frame's final inner edge
@@ -176,17 +210,17 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
     blink > 0 ? disk(coreR, ctx.palette.ring, BLINK_PEAK * blink) : null,
     o.glyph?.(p, ctx, inner) ?? null,
     // frame: outer edge pinned at R, thickens inward by half a stroke over 0.7–1
-    assemblingRing(R - (frameW) / 2, frameW, ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, ringEdge()),
+    edgedRing(R - frameW / 2, frameW, ringTone(ctx.palette, ringStep(p)), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { transform: { scale } })
 
   return group([approach, body].filter(Boolean) as SceneNode[], { opacity: a })
 }
 
-/** Arrow (Cytoid CDragFill) pointing along the chain; `ctx.heading` rotates it. Rides the ring's wake. */
-export function dragArrow(ctx: DrawContext, inner: number, show: number, wake = 1): SceneNode | null {
+/** Arrow (Cytoid CDragFill) pointing along the chain; `ctx.heading` rotates it. `ringStep` = ring band step (50 resting). */
+export function dragArrow(ctx: DrawContext, inner: number, show: number, ringStep = 50): SceneNode | null {
   if (show <= 0)
     return null
-  return group([arrowHead(inner * 1.05, ringTone(ctx.palette, wake))], {
+  return group([arrowHead(inner * 1.05, ringTone(ctx.palette, ringStep))], {
     opacity: show,
     transform: { rotate: ctx.heading, scale: lerp(0.6, 1, show) },
   })
@@ -199,7 +233,7 @@ export const click: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: (p, ctx) => clickEnter(p, ctx),
-    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring wakes on the ring band (neutral 400 → 50) with the shade split.',
+    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. The ring enters darker (band 800 → 400 over 0–0.4, the old assembly slot), then wakes 400 → resting on the shared gentle ring wake (0.3–0.85 sine).',
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.45, sectors: 24, extra: 'double', seed: 1 }),
   exit: makeExitClip((p, ctx) => clickEnter(p, ctx)),
