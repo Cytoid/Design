@@ -45,13 +45,13 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, seg, TAU } from '../core/ease'
+import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { ringWidth, wakeShade } from './click'
 import { makeClearClips, makeExitClip, makeMissClip } from './effects'
-import { arc, assemblingRing, disk, ring, ringEdge } from './parts'
+import { arc, disk, edgedRing, ring, ringEdge } from './parts'
 
 const PRESSED = 0.86
 /** Cytoid ProgressRing: outer radius ≈ 1.42 R, thickness ≈ 0.083 u */
@@ -118,10 +118,10 @@ function brackets(ctx: DrawContext, r: number, spin: number, color: string, a: n
 }
 
 /**
- * Head; `k` = build progress 0..1 (fast), `glyph` = centre glyph reveal,
- * `split` = shade split 0..1 (steady poses use the default 1).
+ * Head; `glyph` = centre glyph reveal, `split` = shade split 0..1 (steady
+ * poses use the default 1).
  */
-function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, split = 1, wake = 1): SceneNode {
+function holdHead(ctx: DrawContext, long: boolean, glyph: number, split = 1, wake = 1): SceneNode {
   const R = ctx.size / 2
   const W = ringWidth(ctx)
   const inner = R - W
@@ -136,7 +136,7 @@ function holdHead(ctx: DrawContext, long: boolean, k: number, glyph: number, spl
     disk(inner + 0.5, tone(ctx.palette, ball)),
     disk(lerp(inner + 0.5, R * CORE_R, split), tone(ctx.palette, core)),
     glyph > 0 ? group([glyphShape(long, R * GLYPH, gw, ringTone(ctx.palette, wake))], { opacity: seg(glyph, 0, 0.5), transform: { scale: lerp(0.4, 1, outBack(glyph, 2)) } }) : null,
-    assemblingRing(R - W / 2, lerp(W * 0.5, W, k), ringTone(ctx.palette, wake), 2, outQuart(k), lerp(-TAU / 4, 0, k), 1, ringEdge()),
+    edgedRing(R - W / 2, W, ringTone(ctx.palette, wake), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[])
 }
 
@@ -170,12 +170,11 @@ function holdEnter(long: boolean) {
   return (p: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
     // internals steady by p = 0.35 — no timing to read on a hold head
-    const k = outCubic(seg(p, 0, 0.35))
     const glyph = seg(p, 0.2, 0.42)
     // split starts after the fade-in (0.08) and lands with the steady pose (0.35)
     const split = inOutQuad(seg(p, 0.08, 0.35))
     const wake = holdWake(p)
-    const head = holdHead(ctx, long, k, glyph, split, wake)
+    const head = holdHead(ctx, long, glyph, split, wake)
     const { from, fadeTo, turns, damping } = BRACKET_TIMING
     const spin = -TAU * turns * (1 - damped(seg(p, from, bracketLandP(ctx)), damping))
     const lock = brackets(ctx, R * BRACKET.r, spin, ringTone(ctx.palette, wake), seg(p, from, fadeTo))
@@ -191,7 +190,7 @@ function holdPress(long: boolean) {
     const k = outCubic(seg(t, 0, tokens.time.holdPress))
     const hair = ctx.unit * tokens.stroke.hair
     const lock = brackets(ctx, lerp(R * BRACKET.r, R - W / 2, k), 0, ctx.palette.ring, 1 - seg(t, tokens.time.holdPress * 0.5, tokens.time.holdPress), lerp(hair * BRACKET.width, W, k))
-    return group([lock, holdHead(ctx, long, 1, 1)].filter(Boolean) as SceneNode[], { transform: { scale: lerp(1, PRESSED, k) } })
+    return group([lock, holdHead(ctx, long, 1)].filter(Boolean) as SceneNode[], { transform: { scale: lerp(1, PRESSED, k) } })
   }
 }
 

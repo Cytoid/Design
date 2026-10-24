@@ -6,13 +6,14 @@
  * one — then a late, accelerating core, a visible converging ring and a
  * blink right before the hit.
  *
- *  0.00–0.10  fade in
  *  0.00–1.00  size follows the fitted S-curve (`tokens.sizeCurve.click`):
  *             a small dim spawn (0.32), one smooth slow-fast-slow growth into a
  *             +6 % peak at p 0.88 — together with the lead-in blink and the
  *             converging ring — then a smooth settle, exactly 1.0 (the hit
  *             pose) from p 0.976
- *  0.00–0.10  fade in; 0–0.40 the outer ring assembles from 3 arcs
+ *  0.00–0.10  fade in; the ring is complete from the first frame — the
+ *             entrance is carried by the fade, the S-curve size and the shade
+ *             wake alone
  *  0.00–0.40  one flat ball: the core sits at 0.36, blended into the 700 shade —
  *             no internal motion to read
  *  0.40–0.85  shade split: the core is differentiated out (rises 700 → 400, true
@@ -28,18 +29,18 @@
  *             edge: at p = 1 core and frame coincide exactly — one
  *             "core meets frame" closure with no separate layer
  *  0.86–1.00  double blink: a lead-in flash (0.86–0.89) then the final blink (0.92–1);
- *             the core flashes white twice — the ring's own width stays a stable
- *             build-only motion, settling exactly at p = 1
+ *             the core flashes white twice — the ring's own width only moves
+ *             with the late frame thickening, settling exactly at p = 1
  *             (the hit pose is calm and full)
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
+import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, riseSettleCurve, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { makeClearClips, makeExitClip } from './effects'
-import { arrowHead, assemblingRing, disk, ring, ringEdge } from './parts'
+import { arrowHead, disk, edgedRing, ring, ringEdge } from './parts'
 
 /** Ring stroke for a note of this size (thinner on small notes). */
 export function ringWidth(ctx: DrawContext) {
@@ -150,8 +151,7 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
   const hair = ctx.unit * tokens.stroke.hair
   const inner = R - W
   const a = outCubic(seg(p, 0, 0.1))
-  const build = outQuart(seg(p, 0, 0.4))
-  const frameW = lerp(W * 0.45, W, build) * frameThickening(p)
+  const frameW = W * frameThickening(p)
   const scale = clickSize(p)
 
   // the core rises exactly onto the thickened frame's final inner edge
@@ -176,7 +176,7 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
     blink > 0 ? disk(coreR, ctx.palette.ring, BLINK_PEAK * blink) : null,
     o.glyph?.(p, ctx, inner) ?? null,
     // frame: outer edge pinned at R, thickens inward by half a stroke over 0.7–1
-    assemblingRing(R - (frameW) / 2, frameW, ringTone(ctx.palette, split.k), 3, build, lerp(-TAU / 6, 0, build), 1, ringEdge()),
+    edgedRing(R - frameW / 2, frameW, ringTone(ctx.palette, split.k), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { transform: { scale } })
 
   return group([approach, body].filter(Boolean) as SceneNode[], { opacity: a })

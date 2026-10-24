@@ -16,13 +16,13 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { lerp, outCubic, riseSettleCurve, seg, TAU } from '../core/ease'
+import { outCubic, riseSettleCurve, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
 import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
-import { assemblingRing, disk, edgeBands, ring, ringEdge } from './parts'
+import { disk, edgeBands, edgedRing, ring, ringEdge } from './parts'
 
 /** steady by this p */
 const STEADY = 0.2
@@ -38,13 +38,12 @@ export const dragChildSize = riseSettleCurve(tokens.sizeCurve.dragChild, tokens.
 function headDraw(p: number, ctx: DrawContext): SceneNode {
   const R = ctx.size / 2
   const W = ringWidth(ctx)
-  const k = outCubic(seg(p, 0, STEADY))
   const w = wakeAmount(p)
   return group([
     disk(R - W + 0.5, tone(ctx.palette, wakeShade(400, w))),
     dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), w),
     // ring + arrow are white material: they wake on the ring band (neutral 400 → 50) with the page cue
-    assemblingRing(R - W / 2, W, ringTone(ctx.palette, w), 2, k, lerp(-TAU / 4, 0, k), 1, ringEdge()),
+    edgedRing(R - W / 2, W, ringTone(ctx.palette, w), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
 
@@ -54,7 +53,7 @@ export const dragHead: NoteDesign = {
     id: 'enter',
     mode: 'normalized',
     duration: tokens.time.enter,
-    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring closes from 2 halves by p 0.2, arrow along the chain (rotate by heading); ring + arrow wake on the ring band (neutral 400 → 50) over the WAKE window. Path matters, not timing.',
+    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring complete from the first frame (no assembly), arrow along the chain (rotate by heading); ring + arrow wake on the ring band (neutral 400 → 50) over the WAKE window. Path matters, not timing.',
     draw: headDraw,
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),
