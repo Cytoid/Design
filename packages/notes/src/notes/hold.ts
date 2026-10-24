@@ -25,7 +25,7 @@
  * Entry still speaks the click shade language on the palette scale: the head
  * spawns as one 600 ball, then the socket contracts out of it and sinks to
  * 900 as the band rises to 400. Every shade (and the brackets) stays
- * WAKE_DROP steps darker until the hold's own wake (`HOLD_WAKE`, 0.3–0.85,
+ * WAKE_DROP steps darker until the shared ring wake (`RING_WAKE`, 0.3–0.85,
  * sine — same midpoint as the click's WAKE, twice as gentle) — a page cue,
  * not a gauge. No arrows: arrows would suggest dragging.
  *
@@ -45,11 +45,11 @@
  */
 import type { SceneNode } from '../core/scene'
 import type { DrawContext, NoteDesign } from './types'
-import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, seg, TAU } from '../core/ease'
+import { cubicBezier, inOutQuad, lerp, outBack, outCubic, seg, TAU } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
-import { ringWidth, wakeShade } from './click'
+import { ringStep, ringWake, ringWidth, wakeShade } from './click'
 import { makeClearClips, makeExitClip, makeMissClip } from './effects'
 import { arc, disk, edgedRing, ring, ringEdge } from './parts'
 
@@ -118,10 +118,10 @@ function brackets(ctx: DrawContext, r: number, spin: number, color: string, a: n
 }
 
 /**
- * Head; `glyph` = centre glyph reveal, `split` = shade split 0..1 (steady
- * poses use the default 1).
+ * Head; `glyph` = centre glyph reveal, `split` = shade split 0..1, `ringStep` =
+ * ring band step (steady poses use the default 50, resting).
  */
-function holdHead(ctx: DrawContext, long: boolean, glyph: number, split = 1, wake = 1): SceneNode {
+function holdHead(ctx: DrawContext, long: boolean, glyph: number, split = 1, wake = 1, ringStep = 50): SceneNode {
   const R = ctx.size / 2
   const W = ringWidth(ctx)
   const inner = R - W
@@ -135,22 +135,9 @@ function holdHead(ctx: DrawContext, long: boolean, glyph: number, split = 1, wak
     // solid ball from the first frame
     disk(inner + 0.5, tone(ctx.palette, ball)),
     disk(lerp(inner + 0.5, R * CORE_R, split), tone(ctx.palette, core)),
-    glyph > 0 ? group([glyphShape(long, R * GLYPH, gw, ringTone(ctx.palette, wake))], { opacity: seg(glyph, 0, 0.5), transform: { scale: lerp(0.4, 1, outBack(glyph, 2)) } }) : null,
-    edgedRing(R - W / 2, W, ringTone(ctx.palette, wake), 1, ringEdge()),
+    glyph > 0 ? group([glyphShape(long, R * GLYPH, gw, ringTone(ctx.palette, ringStep))], { opacity: seg(glyph, 0, 0.5), transform: { scale: lerp(0.4, 1, outBack(glyph, 2)) } }) : null,
+    edgedRing(R - W / 2, W, ringTone(ctx.palette, ringStep), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[])
-}
-
-/**
- * Hold wake (0 asleep → 1 lit): the click's WAKE window is too short for a
- * hold — its lit band, ring and brackets are a large bright area, and
- * brightening them all inside 0.3 s read as a glitch. Same midpoint as the
- * shared WAKE (≈ 0.575, so pages still separate the same way), spread over
- * twice the span with a gentler sine ease.
- */
-export const HOLD_WAKE = { from: 0.3, to: 0.85 }
-
-export function holdWake(p: number): number {
-  return inOutSine(seg(p, HOLD_WAKE.from, HOLD_WAKE.to))
 }
 
 const HOLD_SIZE_EASE = cubicBezier(tokens.sizeCurve.hold.ease[0], 0, tokens.sizeCurve.hold.ease[1], 1)
@@ -173,11 +160,11 @@ function holdEnter(long: boolean) {
     const glyph = seg(p, 0.2, 0.42)
     // split starts after the fade-in (0.08) and lands with the steady pose (0.35)
     const split = inOutQuad(seg(p, 0.08, 0.35))
-    const wake = holdWake(p)
-    const head = holdHead(ctx, long, glyph, split, wake)
+    const wake = ringWake(p)
+    const head = holdHead(ctx, long, glyph, split, wake, ringStep(p))
     const { from, fadeTo, turns, damping } = BRACKET_TIMING
     const spin = -TAU * turns * (1 - damped(seg(p, from, bracketLandP(ctx)), damping))
-    const lock = brackets(ctx, R * BRACKET.r, spin, ringTone(ctx.palette, wake), seg(p, from, fadeTo))
+    const lock = brackets(ctx, R * BRACKET.r, spin, ringTone(ctx.palette, ringStep(p)), seg(p, from, fadeTo))
     return group([lock, head].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.08), transform: { scale: holdSize(p, ctx) } })
   }
 }
@@ -253,8 +240,8 @@ function makeHold(long: boolean): NoteDesign {
       duration: tokens.time.enter,
       draw: holdEnter(long),
       note: long
-        ? 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'
-        : 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Colours wake gently over p 0.3–0.85 (page cue).',
+        ? 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Fills wake gently over p 0.3–0.85 (page cue); the ring enters darker (band 800 → 400 over 0–0.4) and wakes with the fills.'
+        : 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); circle glyph. Fills wake gently over p 0.3–0.85 (page cue); the ring enters darker (band 800 → 400 over 0–0.4) and wakes with the fills.',
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },

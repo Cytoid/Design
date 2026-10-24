@@ -20,7 +20,7 @@ import { outCubic, riseSettleCurve, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone, tone } from '../palette'
 import { tokens } from '../tokens'
-import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
+import { dragArrow, ringStep, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
 import { disk, edgeBands, edgedRing, ring, ringEdge } from './parts'
 
@@ -41,9 +41,9 @@ function headDraw(p: number, ctx: DrawContext): SceneNode {
   const w = wakeAmount(p)
   return group([
     disk(R - W + 0.5, tone(ctx.palette, wakeShade(400, w))),
-    dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), w),
-    // ring + arrow are white material: they wake on the ring band (neutral 400 → 50) with the page cue
-    edgedRing(R - W / 2, W, ringTone(ctx.palette, w), 1, ringEdge()),
+    dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), ringStep(p)),
+    // ring + arrow are white material: they enter darker on the ring band (500 → 400 over 0–0.4, the old assembly slot), then wake on the shared ring wake
+    edgedRing(R - W / 2, W, ringTone(ctx.palette, ringStep(p)), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
 
@@ -53,7 +53,7 @@ export const dragHead: NoteDesign = {
     id: 'enter',
     mode: 'normalized',
     duration: tokens.time.enter,
-    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring complete from the first frame (no assembly), arrow along the chain (rotate by heading); ring + arrow wake on the ring band (neutral 400 → 50) over the WAKE window. Path matters, not timing.',
+    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring complete from the first frame (no assembly), arrow along the chain (rotate by heading); ring + arrow enter darker (band 800 → 400 over 0–0.4, the old assembly slot), then wake 400 → resting on the shared gentle ring wake; the fills keep the WAKE page cue. Path matters, not timing.',
     draw: headDraw,
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),

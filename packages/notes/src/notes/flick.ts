@@ -25,7 +25,7 @@ import { cubicBezier, lerp, outCubic, seg } from '../core/ease'
 import { group } from '../core/scene'
 import { ringTone } from '../palette'
 import { tokens } from '../tokens'
-import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, coreGrowth, frameThickening, splitShades } from './click'
+import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, coreGrowth, frameThickening, ringStep, splitShades } from './click'
 import { makeClearClips, makeExitClip } from './effects'
 import { diamond, edgeBands, flickChevron, ringEdge } from './parts'
 
@@ -107,7 +107,7 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
   const coreMax = rv - W / Math.cos(Math.PI / 4)
   // the settled chevrons are note material: they ride the ring's wake;
   // the late approach pair is a timing gauge and stays at the resting tone
-  const arrows = group(pair(x, W * 0.85, ringTone(ctx.palette, split.k)), { opacity: arrowOpacity })
+  const arrows = group(pair(x, W * 0.85, ringTone(ctx.palette, ringStep(p))), { opacity: arrowOpacity })
   // approach chevrons (a second, thinner gauge pair): the flick's approach
   // ring — converge linearly onto the settled pair over the last 30 %
   const ap = seg(p, CLICK_TIMING.approachFrom, 1)
@@ -121,7 +121,7 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
     blink > 0 ? diamond(coreMax * g, { fill: ctx.palette.ring, opacity: BLINK_PEAK * blink }) : null,
     // centre slit: flat nod to Cytoid's split-diamond flick fill
     { type: 'line', x1: 0, y1: -inner * 0.5 * g, x2: 0, y2: inner * 0.5 * g, stroke: ctx.palette[600], strokeWidth: W * 0.5, opacity: outCubic(seg(p, CLICK_TIMING.splitFrom, 0.75)) },
-    edgedDiamond(fr, fw, ringTone(ctx.palette, split.k), ringEdge()),
+    edgedDiamond(fr, fw, ringTone(ctx.palette, ringStep(p)), ringEdge()),
   ].filter(Boolean) as SceneNode[], { transform: { scale: clickSize(p) } })
 
   return group([approach, arrows, body].filter(Boolean) as SceneNode[], { opacity: a })
@@ -134,7 +134,7 @@ export const flick: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: flickEnter,
-    note: 'Dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; the diamond outline is complete from the first frame (no assembly); chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back so the body–arrow gap only closes; locked from p 0.875; from p 0.7 the outline thickens inward by half a stroke width (Click\'s frame thickening) onto the core risen to its inner edge — the two coincide exactly at the hit. Outline and chevrons wake on the ring band (neutral 400 → 50) with the split.',
+    note: 'Dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; the diamond outline is complete from the first frame (no assembly); chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back so the body–arrow gap only closes; locked from p 0.875; from p 0.7 the outline thickens inward by half a stroke width (Click\'s frame thickening) onto the core risen to its inner edge — the two coincide exactly at the hit. Outline and chevrons enter darker (band 800 → 400 over 0–0.4, the old assembly slot), then wake 400 → resting on the shared gentle ring wake.',
   },
   clear: makeClearClips({ shape: 'diamond', reach: 1.4, sectors: 4, extra: 'streaks', seed: 2 }),
   exit: makeExitClip(flickEnter),
