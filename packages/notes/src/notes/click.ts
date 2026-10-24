@@ -1,5 +1,5 @@
 /**
- * CLICK — circle, neutral ring (wakes 400 → 50), solid colour ball + growing core on the 50–950 shade scale.
+ * CLICK — circle, ring waking on its own neutral band (400 → 50), solid colour ball + growing core on the family's 50–950 scale.
  *
  * Timing feedback: a dim
  * pre-roll — which is also what tells the next page apart from the current
@@ -93,7 +93,7 @@ export function frameThickening(p: number): number {
 /** Click/Flick spawn shade: the whole ball starts here before the split. */
 export const SPAWN_SHADE = 700
 
-/** Peak opacity of the pre-hit flash (neutral material over the core). */
+/** Peak opacity of the pre-hit flash (ring material over the core). */
 export const BLINK_PEAK = 0.3
 
 /**
@@ -182,7 +182,7 @@ export function clickEnter(p: number, ctx: DrawContext, o: ClickOptions = {}): S
   return group([approach, body].filter(Boolean) as SceneNode[], { opacity: a })
 }
 
-/** Arrow (Cytoid CDragFill) pointing along the chain; `ctx.heading` rotates it. Rides the ring's neutral wake. */
+/** Arrow (Cytoid CDragFill) pointing along the chain; `ctx.heading` rotates it. Rides the ring's wake. */
 export function dragArrow(ctx: DrawContext, inner: number, show: number, wake = 1): SceneNode | null {
   if (show <= 0)
     return null
@@ -199,7 +199,7 @@ export const click: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: (p, ctx) => clickEnter(p, ctx),
-    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring wakes neutral 400 → 50 with the shade split.',
+    note: 'Size follows the fitted S-curve: dim small spawn, one slow-fast-slow growth into the +6 % peak with the double blink, settled on the exact hit pose from p 0.976; approach ring converges linearly over the last 30 %; the ring thickens inward by half a stroke width while the core rises onto its final inner edge — core and frame coincide exactly at the hit. Ring wakes on the ring band (neutral 400 → 50) with the shade split.',
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.45, sectors: 24, extra: 'double', seed: 1 }),
   exit: makeExitClip((p, ctx) => clickEnter(p, ctx)),

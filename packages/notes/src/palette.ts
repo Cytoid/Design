@@ -1,6 +1,7 @@
 import type { Oklch } from './core/color'
 import type { Direction, Family, Grade, NoteKind } from './tokens'
 import { alpha, hexToOklch, oklch } from './core/color'
+import { lerp } from './core/ease'
 import { FAMILIES, FAMILY_OF, tokens } from './tokens'
 
 /**
@@ -34,7 +35,7 @@ export const BASE_SHADE = 400
  * (`palette[400]` is the note colour) plus the ring and glyph ink.
  */
 export interface NotePalette extends Record<Shade, string> {
-  /** white ring by default */
+  /** resting ring colour — the ring band's 50 step, or the custom override */
   ring: string
   /** dark glyph colour on top of fills */
   ink: string
@@ -89,6 +90,20 @@ function shadeL(base: number, step: Shade): number {
   return step < BASE_SHADE ? base + (Math.max(base, L_TOP) - base) * k : base * k
 }
 
+/**
+ * The ring band: the neutral counterpart of the family scale — the same
+ * steps and the same shape, zero chroma — the way a UI kit pairs neutral
+ * with primary. The ring wakes and rests on this band (400 → 50 by
+ * default); only a custom resting colour re-anchors its 50 step.
+ */
+const NEUTRAL_BASE_L = 0.708 // oklch 0.708 0 0 — Tailwind's neutral 400
+const NEUTRAL = (() => {
+  const scale = {} as Record<Shade, string>
+  for (const step of SHADES)
+    scale[step] = oklch(shadeL(NEUTRAL_BASE_L, step), 0, 0)
+  return scale
+})()
+
 export function derivePalette(input: ColorInput, opts: { saturation?: number, ring?: string } = {}): NotePalette {
   const sat = opts.saturation ?? 1
   let l: number, c: number, h: number
@@ -106,7 +121,7 @@ export function derivePalette(input: ColorInput, opts: { saturation?: number, ri
     scale[step] = step === BASE_SHADE ? oklch(l, c, h) : oklch(shadeL(l, step), c * SCALE[step].c, h)
   return {
     ...scale,
-    ring: opts.ring ?? tokens.ring,
+    ring: opts.ring ?? NEUTRAL[50],
     ink: oklch(0.24, Math.min(0.04, c * 0.3), h),
     hue: h,
   }
@@ -133,31 +148,30 @@ export function createPalette(options: PaletteOptions = {}): Palette {
     family,
     note: (kind, dir) => family(FAMILY_OF[kind], dir),
     grade: { ...tokens.grade, ...options.grades },
-    ring: options.ring ?? tokens.ring,
+    ring: options.ring ?? NEUTRAL[50],
   }
 }
 
 export const defaultPalette = createPalette()
 
-const parsed = new WeakMap<NotePalette, Map<Shade, Oklch>>()
+const parsed = new WeakMap<Record<Shade, string>, Map<Shade, Oklch>>()
 
-function parsedShade(palette: NotePalette, step: Shade): Oklch {
-  let cache = parsed.get(palette)
+function parsedShade(scale: Record<Shade, string>, step: Shade): Oklch {
+  let cache = parsed.get(scale)
   if (!cache)
-    parsed.set(palette, cache = new Map())
+    parsed.set(scale, cache = new Map())
   let v = cache.get(step)
   if (!v)
-    cache.set(step, v = hexToOklch(palette[step]))
+    cache.set(step, v = hexToOklch(scale[step]))
   return v
 }
 
 /**
- * Sample the scale at any (fractional) step — piecewise-linear in OKLCH
- * between neighbouring shades, clamped to [50, 950]. Every in-note colour that
- * moves between shades goes through this, so all shade motion follows one
- * path. Exact steps return the scale colour verbatim.
+ * Sample any shade scale at a (fractional) step — piecewise-linear in OKLCH
+ * between neighbouring shades, clamped to [50, 950]. Exact steps return the
+ * scale colour verbatim.
  */
-export function tone(palette: NotePalette, step: number): string {
+function sampleScale(scale: Record<Shade, string>, step: number): string {
   const s = Math.min(950, Math.max(50, step))
   let i = 0
   while (i < SHADES.length - 2 && s > SHADES[i + 1]!) i++
@@ -165,39 +179,44 @@ export function tone(palette: NotePalette, step: number): string {
   const b = SHADES[i + 1]!
   const k = (s - a) / (b - a)
   if (k <= 0)
-    return palette[a]
+    return scale[a]
   if (k >= 1)
-    return palette[b]
-  const pa = parsedShade(palette, a)
-  const pb = parsedShade(palette, b)
+    return scale[b]
+  const pa = parsedShade(scale, a)
+  const pb = parsedShade(scale, b)
   const dh = ((pb.h - pa.h + 540) % 360) - 180
   return oklch(pa.l + (pb.l - pa.l) * k, pa.c + (pb.c - pa.c) * k, pa.h + dh * k)
 }
 
-/** Lightness of neutral 400 (oklch 0.708 0 0) — the ring's spawn tone. */
-const RING_SPAWN_L = 0.708
-
-const ringTargetCache = new WeakMap<NotePalette, Oklch>()
-
-function ringTarget(palette: NotePalette): Oklch {
-  let v = ringTargetCache.get(palette)
-  if (!v)
-    ringTargetCache.set(palette, v = hexToOklch(palette.ring))
-  return v
+/**
+ * Sample the note family's scale at any (fractional) step. Every in-note
+ * fill colour that moves between shades goes through this, so all shade
+ * motion follows one path.
+ */
+export function tone(palette: NotePalette, step: number): string {
+  return sampleScale(palette, step)
 }
 
 /**
  * Ring tone at wake progress `k` (0 = spawn, 1 = the resting ring colour).
- * The border is an achromatic neutral ramp — it spawns at neutral 400 and
- * rises to `palette.ring` (neutral 50 by default) on the same envelope that
- * wakes the fills, so the entry pose never pairs a pure-white border with a
- * dimmed body (the neutral 400 spawn sits at L 0.708, between body 700 and
- * the resting ring).
+ * The ring keeps its own band — the neutral counterpart of the family scale
+ * (`NEUTRAL`, the way a UI kit pairs neutral with primary) — and wakes along
+ * it, 400 → 50: the spawn pose is the band's neutral 400, between the body's
+ * 700 and the resting near-white 50, so the entry pose never pairs a
+ * pure-white border with a dimmed body. A custom resting colour
+ * (`palette.ring`, Cytoid `note_ring_colors`) re-anchors the ring band's 50
+ * only — the family scale is untouched.
  */
 export function ringTone(palette: NotePalette, k: number): string {
-  const b = ringTarget(palette)
-  const t = Math.min(1, Math.max(0, k))
-  return oklch(RING_SPAWN_L + (b.l - RING_SPAWN_L) * t, b.c * t, b.h)
+  const step = lerp(400, 50, Math.min(1, Math.max(0, k)))
+  if (step >= 100 || palette.ring === NEUTRAL[50])
+    return sampleScale(NEUTRAL, step)
+  // custom resting colour: the last leg (100 → 50) blends toward it
+  const a = parsedShade(NEUTRAL, 100)
+  const b = hexToOklch(palette.ring)
+  const t = (100 - step) / 50
+  const dh = ((b.h - a.h + 540) % 360) - 180
+  return oklch(a.l + (b.l - a.l) * t, a.c + (b.c - a.c) * t, a.h + dh * t)
 }
 
 /** Snapshot every family into plain hex — handy for exporting to Cytoid settings JSON. */

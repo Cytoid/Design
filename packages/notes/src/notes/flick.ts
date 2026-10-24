@@ -120,7 +120,7 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
   // the core rises exactly onto the thickened frame's inner edge: a core
   // diamond with vertex radius rv − √2·W has its edges on that boundary
   const coreMax = rv - W / Math.cos(Math.PI / 4)
-  // the settled chevrons are note material: they ride the ring's neutral wake;
+  // the settled chevrons are note material: they ride the ring's wake;
   // the late approach pair is a timing gauge and stays at the resting tone
   const arrows = group(pair(x, W * 0.85, ringTone(ctx.palette, split.k)), { opacity: arrowOpacity })
   // approach chevrons (a second, thinner gauge pair): the flick's approach
@@ -149,7 +149,7 @@ export const flick: NoteDesign = {
     mode: 'normalized',
     duration: tokens.time.enter,
     draw: flickEnter,
-    note: 'Diamond outline grows from edge midpoints; dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back across the diamond\'s growth so the body–arrow gap only closes; locked from p 0.875; from p 0.7 the outline thickens inward by half a stroke width (Click\'s frame thickening) onto the core risen to its inner edge — the two coincide exactly at the hit. Outline and chevrons wake neutral 400 → 50 with the split.',
+    note: 'Diamond outline grows from edge midpoints; dim pre-roll and late core with a double blink (as Click) on Click\'s fitted size curve; chevrons dash in late (fade 0.32–0.45) on a short 0.30u flight over 0.25–0.5, overshooting ~16 px past rest (deepest ~p 0.5) and relaxing back across the diamond\'s growth so the body–arrow gap only closes; locked from p 0.875; from p 0.7 the outline thickens inward by half a stroke width (Click\'s frame thickening) onto the core risen to its inner edge — the two coincide exactly at the hit. Outline and chevrons wake on the ring band (neutral 400 → 50) with the split.',
   },
   clear: makeClearClips({ shape: 'diamond', reach: 1.4, sectors: 4, extra: 'streaks', seed: 2 }),
   exit: makeExitClip(flickEnter),

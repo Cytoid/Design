@@ -124,7 +124,7 @@ function ringChange(event: Event) {
     paletteOptions.value.ring = input.value
   }
   else {
-    input.value = paletteOptions.value.ring || tokens.ring
+    input.value = paletteOptions.value.ring || palette.value.note('click', 'up').ring
     toast.add({ title: 'Invalid Ring Colour', description: 'Ring colour must be #rrggbb.', color: 'error' })
   }
 }
@@ -215,11 +215,11 @@ function download() {
             </label>
             <div class="flex items-center gap-4 text-xs text-muted">
               Ring colour
-              <input type="color" :value="paletteOptions.ring || tokens.ring" aria-label="Ring colour picker" class="size-8 p-0 bg-transparent border-0 cursor-pointer" @input="ringChange">
-              <input class="w-22 font-mono text-xs bg-default border border-default rounded-md px-2 py-1.5 text-default" :value="paletteOptions.ring || tokens.ring" aria-label="Ring hex colour" maxlength="7" @change="ringChange">
+              <input type="color" :value="paletteOptions.ring || palette.note('click', 'up').ring" aria-label="Ring colour picker" class="size-8 p-0 bg-transparent border-0 cursor-pointer" @input="ringChange">
+              <input class="w-22 font-mono text-xs bg-default border border-default rounded-md px-2 py-1.5 text-default" :value="paletteOptions.ring || palette.note('click', 'up').ring" aria-label="Ring hex colour" maxlength="7" @change="ringChange">
             </div>
             <p class="text-xs text-muted leading-relaxed">
-              OKLCH hues preserve the design's lightness balance. Raw hex preserves your custom colour's lightness and chroma; hue shift leaves hex overrides as entered.
+              OKLCH hues preserve the design's lightness balance. Raw hex preserves your custom colour's lightness and chroma; hue shift leaves hex overrides as entered. The ring colour re-anchors the ring band's 50 step; the note colour band is untouched.
             </p>
           </div>
         </UCard>
