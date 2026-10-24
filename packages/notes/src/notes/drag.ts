@@ -7,7 +7,7 @@
  * shades wake WAKE_DROP steps up (600 → 400) on the palette scale over the
  * click's WAKE window (page cue).
  *
- * Drag head (0.8): neutral ring + full fill + matching arrow pointing along the
+ * Drag head (0.8): ring + full fill + matching arrow pointing along the
  *   chain (`ctx.heading`; frames are baked pointing up — rotate the sprite).
  * Drag child (0.65): solid bead, like Cytoid. Only a faint 600 hairline ring
  *   inside; the stepped edge sits on the bead's own silhouette.
@@ -43,7 +43,7 @@ function headDraw(p: number, ctx: DrawContext): SceneNode {
   return group([
     disk(R - W + 0.5, tone(ctx.palette, wakeShade(400, w))),
     dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), w),
-    // ring + arrow are white material: they wake neutral 400 → 50 with the page cue
+    // ring + arrow are white material: they wake on the ring band (neutral 400 → 50) with the page cue
     assemblingRing(R - W / 2, W, ringTone(ctx.palette, w), 2, k, lerp(-TAU / 4, 0, k), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
@@ -54,7 +54,7 @@ export const dragHead: NoteDesign = {
     id: 'enter',
     mode: 'normalized',
     duration: tokens.time.enter,
-    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring closes from 2 halves by p 0.2, arrow along the chain (rotate by heading); ring + arrow wake neutral 400 → 50 over the WAKE window. Path matters, not timing.',
+    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring closes from 2 halves by p 0.2, arrow along the chain (rotate by heading); ring + arrow wake on the ring band (neutral 400 → 50) over the WAKE window. Path matters, not timing.',
     draw: headDraw,
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),
