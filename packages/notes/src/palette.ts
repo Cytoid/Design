@@ -1,7 +1,6 @@
 import type { Oklch } from './core/color'
 import type { Direction, Family, Grade, NoteKind } from './tokens'
 import { alpha, hexToOklch, oklch } from './core/color'
-import { lerp } from './core/ease'
 import { FAMILIES, FAMILY_OF, tokens } from './tokens'
 
 /**
@@ -198,17 +197,13 @@ export function tone(palette: NotePalette, step: number): string {
 }
 
 /**
- * Ring tone at wake progress `k` (0 = spawn, 1 = the resting ring colour).
- * The ring keeps its own band — the neutral counterpart of the family scale
- * (`NEUTRAL`, the way a UI kit pairs neutral with primary) — and wakes along
- * it, 400 → 50: the spawn pose is the band's neutral 400, between the body's
- * 700 and the resting near-white 50, so the entry pose never pairs a
- * pure-white border with a dimmed body. A custom resting colour
- * (`palette.ring`, Cytoid `note_ring_colors`) re-anchors the ring band's 50
- * only — the family scale is untouched.
+ * Ring tone at ring-band step `step` (fractional fine) — the ring band is
+ * sampled exactly like the family scale (`tone`). Wake envelopes map
+ * 400 → 50; entrances may start darker (steps above 400). A custom resting
+ * colour (`palette.ring`, Cytoid `note_ring_colors`) re-anchors the ring
+ * band's 50 only — the family scale is untouched.
  */
-export function ringTone(palette: NotePalette, k: number): string {
-  const step = lerp(400, 50, Math.min(1, Math.max(0, k)))
+export function ringTone(palette: NotePalette, step: number): string {
   if (step >= 100 || palette.ring === NEUTRAL[50])
     return sampleScale(NEUTRAL, step)
   // custom resting colour: the last leg (100 → 50) blends toward it
