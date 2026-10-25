@@ -656,34 +656,34 @@ function holdPressClip(long: boolean): SkinClip {
 
 /**
  * `hold.loopUnder` — the while-held pulse, synced from the shipped holdFx
- * particles. The system spawns note-fill discs at 8/s with a 0.5 s life,
- * flying outward at constant speed; orthographic projection turns each spawn
- * wave into a ring band whose radius sweeps `speed × life = 3.34 R` (the disc
- * travels ~2.5 world units against a ~0.75-unit head radius) and whose width
- * is the disc's diameter, ⅔ R. Four waves are alive at once (8/s × 0.5 s), so
- * four bands phase-offset by a quarter period; the alpha ramp is the
- * particle's own colour-over-lifetime (0.39 → 0.196 at a third → 0, linear),
- * tinted `BaseFillColor` (shade 400). Time is stretched ×1.2 to the loop
- * period so the waves stay phase-locked and seamless.
+ * particles against a gameplay capture: the system spawns note-fill discs at
+ * 8/s with a 0.5 s life, flying outward at constant speed; orthographically
+ * each spawn wave reads as a ring band of the disc's diameter (⅓ R — the disc
+ * is a third of the head) sweeping the travel distance (2.5 world units ≈
+ * 1.7 R). Four waves are alive at once (8/s × 0.5 s), phase-offset by a
+ * quarter period; the alpha ramp is the particle's own colour-over-lifetime
+ * (0.39 → 0.196 at a third → 0, linear), tinted `BaseFillColor` (shade 400).
+ * Time is stretched ×1.2 to the loop period so the waves stay phase-locked
+ * and seamless.
  */
 function holdPulseClip(_long: boolean): SkinClip {
   const tracks: Record<string, Track> = {}
   const layers: Slice[] = [0, 1, 2, 3].map((i) => {
     const p = i === 0 ? {} : { offset: i / 4 }
-    tracks[`pulse${i}`] = keys([key(0, 0), key(1, 3.34)], p)
+    tracks[`pulse${i}`] = keys([key(0, 0), key(1, 1.7)], p)
     tracks[`pulseO${i}`] = keys([key(0, 0.39), key(1 / 3, 0.196), key(1, 0)], p)
     return {
       type: 'circle',
       r: mul(R, T(`pulse${i}`)),
       stroke: { shade: 400 },
-      strokeWidth: mul(R, 2 / 3),
+      strokeWidth: mul(R, 1 / 3),
       opacity: T(`pulseO${i}`),
     } satisfies Slice
   })
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
-    note: 'The shipped holdFx pulse, as slices: four fill-coloured ring bands phase-offset by a quarter of the period, radius sweeping outward to 3.34 R at the particle speed, width ⅔ R (the particle disc\'s diameter), alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.',
+    note: 'The shipped holdFx pulse, as slices: four fill-coloured ring bands phase-offset by a quarter of the period, radius sweeping outward to 1.7 R at the particle speed, width ⅓ R (the particle disc\'s diameter), alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.',
     tracks,
     layers,
   }
