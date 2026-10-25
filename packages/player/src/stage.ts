@@ -1,8 +1,8 @@
-import type { Direction, Palette, SceneNode } from '@cytoid/notes'
+import type { Direction, NoteAppearance, NoteSkin, Palette, SceneNode } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { BoardRect } from './layout'
 import type { DerivedFrame, DerivedNote, DeriveOptions, Position } from './state'
-import { clamp01, createContext, dragLine, group, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/notes'
+import { clamp01, group } from '@cytoid/notes'
 /**
  * Pixi stage for the player: turns `deriveFrame` output into display
  * objects drawn with the design library's vector clips — live, no baking.
@@ -17,6 +17,8 @@ import { SceneView } from './pixi-render'
 import { deriveFrame, notePos } from './state'
 
 export interface StageOptions {
+  appearance: NoteAppearance
+  skin?: NoteSkin
   palette: Palette
   /** px per design px (1 → click note = 128 px) */
   scale: number
@@ -28,8 +30,8 @@ export interface StageOptions {
   timings?: DeriveOptions['timings']
 }
 
-/** Which text layers ride on clear / miss effects. */
-interface TextOptions { judgement: boolean, timing: boolean }
+/** Selected skin and text layers for composed note rendering. */
+interface NoteRenderOptions { judgement: boolean, timing: boolean, skin?: NoteSkin }
 
 /** Live play stats for the in-game HUD (play mode only). */
 export interface HudData {
@@ -95,7 +97,7 @@ export class PlayStage {
 
   /** One frame: derive + sync. `board` = note field, `screen` = player box (scanline spans it). */
   update(parsed: ParsedChart, t: number, board: BoardRect, screen: BoardRect, hud?: HudData | null) {
-    const { palette, scale, judgement, timing, grades, timings } = this.options
+    const { palette, scale, judgement, timing, grades, timings, skin } = this.options
     const frame = deriveFrame(parsed, t, { board, grades, timings })
 
     this.root.position.set(board.x, board.y)
@@ -116,7 +118,7 @@ export class PlayStage {
     }
 
     this.syncSegments(frame, palette, scale, board)
-    this.syncNotes(frame, palette, scale, { judgement, timing }, board, screen)
+    this.syncNotes(frame, palette, scale, { judgement, timing, skin }, board, screen)
     this.syncHud(hud ?? null, board, screen, t)
     this.cullUnseen(frame)
   }
@@ -182,8 +184,8 @@ export class PlayStage {
         this.segmentViews.set(seg.key, view)
         this.layers.lines.addChild(view)
       }
-      const ctx = createContext('drag-child', { palette, direction: seg.direction, scale })
-      view.setScene(dragLine(
+      const ctx = this.options.appearance.createContext('drag-child', { palette, direction: seg.direction, scale })
+      view.setScene(this.options.appearance.dragLine(
         {
           x1: seg.from.x - board.x,
           y1: seg.from.y - board.y,
@@ -205,7 +207,7 @@ export class PlayStage {
     frame: DerivedFrame,
     palette: Palette,
     scale: number,
-    text: TextOptions,
+    text: NoteRenderOptions,
     board: BoardRect,
     screen: BoardRect,
   ) {
@@ -228,10 +230,11 @@ export class PlayStage {
     d: DerivedNote,
     palette: Palette,
     scale: number,
-    text: TextOptions,
+    text: NoteRenderOptions,
     board: BoardRect,
     screen: BoardRect,
   ) {
+    const { createContext, holdBody, holdBodyAlpha, longHoldBody, renderNote } = this.options.appearance
     const note = d.note
     const dir: Direction = note.direction === -1 ? 'down' : 'up'
     const base = { palette, direction: dir, scale, approach: note.duration.fadein }
@@ -240,7 +243,7 @@ export class PlayStage {
 
     // hold body under the head (board-fixed: grows toward the hold end)
     // (exit: the body fades on its own, faster curve than the head)
-    const bodyAlpha = (note.kind === 'hold' || note.kind === 'long_hold') && d.state ? holdBodyAlpha(d.kind, d.state) : 0
+    const bodyAlpha = (note.kind === 'hold' || note.kind === 'long_hold') && d.state ? holdBodyAlpha(d.kind, d.state, text.skin) : 0
     if (d.state && bodyAlpha > 0.001) {
       const body: SceneNode[] = []
       const progress = d.state.phase === 'holding' ? d.state.progress : 0
@@ -257,6 +260,7 @@ export class PlayStage {
             holdDuration: note.timeout - note.time,
           },
           ctx,
+          text.skin,
         ))
       }
       else {
@@ -265,11 +269,13 @@ export class PlayStage {
         body.push(holdBody(
           {
             length: Math.abs(endPos.y - d.pos.y),
+            holdDuration: note.timeout - note.time,
             progress,
             appear,
             t: d.state.phase === 'holding' ? d.state.t : 0,
           },
           bodyCtx,
+          text.skin,
         ))
       }
       parts.push(bodyAlpha < 0.999 ? group(body, { opacity: bodyAlpha, isolate: true }) : body[0]!)
@@ -277,7 +283,7 @@ export class PlayStage {
 
     // the note sprite (steady pose while a triggered head follows the chain)
     if (d.follow) {
-      parts.push(renderNote(d.kind, { phase: 'enter', p: 1 }, ctx, { judgement: false }))
+      parts.push(renderNote(d.kind, { phase: 'enter', p: 1 }, ctx, { judgement: false, skin: text.skin }))
       // the clear/miss burst stays at the trigger point, on top — only while
       // the effect is actually playing (not after it faded)
       if (d.state) {

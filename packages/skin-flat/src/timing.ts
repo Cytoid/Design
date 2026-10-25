@@ -1,0 +1,106 @@
+import type { DrawContext, NoteSkin, SceneNode, TimedGrade, Timing, TimingSlot } from '@cytoid/notes'
+/**
+ * Timing label — FAST / SLOW (Cytoid "Early / Late indicators").
+ *
+ * Cytoid used to print EARLY / LATE in the middle of the clear effect. That
+ * slot now belongs to the judgement text, so the timing label becomes its
+ * own, independently toggled layer:
+ *
+ *  - Shown only when the hit has a meaningful timing error: GREAT / GOOD /
+ *    BAD. PERFECT and MISS never carry one (Cytoid rule). Auto-cleared drag
+ *    children are always PERFECT, so they never show it either.
+ *  - Two slots, picked by the judgement-text setting (a setting, never a
+ *    per-hit decision — the label never jumps during play):
+ *      `stacked`  judgement text on: a smaller second line just under the
+ *                 judgement underline, inside the effect.
+ *      `centre`   judgement text off: the label takes the vacated centre —
+ *                 the position Cytoid's EARLY / LATE always had.
+ *  - Same chamfered monoline face as the judgement (no font files), with a
+ *    slightly heavier stroke. Its metrics are its own — cap height unit ×
+ *    0.10 with the judgement text's original 0.32 H letter gap: the size
+ *    shrank, the tracking did not follow the judgement's widening. Two
+ *    sizes: alone in the centre it takes the full cap height — the slot
+ *    Cytoid's EARLY / LATE always had; stacked under the judgement text it
+ *    shrinks to 0.6 × so it stays a second line, not a rival. Stroke and
+ *    chevron scale with the cap height.
+ *  - Colour (experiment): fixed per direction, not per grade — red = FAST,
+ *    green = SLOW, so direction reads by colour alone at a glance. The base
+ *    design ties the colour to the grade it explains (every hue is taken by
+ *    the grade palette); this variant trades that tie for the instant read,
+ *    at full strength like the judgement text.
+ *  - Direction is carried by shape and motion, not colour — the horizontal
+ *    axis is time: FAST gets a ‹ chevron on its left and slides in leftward
+ *    (ahead of the beat), SLOW gets a › chevron on its right and slides in
+ *    rightward (behind it). Readable in peripheral vision without parsing
+ *    the word.
+ *
+ * Motion (u = t / grade clear duration — exactly the judgement's window):
+ *  0.06–0.40  slides 0.5 H in along its direction (outCubic) and pops in
+ *  0.00–1.00  rises with the judgement text (0.12 judgement H)
+ *  0.55–0.85  fade out — same window as the judgement text, so the two
+ *             layers leave together
+ */
+
+import { group, TIMING_TEXT } from '@cytoid/notes'
+import { drawText, judgementCapHeight, measureText } from './judgement'
+import { designs } from './render'
+import { tokens } from './tokens'
+
+const CAP = 0.10 // cap height, × unit — the judgement text's original 0.12, shrunk
+const GAP = 0.32 // resting letter gap, × cap height — the judgement text's original tracking
+
+/** Cap height in px: unit × 0.10 full in the centre, 0.6 × stacked under it. */
+export function timingCapHeight(ctx: DrawContext, slot: TimingSlot): number {
+  return ctx.unit * CAP * (slot === 'centre' ? 1 : 0.6)
+}
+
+/** Label centre relative to the note centre. */
+export function timingOffset(ctx: DrawContext, slot: TimingSlot): { x: number, y: number } {
+  if (slot === 'centre')
+    return { x: 0, y: 0 }
+  // judgement underline bottom (0.88 Hj) + a 0.3 Hj gap + half the label
+  const Hj = judgementCapHeight(ctx)
+  return { x: 0, y: Hj * 1.18 + timingCapHeight(ctx, 'stacked') / 2 }
+}
+
+/** Static label around its own centre (no animation). */
+export function drawTimingLabel(timing: Timing, H: number, color: string, pop?: (i: number) => number): SceneNode {
+  const text = TIMING_TEXT[timing]
+  const sw = H * 0.22
+  const textW = measureText(text, H, H * GAP)
+  const chevW = H * 0.34
+  const gap = H * 0.72
+  const total = textW + gap + chevW
+  const fast = timing === 'fast'
+  // chevron on the leading side: ‹ before FAST, › after SLOW
+  const cx = fast ? -total / 2 + chevW / 2 : total / 2 - chevW / 2
+  const tx = fast ? total / 2 - textW / 2 : -total / 2 + textW / 2
+  const tip = fast ? -chevW / 2 : chevW / 2
+  const chevron: SceneNode = {
+    type: 'poly',
+    points: [[cx - tip, -H * 0.4], [cx + tip, 0], [cx - tip, H * 0.4]],
+    stroke: color,
+    strokeWidth: sw,
+    join: 'miter',
+    cap: 'square',
+  }
+  return group([chevron, group([drawText(text, H, color, { gap: H * GAP, stroke: sw, pop })], { transform: { x: tx } })])
+}
+
+/**
+ * Fixed label colours (experiment): red = FAST, green = SLOW, independent of
+ * the grade. The bases are the grade palette's own red / green hues, at full
+ * strength — the same treatment the judgement text gets — so the direction
+ * read is as strong as this scheme can be.
+ */
+export const TIMING_COLOR: Record<Timing, string> = {
+  fast: tokens.grade.bad,
+  slow: tokens.grade.good,
+}
+
+/** Compiled timing-only slots. Combined layout is authored in feedback:combined. */
+export const timingClips = designs.feedback.timing
+
+export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, skin: NoteSkin = designs): SceneNode {
+  return skin.feedback.timing[grade][timing].draw(t, ctx)
+}

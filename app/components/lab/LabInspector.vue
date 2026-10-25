@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Direction, NoteKind, Timing } from '@cytoid/notes'
-import { clipsOf, designs } from '@cytoid/notes'
+import { clipsOf } from '@cytoid/notes'
+import { designs } from '@cytoid/skin-flat'
 import { computed, ref } from 'vue'
 import { clipMax } from '../../composables/clips'
 import { review } from '../../composables/useReview'

@@ -1,3 +1,4 @@
+import type { SkinImage } from '../skin/resources'
 /**
  * Minimal, renderer-agnostic scene graph.
  *
@@ -101,7 +102,16 @@ export type ClipShape
     | { type: 'rect', x: number, y: number, w: number, h: number, rx?: number }
     | { type: 'poly', points: [number, number][] }
 
-export type SceneNode = CircleNode | ArcNode | RectNode | PolyNode | LineNode | GroupNode
+export interface ImageNode extends BaseNode {
+  type: 'image'
+  image: SkinImage
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type SceneNode = ImageNode | CircleNode | ArcNode | RectNode | PolyNode | LineNode | GroupNode
 
 export function group(children: (SceneNode | false | null | undefined)[], opts: Omit<GroupNode, 'type' | 'children'> = {}): GroupNode {
   return { type: 'group', ...opts, children: children.filter(Boolean) as SceneNode[] }
@@ -167,6 +177,7 @@ export function bounds(node: SceneNode): [number, number, number, number] | null
         add(m, cx + r, cy + r, 0)
         break
       }
+      case 'image':
       case 'rect':
         add(m, n.x, n.y, sw)
         add(m, n.x + n.w, n.y, sw)

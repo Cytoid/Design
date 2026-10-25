@@ -32,3 +32,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm run typecheck
+
+      - name: Test workspace packages
+        run: pnpm test
+
+      - name: Build workspace packages
+        run: pnpm -r --if-present build

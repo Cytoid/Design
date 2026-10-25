@@ -2,6 +2,7 @@
 import type { Palette } from '@cytoid/notes'
 import type { LoadedLevel, ParsedChart } from '@cytoid/player'
 import { loadLevelFromUrl, loadLevelFromZip, parseChart, Player } from '@cytoid/player'
+import { flat } from '@cytoid/skin-flat'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { palette as reviewPalette } from '../../composables/usePalette'
 
@@ -42,6 +43,7 @@ async function mount() {
   if (!hostEl.value || player)
     return
   player = new Player({
+    appearance: flat,
     palette: reviewPalette.value,
     scale: scale.value,
     judgement: judgement.value,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { NoteKind } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { createContext, designs, drawScene, group, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/notes'
+import { drawScene, group } from '@cytoid/notes'
+import { createContext, designs, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/skin-flat'
 import { computed, ref } from 'vue'
 import { drawScanline, paintDragChain } from '~/utils/drag-chain'
 import { DEMO_HOLD_SECONDS, lifecycle } from '../../composables/clips'

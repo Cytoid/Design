@@ -1,13 +1,20 @@
 import type { SceneNode } from '../core/scene'
-import type { NotePalette } from '../palette'
+import type { NotePalette, Palette } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
-import type { Timing } from './timing'
+import type { TimedGrade, Timing } from './timing'
 
 /** Everything a clip needs to draw one frame. */
 export interface DrawContext {
   kind: NoteKind
+  /** Base ring and hair widths in context pixels, before kind-specific ring adjustment. */
+  ringStroke: number
+  hairStroke: number
   palette: NotePalette
   grades: Record<Grade, string>
+  /** Full color source for explicit named family references. */
+  colors: Palette
+  /** Bound by judgement slots; absent for note animation previews. */
+  grade?: Grade
   /** scan direction used for colour (Cytoid `UseAlternativeColor`) */
   direction: Direction
   /** direction the hold body extends toward (may differ: storyboards, reversed pages) */
@@ -34,6 +41,8 @@ export interface DrawContext {
 export type ClipMode = 'normalized' | 'once' | 'loop' | 'progress' | 'static'
 
 export interface Clip {
+  /** Include the exact zero-time pose when baking normalized clips containing sequences. */
+  includeStart?: boolean
   id: string
   mode: ClipMode
   /** nominal duration in seconds (for `progress`: suggested seconds to sample at bake fps) */
@@ -63,6 +72,8 @@ export interface NoteDesign {
    * miss judgement, so a late miss never restarts the note at full opacity.
    */
   exit?: Clip
+  /** Parametric stretched body, present on Hold and Long Hold designs. */
+  body?: BodyClip
   /** hold-only layers, composed under → press → over → progress while holding */
   hold?: {
     /** head press-in when the hold starts */
@@ -76,6 +87,15 @@ export interface NoteDesign {
   }
 }
 
+/** A compiled skin, suitable for renderers, players and baking. */
+export interface FeedbackSkin {
+  judgement: Record<Grade, Clip>
+  timing: Record<TimedGrade, Record<Timing, Clip>>
+  combined: Record<TimedGrade, Record<Timing, Clip>>
+}
+export type FeedbackView = keyof FeedbackSkin
+export type NoteSkin = Record<NoteKind, NoteDesign> & { feedback: FeedbackSkin }
+
 /** Live state of a note for the composed vector renderer. */
 export type NoteState
   = | { phase: 'enter', p: number }
@@ -86,3 +106,88 @@ export type NoteState
     | { phase: 'exit', t: number }
     /** t = seconds since the miss judgement; `since` = seconds since the chart hit time (defaults to t: judged on the beat) */
     | { phase: 'miss', t: number, since?: number }
+
+export interface ContextOptions {
+  palette?: Palette
+  direction?: Direction
+  /** px per design px (1 → click note = 128 px) */
+  scale?: number
+  /** hold body direction, defaults to `direction` */
+  bodyDirection?: Direction
+  /** real approach window in seconds, defaults to the nominal enter duration */
+  approach?: number
+  /** drag-head arrow heading in radians (0 = up, clockwise); point it at the next chain node */
+  heading?: number
+}
+
+export interface RenderOptions {
+  /** Override the selected appearance's note, body and feedback clips. */
+  skin?: NoteSkin
+  /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
+  judgement?: boolean
+  /**
+   * draw the FAST / SLOW timing label when the clear state carries a `timing`
+   * (GREAT / GOOD / BAD only). Selects the combined or timing-only skin mode
+   * according to `judgement`; each mode owns its layout. Default true.
+   */
+  timing?: boolean
+}
+
+export interface HoldBodyOptions {
+  /** Total chart hold duration in seconds; omitted for offline strips. */
+  holdDuration?: number
+  /** body length in px (from note centre to hold end) */
+  length: number
+  /** hold progress 0–1 */
+  progress: number
+  /** seconds — scrolls the centre dashes while holding */
+  t?: number
+  /** fade-in of the body (follows the head entrance) */
+  appear?: number
+}
+
+export interface LongHoldBodyOptions {
+  /** distance from note centre to the top of the play area */
+  top: number
+  /** distance from note centre to the bottom of the play area */
+  bottom: number
+  /** hold progress 0–1 */
+  progress: number
+  /** seconds since the hit — scrolls the centre dashes, drives the live collapse */
+  t?: number
+  /** hit → finish seconds; enables the time-anchored collapse */
+  holdDuration?: number
+  /** fade-in of the body (follows the head entrance) */
+  appear?: number
+}
+
+export type BodyOptions = HoldBodyOptions | LongHoldBodyOptions
+export interface BodyClip {
+  draw: (options: BodyOptions, context: DrawContext) => SceneNode
+}
+
+export interface DragLineOptions {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  /** leading edge 0–1 (line grows from source toward destination) */
+  lead?: number
+  /** trailing edge 0–1 (line retracts as the scanner passes) */
+  trail?: number
+  opacity?: number
+  /** override dash length in px (bakers round it to whole pixels for seamless tiles) */
+  dash?: number
+}
+
+/** Presentation supplied by the application; player and tools never select a default skin. */
+export interface NoteAppearance {
+  metrics: { unit: number }
+  designs: NoteSkin
+  createContext: (kind: NoteKind, options?: ContextOptions) => DrawContext
+  renderNote: (kind: NoteKind, state: NoteState, context?: DrawContext, options?: RenderOptions) => SceneNode
+  holdBodyAlpha: (kind: NoteKind, state: NoteState, skin?: NoteSkin) => number
+  holdBody: (options: HoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
+  longHoldBody: (options: LongHoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
+  dragLine: (options: DragLineOptions, context: DrawContext) => SceneNode | null
+}

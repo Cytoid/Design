@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ClearGrade, Timing } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { createContext, drawScene, renderNote, TIMED_GRADES, tokens } from '@cytoid/notes'
+import { drawScene, TIMED_GRADES } from '@cytoid/notes'
+import { createContext, renderNote, tokens } from '@cytoid/skin-flat'
 import { palette } from '../../composables/usePalette'
 import { review } from '../../composables/useReview'
 import NoteCanvas from './NoteCanvas.vue'
