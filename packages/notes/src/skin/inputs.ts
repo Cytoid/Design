@@ -8,7 +8,7 @@
  * blocks add the constants only that family uses (the hold's approach-
  * dependent bracket landing time is a time input — see `holdLanding`).
  */
-import type { DrawContext } from '../notes/types'
+import type { BodyOptions, DrawContext } from '../notes/types'
 
 /** Ring stroke for a note of this size (thinner on small notes). Mirrors the designs' `ringWidth`. */
 function ringWidth(ctx: DrawContext): number {
@@ -70,4 +70,39 @@ export function resolveInputs(ctx: DrawContext): InputTable {
     }
   }
   return a
+}
+
+/** Fixed geometry and clock contract for parametric body slots. */
+export function resolveBodyInputs(ctx: DrawContext, options: BodyOptions): InputTable {
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value)))
+      throw new Error(`body input "${key}" must be finite`)
+  }
+  const isHold = ctx.kind === 'hold'
+  if (isHold ? !('length' in options) : !('top' in options && 'bottom' in options))
+    throw new Error(`${ctx.kind}: incorrect body geometry`)
+  const geometry = 'length' in options ? [options.length] : [options.top, options.bottom]
+  if (![options.progress, ...geometry].every(Number.isFinite))
+    throw new Error('body geometry and progress must be finite')
+  const elapsed = options.t ?? 0
+  const duration = 'holdDuration' in options ? Math.max(0, options.holdDuration ?? 0) : 0
+  const progress = Math.max(0, Math.min(1, options.progress))
+  const collapseWindow = Math.min(0.6, duration)
+  return {
+    ...resolveInputs(ctx),
+    ...('length' in options
+      ? { length: Math.max(0, options.length) }
+      : { top: Math.max(0, options.top), bottom: Math.max(0, options.bottom) }),
+    appear: Math.max(0, Math.min(1, options.appear ?? 1)),
+    progress,
+    elapsed,
+    duration,
+    remaining: Math.max(0, duration - elapsed),
+    bodyWidth: ctx.unit * 0.284,
+    dashPeriod: Math.max(2, Math.round(ctx.unit * 0.284 * 1.1)),
+    // Without a live duration (offline strips), retain the progress-sampled pose.
+    collapse: duration > 0
+      ? Math.max(0, Math.min(1, (elapsed - Math.max(0, duration - collapseWindow)) / collapseWindow))
+      : Math.max(0, Math.min(1, (progress - 0.86) / (1 - 0.86))),
+  }
 }

@@ -1,6 +1,5 @@
-import type { Oklch } from './core/color'
 import type { Direction, Family, Grade, NoteKind } from './tokens'
-import { alpha, hexToOklch, oklch } from './core/color'
+import { alpha, hexToOklch, mix, oklch } from './core/color'
 import { FAMILIES } from './tokens'
 
 /**
@@ -24,7 +23,8 @@ export interface PaletteOptions {
 
 /** Tailwind-style shade steps. 400 is the family's true colour (the note fill). */
 export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const
-export type Shade = typeof SHADES[number]
+export type ShadeLevel = typeof SHADES[number]
+export type Shade = ShadeLevel
 
 /** Step the input colour lands on — the note's true colour. */
 export const BASE_SHADE = 400
@@ -126,20 +126,8 @@ export function derivePalette(input: ColorInput, opts: { chroma: number, saturat
   }
 }
 
-const parsed = new WeakMap<Record<Shade, string>, Map<Shade, Oklch>>()
-
-function parsedShade(scale: Record<Shade, string>, step: Shade): Oklch {
-  let cache = parsed.get(scale)
-  if (!cache)
-    parsed.set(scale, cache = new Map())
-  let v = cache.get(step)
-  if (!v)
-    cache.set(step, v = hexToOklch(scale[step]))
-  return v
-}
-
 /**
- * Sample any shade scale at a (fractional) step — piecewise-linear in OKLCH
+ * Sample any shade scale at a (fractional) step — piecewise-linear in OKLab
  * between neighbouring shades, clamped to [50, 950]. Exact steps return the
  * scale colour verbatim.
  */
@@ -154,10 +142,7 @@ function sampleScale(scale: Record<Shade, string>, step: number): string {
     return scale[a]
   if (k >= 1)
     return scale[b]
-  const pa = parsedShade(scale, a)
-  const pb = parsedShade(scale, b)
-  const dh = ((pb.h - pa.h + 540) % 360) - 180
-  return oklch(pa.l + (pb.l - pa.l) * k, pa.c + (pb.c - pa.c) * k, pa.h + dh * k)
+  return mix(scale[a], scale[b], k)
 }
 
 /**
@@ -180,11 +165,7 @@ export function ringTone(palette: NotePalette, step: number): string {
   if (step >= 100 || palette.ring === NEUTRAL[50])
     return sampleScale(NEUTRAL, step)
   // custom resting colour: the last leg (100 → 50) blends toward it
-  const a = parsedShade(NEUTRAL, 100)
-  const b = hexToOklch(palette.ring)
-  const t = (100 - step) / 50
-  const dh = ((b.h - a.h + 540) % 360) - 180
-  return oklch(a.l + (b.l - a.l) * t, a.c + (b.c - a.c) * t, a.h + dh * t)
+  return mix(NEUTRAL[100], palette.ring, Math.min(1, Math.max(0, (100 - step) / 50)))
 }
 
 /** Snapshot every family into plain hex — handy for exporting to Cytoid settings JSON. */
@@ -198,3 +179,18 @@ export function exportPalette(p: Palette) {
 export const DEFAULT_RING_COLOR = NEUTRAL[50]
 
 export { alpha }
+
+/** Grade ramps retain the exact supplied base color at 400. */
+const gradeScales = new WeakMap<Record<Grade, string>, Map<Grade, NotePalette>>()
+export function gradePalette(grades: Record<Grade, string>, grade: Grade): NotePalette {
+  let cache = gradeScales.get(grades)
+  if (!cache)
+    gradeScales.set(grades, cache = new Map())
+  let scale = cache.get(grade)
+  if (!scale || scale[400] !== grades[grade]) {
+    scale = derivePalette(grades[grade], { chroma: 0 })
+    scale[400] = grades[grade]
+    cache.set(grade, scale)
+  }
+  return scale
+}

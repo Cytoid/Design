@@ -260,6 +260,7 @@ export class PlayStage {
             holdDuration: note.timeout - note.time,
           },
           ctx,
+          text.skin,
         ))
       }
       else {
@@ -268,11 +269,13 @@ export class PlayStage {
         body.push(holdBody(
           {
             length: Math.abs(endPos.y - d.pos.y),
+            holdDuration: note.timeout - note.time,
             progress,
             appear,
             t: d.state.phase === 'holding' ? d.state.t : 0,
           },
           bodyCtx,
+          text.skin,
         ))
       }
       parts.push(bodyAlpha < 0.999 ? group(body, { opacity: bodyAlpha, isolate: true }) : body[0]!)

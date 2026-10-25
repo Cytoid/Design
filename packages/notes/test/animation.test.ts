@@ -36,6 +36,12 @@ function draw(skin: Skin, id = 'grow') {
 const ctx: DrawContext = {
   kind: 'click',
   palette: derivePalette(200, { chroma: 0.165 }),
+  colors: {
+    family: () => derivePalette(200, { chroma: 0.165 }),
+    note: () => derivePalette(200, { chroma: 0.165 }),
+    grade: { perfect: '#00ffff', great: '#ffff00', good: '#00ff00', bad: '#ff0000', miss: '#808080' },
+    ring: '#ffffff',
+  },
   grades: { perfect: '#00ffff', great: '#ffff00', good: '#00ff00', bad: '#ff0000', miss: '#808080' },
   direction: 'up',
   bodyDirection: 'up',
@@ -96,7 +102,7 @@ describe('skin animation composition', () => {
   it('supports structured easing, shape properties and semantic palette colors', () => {
     const skin = fragment()
     skin.animations.grow!.tracks = { radius: { keys: [{ at: 0, value: 1 }, { at: 1, value: 9, ease: { type: 'inPow', power: 2 } }] } }
-    skin.frames.dot = { type: 'circle', r: 1, fill: { palette: 'fill' } }
+    skin.frames.dot = { type: 'circle', r: 1, fill: 'theme:400' }
     expect(circle(draw(skin)(0.5, ctx))).toMatchObject({ r: 3, fill: ctx.palette[400] })
   })
 })
@@ -153,6 +159,8 @@ describe('appearance-independent note composition', () => {
     for (const kind of NOTE_KINDS) {
       for (const slot of ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']) doc.slots[`${kind}:${slot}`] = { animation: 'grow' }
     }
+    doc.slots['hold:body'] = { animation: 'grow' }
+    doc.slots['long-hold:body'] = { animation: 'grow' }
     const skin = compileSkin(doc)
     const judgement = { type: 'rect', x: 0, y: 0, w: 1, h: 1 } as const
     const timing = { type: 'line', x1: 0, y1: 0, x2: 1, y2: 0 } as const
@@ -160,5 +168,48 @@ describe('appearance-independent note composition', () => {
     expect(tree.type).toBe('group')
     expect(tree.type === 'group' && tree.children.slice(1)).toEqual([judgement, timing])
     expect(composeNote('click', { phase: 'enter', p: 0.5 }, ctx, skin)).toEqual(skin.click.enter.draw(0.5, ctx))
+  })
+})
+
+describe('driven numeric tracks and body drawing primitives', () => {
+  it('samples dependent drivers and compares gates against their driven phase', () => {
+    const skin = fragment()
+    skin.animations.grow!.tracks = {
+      amount: { ease: { type: 'inQuad' } },
+      radius: { driver: { track: 'amount' }, keys: [{ at: 0, value: 1 }, { at: 1, value: 9 }] },
+    }
+    skin.animations.grow!.layers[0]!.when = { track: 'radius', phase: true, until: 0.3 }
+    expect(circle(draw(skin)(0.5, ctx)).r).toBe(3)
+    expect(draw(skin)(0.8, ctx)).toMatchObject({ children: [] })
+  })
+
+  it('rejects direct and indirect driver cycles, including unused tracks', () => {
+    for (const indirect of [false, true]) {
+      const skin = fragment()
+      skin.animations.grow!.tracks!.unused = { ease: { type: 'linear' }, driver: { track: indirect ? 'other' : 'unused' } }
+      if (indirect)
+        skin.animations.grow!.tracks!.other = { ease: { type: 'linear' }, driver: { track: 'unused' } }
+      expect(() => draw(skin)).toThrow(/track dependency cycle/)
+    }
+  })
+
+  it('bounds dependency depth even when earlier traversals cached shared tracks', () => {
+    const skin = fragment()
+    for (let i = 0; i < 33; i++) {
+      skin.animations.grow!.tracks![`driver${i}`] = { ease: { type: 'linear' }, driver: i === 0 ? 0 : { track: `driver${i - 1}` } }
+    }
+    expect(() => draw(skin)).toThrow(/track dependency depth/)
+  })
+
+  it('renders rectangular clips and animated dash lengths and offsets', () => {
+    const skin = fragment()
+    skin.frames.mask = { type: 'group', clip: { type: 'rect', x: -5, y: -10, w: 10, h: 20 } }
+    skin.frames.line = { type: 'line', x1: 0, y1: 0, x2: 0, y2: 20, stroke: 'theme:400', strokeWidth: 2, dash: [2, 3] }
+    skin.animations.grow!.layers = [{
+      source: { frame: 'mask' },
+      properties: { clip: { type: 'rect', x: -5, y: 0, w: 10, h: { track: 'radius' } } },
+      layers: [{ source: { frame: 'line' }, properties: { dash: [{ track: 'radius' }, 3], dashOffset: { track: 'radius' } } }],
+    }]
+    expect(draw(skin)(0.5, ctx)).toMatchObject({ children: [{ clip: { type: 'rect', x: -5, y: 0, w: 10, h: 5 }, children: [{ dash: [5, 3], dashOffset: 5 }] }] })
   })
 })

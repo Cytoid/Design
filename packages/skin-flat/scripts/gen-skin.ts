@@ -1,12 +1,13 @@
 import type { AnimationDraft, Shape } from '@cytoid/design-tools/authoring'
 /** Deterministic authoring source for the three-layer flat skin. */
-import type { SkinColor as Color, SkinEase as Ease, SkinGate as Gate, SkinInput as Input, Skin, SkinTime as Time, SkinTrack as Track, SkinValue as Value } from '@cytoid/notes'
+import type { SkinColorBinding as Color, SkinEase as Ease, SkinGate as Gate, SkinInput as Input, Skin, SkinTime as Time, SkinTrack as Track, SkinValue as Value } from '@cytoid/notes'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { argv } from 'node:process'
 import { SkinBuilder } from '@cytoid/design-tools/authoring'
-import { compileSkin, rng } from '@cytoid/notes'
+import { compileSkin, rng, SHADES } from '@cytoid/notes'
 import { tokens } from '../src/tokens'
+import { holdBodyAnimation, longHoldBodyAnimation } from './body-animations'
 
 /* ------------------------------------------------------------------ */
 /* authoring helpers                                                   */
@@ -23,6 +24,22 @@ const clamp = (v: Value, max = 1, min = 0): Value => ({ clamp: { value: v, min, 
 const A = (input: Input): Value => ({ input })
 /** named track reference */
 const T = (name: string): Value => ({ track: name })
+
+/** Drive a native string-color ramp with the design's existing numeric envelopes. */
+function colorRamp(tracks: Record<string, Track>, type: 'theme' | 'ring', step: Value): Color {
+  const ramp: Track = {
+    keys: SHADES.map(shade => ({ at: (shade - 50) / 900, value: `${type}:${shade}` as const })),
+    driver: mul(add(step, -50), 1 / 900),
+  }
+  const serialized = JSON.stringify(ramp)
+  for (const [id, track] of Object.entries(tracks)) {
+    if ('driver' in track && JSON.stringify(track) === serialized)
+      return { track: id }
+  }
+  const id = `color${Object.keys(tracks).length}`
+  tracks[id] = ramp
+  return { track: id }
+}
 
 interface Key { at: Time, value: number, ease?: Ease, window?: { from: Time, to: Time } }
 function key(at: Time, value: number, ease?: Ease, window?: { from: Time, to: Time }): Key {
@@ -49,7 +66,7 @@ const HEADING = A('heading')
  * falloff variants; the manual band stacks (drag child, drop capsules, flick
  * outline) derive their geometry from the same spec.
  */
-let EDGE: { color: string, placement: 'inside' | 'outside', bands: { fraction: number, opacity: number }[] } = {
+let EDGE: { color: `#${string}`, placement: 'inside' | 'outside', bands: { fraction: number, opacity: number }[] } = {
   color: tokens.edge,
   placement: 'outside',
   bands: [
@@ -188,7 +205,7 @@ type ClearGrade = 'perfect' | 'great' | 'good' | 'bad'
 
 function clearClip(flavor: ClearFlavor, grade: ClearGrade): AnimationDraft {
   const g = GRADE_SCALE[grade]
-  const gc: Color = { grade }
+  const gc: Color = 'theme:400'
   const reach = 1 + (flavor.reach - 1) * g.reach
   const cap = flavor.capsule
 
@@ -393,7 +410,7 @@ function clearClip(flavor: ClearFlavor, grade: ClearGrade): AnimationDraft {
 
 /** `effects.missEffect` — the note powers down to a dim ghost and sinks. */
 function missClip(shape: EffectShape, cap?: { w: number, h: number }): AnimationDraft {
-  const gray: Color = { grade: 'miss' }
+  const gray: Color = 'theme:400'
   const tracks: Record<string, Track> = {
     k: { ease: { type: 'outCubic' } },
     op: keys([key(0, 1), key(0.25, 1), key(1, 0)]),
@@ -402,8 +419,8 @@ function missClip(shape: EffectShape, cap?: { w: number, h: number }): Animation
   const sink = mul(UNIT, lerp(0, 0.08, T('k')))
   const widthFall = mul(A('ringW'), lerp(1, 0.6, T('k')))
   const solid: Shape = shape === 'capsule'
-    ? capsule(mul(SIZE, cap!.w, shrink), mul(SIZE, cap!.h, shrink), { fill: { shade: 800 }, opacity: 0.9 })
-    : { type: 'circle', r: mul(R, shrink), fill: { shade: 800 }, opacity: 0.9 }
+    ? capsule(mul(SIZE, cap!.w, shrink), mul(SIZE, cap!.h, shrink), { fill: 'theme:800', opacity: 0.9 })
+    : { type: 'circle', r: mul(R, shrink), fill: 'theme:800', opacity: 0.9 }
   const outlineR = add(mul(R, lerp(1, 0.78, T('k'))), mul(A('ringW'), -0.5))
   // capsule outline: r = R·lerp − W/2 and size = 2R, so
   //   w = size·cap.w·(r/size·2)… folds to size·cap.w·lerp + cap.w·W
@@ -457,16 +474,16 @@ function clickEnterClip(note: string): AnimationDraft {
     type: 'group',
     transform: { scale: T('size') },
     children: [
-      { type: 'circle', r: add(INNER, 0.5), fill: { shade: lerp(700, 800, T('split')) }, opacity: 1 },
-      { type: 'circle', r: coreR, fill: { shade: lerp(700, 400, T('split')) }, opacity: T('split'), when: gate({ track: 'split', from: 0 }) },
-      { type: 'circle', r: coreR, fill: { ring: 50 }, opacity: mul(0.3, T('blink')), when: gate({ track: 'blink', from: 0 }) },
-      { type: 'ring', r: add(R, mul(-0.5, frameW)), width: frameW, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
+      { type: 'circle', r: add(INNER, 0.5), fill: colorRamp(tracks, 'theme', lerp(700, 800, T('split'))), opacity: 1 },
+      { type: 'circle', r: coreR, fill: colorRamp(tracks, 'theme', lerp(700, 400, T('split'))), opacity: T('split'), when: gate({ track: 'split', from: 0 }) },
+      { type: 'circle', r: coreR, fill: 'ring:50', opacity: mul(0.3, T('blink')), when: gate({ track: 'blink', from: 0 }) },
+      { type: 'ring', r: add(R, mul(-0.5, frameW)), width: frameW, stroke: colorRamp(tracks, 'ring', T('ringStep')), segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
   const approach: Shape = {
     type: 'circle',
     r: lerp(mul(R, 1.83), RING_C, T('ap')),
-    stroke: { ring: 50 },
+    stroke: 'ring:50',
     strokeWidth: mul(HAIR, lerp(0.375, 0.525, T('ap'))),
     opacity: mul(0.5, T('apOp')),
     when: gate({ from: CLICK_TIMING.approachFrom, until: 1 }),
@@ -500,7 +517,7 @@ function dragHeadClip(note: string): AnimationDraft {
       points: [{ x: n(0), y: mul(INNER, -s) }, { x: mul(INNER, s * 0.82), y: mul(INNER, s * 0.78) }, { x: n(0), y: mul(INNER, s * 0.3) }, { x: mul(INNER, -s * 0.82), y: mul(INNER, s * 0.78) }],
       closed: true,
       join: 'round',
-      fill: { ring: T('ringStep') },
+      fill: colorRamp(tracks, 'ring', T('ringStep')),
       opacity: 1,
     }],
   }
@@ -509,9 +526,9 @@ function dragHeadClip(note: string): AnimationDraft {
     tracks,
     properties: { opacity: T('fade'), transform: { scale: T('size') } },
     layers: [
-      { type: 'circle', r: add(INNER, 0.5), fill: { shade: lerp(600, 400, T('wake')) }, opacity: 1 },
+      { type: 'circle', r: add(INNER, 0.5), fill: colorRamp(tracks, 'theme', lerp(600, 400, T('wake'))), opacity: 1 },
       arrow,
-      { type: 'ring', r: RING_C, width: W, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
+      { type: 'ring', r: RING_C, width: W, stroke: colorRamp(tracks, 'ring', T('ringStep')), segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
 }
@@ -529,7 +546,7 @@ function dragChildClip(note: string): AnimationDraft {
     tracks,
     properties: { opacity: T('fade'), transform: { scale: T('size') } },
     layers: [
-      { type: 'circle', r: R, fill: { shade: lerp(600, 400, T('wake')) }, opacity: 1 },
+      { type: 'circle', r: R, fill: colorRamp(tracks, 'theme', lerp(600, 400, T('wake'))), opacity: 1 },
       ...resolvedBands().map((b): Shape => ({
         type: 'circle',
         r: add(R, mul(W, b.off)),
@@ -537,7 +554,7 @@ function dragChildClip(note: string): AnimationDraft {
         strokeWidth: mul(W, b.frac),
         opacity: b.opacity,
       })),
-      { type: 'circle', r: mul(R, 0.62), stroke: { shade: lerp(800, 600, T('wake')) }, strokeWidth: HAIR, opacity: mul(0.7, T('k')) },
+      { type: 'circle', r: mul(R, 0.62), stroke: colorRamp(tracks, 'theme', lerp(800, 600, T('wake'))), strokeWidth: HAIR, opacity: mul(0.7, T('k')) },
     ],
   }
 }
@@ -562,13 +579,13 @@ function holdEnterClip(long: boolean, note: string): AnimationDraft {
     bracketFade: keys([key(0.1, 0), key(0.25, 1)]),
   }
   const glyphInner: Shape = long
-    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: T('ringStep') }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
-    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: T('ringStep') }, strokeWidth: A('glyphW'), opacity: 1 }
+    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: colorRamp(tracks, 'ring', T('ringStep')), strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
+    : { type: 'circle', r: mul(R, 0.2), stroke: colorRamp(tracks, 'ring', T('ringStep')), strokeWidth: A('glyphW'), opacity: 1 }
   const head: Shape = {
     type: 'group',
     children: [
-      { type: 'circle', r: add(INNER, 0.5), fill: { shade: lerp(600, lerp(600, 400, T('wake')), T('split')) }, opacity: 1 },
-      { type: 'circle', r: lerp(add(INNER, 0.5), A('coreR'), T('split')), fill: { shade: lerp(600, lerp(1100, 900, T('wake')), T('split')) }, opacity: 1 },
+      { type: 'circle', r: add(INNER, 0.5), fill: colorRamp(tracks, 'theme', lerp(600, lerp(600, 400, T('wake')), T('split'))), opacity: 1 },
+      { type: 'circle', r: lerp(add(INNER, 0.5), A('coreR'), T('split')), fill: colorRamp(tracks, 'theme', lerp(600, lerp(1100, 900, T('wake')), T('split'))), opacity: 1 },
       {
         type: 'group',
         opacity: clamp(mul(2, T('glyph'))),
@@ -576,7 +593,7 @@ function holdEnterClip(long: boolean, note: string): AnimationDraft {
         when: gate({ track: 'glyph', from: 0 }),
         children: [glyphInner],
       },
-      { type: 'ring', r: RING_C, width: W, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
+      { type: 'ring', r: RING_C, width: W, stroke: colorRamp(tracks, 'ring', T('ringStep')), segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
   const halfSpan = TAU * 0.16
@@ -590,7 +607,7 @@ function holdEnterClip(long: boolean, note: string): AnimationDraft {
       start: add(mid, T('spinE'), -halfSpan),
       end: add(mid, T('spinE'), halfSpan),
       strokeWidth: A('bracketW'),
-      stroke: { ring: T('ringStep') },
+      stroke: colorRamp(tracks, 'ring', T('ringStep')),
       cap: 'butt',
     } satisfies Shape)),
   }
@@ -611,8 +628,8 @@ function holdPressClip(long: boolean): AnimationDraft {
   }
   const halfSpan = TAU * 0.16
   const glyphInner: Shape = long
-    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: 50 }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
-    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: 50 }, strokeWidth: A('glyphW'), opacity: 1 }
+    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: 'ring:50', strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
+    : { type: 'circle', r: mul(R, 0.2), stroke: 'ring:50', strokeWidth: A('glyphW'), opacity: 1 }
   return {
     tracks,
     properties: { transform: { scale: lerp(1, 0.86, T('k')) } },
@@ -627,17 +644,17 @@ function holdPressClip(long: boolean): AnimationDraft {
           start: add(mid, -halfSpan),
           end: add(mid, halfSpan),
           strokeWidth: lerp(A('bracketW'), W, T('k')),
-          stroke: { ring: 50 },
+          stroke: 'ring:50',
           cap: 'butt',
         } satisfies Shape)),
       },
       {
         type: 'group',
         children: [
-          { type: 'circle', r: add(INNER, 0.5), fill: { shade: 400 }, opacity: 1 },
-          { type: 'circle', r: A('coreR'), fill: { shade: 900 }, opacity: 1 },
+          { type: 'circle', r: add(INNER, 0.5), fill: 'theme:400', opacity: 1 },
+          { type: 'circle', r: A('coreR'), fill: 'theme:900', opacity: 1 },
           { type: 'group', opacity: 1, transform: { scale: 1 }, children: [glyphInner] },
-          { type: 'ring', r: RING_C, width: W, stroke: { ring: 50 }, segments: 1, assemble: 1, spin: 0, edge: EDGE, opacity: 1 },
+          { type: 'ring', r: RING_C, width: W, stroke: 'ring:50', segments: 1, assemble: 1, spin: 0, edge: EDGE, opacity: 1 },
         ],
       },
     ],
@@ -706,7 +723,7 @@ function holdPulseClip(_long: boolean): AnimationDraft {
     return {
       type: 'circle',
       r: mul(R, T(`pulse${i}`)),
-      fill: { shade: 400 },
+      fill: 'theme:400',
       opacity: T(`pulseO${i}`),
     } satisfies Shape
   })
@@ -725,9 +742,9 @@ function holdProgressClip(): AnimationDraft {
       done: keys([key(0, 0), key(1, 1)]),
     },
     layers: [
-      { type: 'circle', r: A('progressR'), stroke: { shade: 800 }, strokeWidth: A('progressW'), opacity: 0.9 },
-      { type: 'arc', r: A('progressR'), start: 0, end: mul(TAU, T('lead')), stroke: { shade: 50 }, strokeWidth: A('progressW'), cap: 'butt', when: gate({ from: 0 }) },
-      { type: 'arc', r: A('progressR'), start: 0, end: mul(TAU, T('done')), stroke: { shade: 500 }, strokeWidth: A('progressW'), cap: 'butt', when: gate({ from: 0 }) },
+      { type: 'circle', r: A('progressR'), stroke: 'theme:800', strokeWidth: A('progressW'), opacity: 0.9 },
+      { type: 'arc', r: A('progressR'), start: 0, end: mul(TAU, T('lead')), stroke: 'theme:50', strokeWidth: A('progressW'), cap: 'butt', when: gate({ from: 0 }) },
+      { type: 'arc', r: A('progressR'), start: 0, end: mul(TAU, T('done')), stroke: 'theme:500', strokeWidth: A('progressW'), cap: 'butt', when: gate({ from: 0 }) },
     ],
   }
 }
@@ -779,7 +796,7 @@ function flickEnterClip(note: string): AnimationDraft {
   const outline: Shape = {
     type: 'group',
     children: [
-      diamond(fr, { stroke: { ring: T('ringStep') }, strokeWidth: fw }),
+      diamond(fr, { stroke: colorRamp(tracks, 'ring', T('ringStep')), strokeWidth: fw }),
       ...resolvedBands().map((b): Shape => {
         const rr = add(fr, mul(fw, (0.5 + b.off) / C45))
         return diamond(rr, { stroke: EDGE.color, strokeWidth: mul(fw, b.frac), opacity: b.opacity })
@@ -796,23 +813,23 @@ function flickEnterClip(note: string): AnimationDraft {
     type: 'group',
     transform: { scale: T('size') },
     children: [
-      diamond(add(A('flickInner'), mul(A('flickW'), 0.15)), { fill: { shade: lerp(700, 800, T('split')) } }),
-      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: { shade: lerp(700, 400, T('split')) }, opacity: T('split') }), when: gate({ track: 'split', from: 0 }) },
-      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: { ring: 50 }, opacity: mul(0.3, T('blink')) }), when: gate({ track: 'blink', from: 0 }) },
-      { type: 'line', x1: 0, y1: mul(A('flickInner'), mul(-0.5, T('coreG'))), x2: 0, y2: mul(A('flickInner'), mul(0.5, T('coreG'))), stroke: { shade: 600 }, strokeWidth: mul(A('flickW'), 0.5), opacity: T('slitOp') },
+      diamond(add(A('flickInner'), mul(A('flickW'), 0.15)), { fill: colorRamp(tracks, 'theme', lerp(700, 800, T('split'))) }),
+      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: colorRamp(tracks, 'theme', lerp(700, 400, T('split'))), opacity: T('split') }), when: gate({ track: 'split', from: 0 }) },
+      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: 'ring:50', opacity: mul(0.3, T('blink')) }), when: gate({ track: 'blink', from: 0 }) },
+      { type: 'line', x1: 0, y1: mul(A('flickInner'), mul(-0.5, T('coreG'))), x2: 0, y2: mul(A('flickInner'), mul(0.5, T('coreG'))), stroke: 'theme:600', strokeWidth: mul(A('flickW'), 0.5), opacity: T('slitOp') },
       outline,
     ],
   }
   const arrows: Shape = {
     type: 'group',
     opacity: T('arrowOp'),
-    children: chevrons(lerp(A('nearFar'), A('near'), T('travel')), mul(A('flickW'), 0.85), { ring: T('ringStep') }),
+    children: chevrons(lerp(A('nearFar'), A('near'), T('travel')), mul(A('flickW'), 0.85), colorRamp(tracks, 'ring', T('ringStep'))),
   }
   const approach: Shape = {
     type: 'group',
     opacity: mul(0.5, T('apOp')),
     when: gate({ from: CLICK_TIMING.approachFrom, until: 1 }),
-    children: chevrons(lerp(A('approachNear'), A('near'), T('ap')), mul(A('flickW'), 0.6), { ring: 50 }),
+    children: chevrons(lerp(A('approachNear'), A('near'), T('ap')), mul(A('flickW'), 0.6), 'ring:50'),
   }
   return { note, tracks, properties: { opacity: T('fade') }, layers: [approach, arrows, body] }
 }
@@ -822,8 +839,8 @@ function dropEnterClip(spec: { cap: { w: number, h: number }, fill: { w: number,
   const w = mul(SIZE, spec.cap.w)
   const h = mul(SIZE, spec.cap.h)
   const layers: Shape[] = [
-    capsule(w, h, { fill: { ring: 1 } }),
-    capsule(mul(SIZE, spec.cap.w, spec.fill.w), mul(SIZE, spec.cap.h, spec.fill.h), { fill: { shade: 400 } }),
+    capsule(w, h, { fill: 'ring:50' }),
+    capsule(mul(SIZE, spec.cap.w, spec.fill.w), mul(SIZE, spec.cap.h, spec.fill.h), { fill: 'theme:400' }),
     ...resolvedBands().map((b): Shape => {
       const w2 = add(w, mul(W, 2 * b.off))
       const h2 = add(h, mul(W, 2 * b.off))
@@ -906,6 +923,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
     skin.bind('hold:press', holdPressClip(false))
     skin.bind('hold:loopUnder', holdPulseClip(false))
     skin.bind('hold:progress', holdProgressClip())
+    skin.bind('hold:body', holdBodyAnimation())
     const longHoldEnter = skin.bind('long-hold:enter', holdEnterClip(true, 'Reads apart from a click: one smooth size ease, no overshoot, two lock brackets spin in on a heavy, viscous damping, landing on their rest pose ≈ 4 frames before the hit; size eases in on one long tail and lands with them. 600 ball splits: band rises to 400, a 900 socket opens (click\'s luminance inverted); square glyph. Colours wake gently over p 0.3–0.85 (page cue).'))
     for (const [grade, animation] of Object.entries(clearAll(LONG_HOLD_CLEAR))) skin.bind(`long-hold:clear:${grade}`, animation)
     skin.bind('long-hold:exit', exitClip(EXIT.holdHead, longHoldEnter))
@@ -913,6 +931,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
     skin.bind('long-hold:press', holdPressClip(true))
     skin.bind('long-hold:loopUnder', holdPulseClip(true))
     skin.bind('long-hold:progress', holdProgressClip())
+    skin.bind('long-hold:body', longHoldBodyAnimation())
     skin.bind('drop-click:enter', dropEnterClip(DROP_CLICK_SPEC, 'Static image: classic capsule — ring body, fill, white core. Only its position moves (fall).'))
     for (const [grade, animation] of Object.entries(clearAll(DROP_CLICK_CLEAR))) skin.bind(`drop-click:clear:${grade}`, animation)
     skin.bind('drop-click:miss', missClip('capsule', DROP_CLICK_SPEC.cap))

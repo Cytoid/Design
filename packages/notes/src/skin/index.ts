@@ -8,6 +8,7 @@ export type {
   Skin,
   Animation as SkinAnimation,
   Color as SkinColor,
+  ColorBinding as SkinColorBinding,
   Ease as SkinEase,
   Frame as SkinFrame,
   Gate as SkinGate,

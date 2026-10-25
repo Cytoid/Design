@@ -6,7 +6,7 @@ import { SkinBuilder } from '../src/authoring'
 describe('skin authoring', () => {
   it('interns frames and animations independently from their slot bindings', () => {
     const builder = new SkinBuilder('test', 'Test')
-    const draft = { layers: [{ type: 'circle' as const, r: { input: 'R' as const }, fill: '#ffffff' }] }
+    const draft = { layers: [{ type: 'circle' as const, r: { input: 'R' as const }, fill: '#ffffff' as const }] }
     const first = builder.bind('click:enter', draft)
     const second = builder.bind('hold:enter', draft)
     const skin = parseSkin(builder.build())

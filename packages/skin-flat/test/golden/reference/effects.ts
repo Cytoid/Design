@@ -6,7 +6,7 @@
 import type { ClearGrade, Clip, DrawContext, SceneNode } from '@cytoid/notes'
 
 import type { ExitCurve } from '../../../src/shared'
-import { group, lerp, outCubic, outExpo, outQuad, outQuart, outQuint, seg, TAU } from '@cytoid/notes'
+import { gradePalette, group, lerp, outCubic, outExpo, outQuad, outQuart, outQuint, seg, TAU } from '@cytoid/notes'
 import { tokens } from '@cytoid/skin-flat'
 import { exitAlpha } from '../../../src/shared'
 import { arc, capsule, dashedRing, diamond, disk, flickChevron, ring, shards } from './parts'
@@ -182,7 +182,7 @@ export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, cap?
   const parts = ghost
     ? ghost(ctx, R, W, k)
     : [
-        solid(shape, R * lerp(0.92, 0.75, k), ctx.palette[800], ctx, cap, 0.9),
+        solid(shape, R * lerp(0.92, 0.75, k), gradePalette(ctx.grades, 'miss')[800], ctx, cap, 0.9),
         outline(shape, R * lerp(1, 0.78, k) - W / 2, W * lerp(1, 0.6, k), gray, ctx, cap),
       ]
   // no cross: the MISS judgement text carries the meaning

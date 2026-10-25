@@ -1,18 +1,20 @@
 import type { Frame, Input, Layer, Skin, Track } from './schema'
+import { isColorTrack } from './schema'
 import { slotRegistry } from './slots'
 
 export const propertyNames: Record<Frame['type'], readonly string[]> = {
   circle: ['cx', 'cy', 'r', 'stroke', 'strokeWidth', 'fill'],
-  arc: ['cx', 'cy', 'r', 'start', 'end', 'stroke', 'strokeWidth'],
+  arc: ['cx', 'cy', 'r', 'start', 'end', 'stroke', 'strokeWidth', 'dash', 'dashOffset'],
   rect: ['x', 'y', 'w', 'h', 'rx', 'stroke', 'strokeWidth', 'fill'],
-  line: ['x1', 'y1', 'x2', 'y2', 'stroke', 'strokeWidth'],
+  line: ['x1', 'y1', 'x2', 'y2', 'stroke', 'strokeWidth', 'dash', 'dashOffset'],
   poly: ['points', 'stroke', 'strokeWidth', 'fill'],
-  ring: ['r', 'width', 'assemble', 'spin', 'stroke', 'strokeWidth'],
+  ring: ['r', 'width', 'assemble', 'spin', 'stroke', 'strokeWidth', 'dash', 'dashOffset'],
   group: ['clip'],
 }
 const COMMON = new Set(['unit', 'size', 'heading', 'R', 'W', 'inner', 'ringC', 'innerHalf', 'hair', 'ringW'])
 const HOLD = new Set(['bracketR', 'bracketW', 'holdLanding', 'glyphW', 'coreR', 'progressR', 'progressW'])
 const FLICK = new Set(['flickW', 'rv', 'flickInner', 'coreMax', 'frameOuter', 'near', 'nearFar', 'approachNear', 'arrowSize', 'arrowTip', 'arrowHalf'])
+const BODY = new Set(['appear', 'progress', 'elapsed', 'remaining', 'duration', 'bodyWidth', 'dashPeriod'])
 const MAX_NODES = 20_000
 
 function inspect(value: unknown, fn: (key: string, val: unknown) => void): void {
@@ -91,6 +93,44 @@ export function validateSkin(skin: Skin): Map<string, Set<Input>> {
     for (const [name, track] of Object.entries(animation.tracks ?? {})) validateTrack(track, `${id}.${name}`)
     check(animation.tracks)
     check(animation.properties)
+    const checkTypes = (value: unknown, color = false): void => {
+      if (!value || typeof value !== 'object')
+        return
+      const obj = value as Record<string, unknown>
+      if (typeof obj.track === 'string') {
+        const track = animation.tracks?.[obj.track]
+        if (track && !obj.phase && isColorTrack(track) !== color)
+          throw new Error(`${id}: expected ${color ? 'color' : 'numeric'} track "${obj.track}"`)
+      }
+      for (const [key, child] of Object.entries(obj)) {
+        if (key !== 'track')
+          checkTypes(child, key === 'fill' || key === 'stroke')
+      }
+    }
+    checkTypes(animation.tracks)
+    checkTypes(animation.properties)
+    const trackHeights = new Map<string, number>()
+    const activeTracks = new Set<string>()
+    const visitTrack = (name: string, depth = 0): number => {
+      if (depth > 32)
+        throw new Error(`${id}: track dependency depth exceeds 32`)
+      if (activeTracks.has(name))
+        throw new Error(`${id}: track dependency cycle at "${name}"`)
+      if (trackHeights.has(name))
+        return trackHeights.get(name)!
+      activeTracks.add(name)
+      let height = 1
+      inspect(animation.tracks![name], (key, value) => {
+        if (key === 'track')
+          height = Math.max(height, 1 + visitTrack(value as string, depth + 1))
+      })
+      if (height > 32)
+        throw new Error(`${id}: track dependency depth exceeds 32`)
+      activeTracks.delete(name)
+      trackHeights.set(name, height)
+      return height
+    }
+    for (const name of Object.keys(animation.tracks ?? {})) visitTrack(name)
     const layerCost = (layer: Layer, nesting: number): number => {
       if (nesting > 32)
         throw new Error(`${id}: layer nesting exceeds 32`)
@@ -101,7 +141,9 @@ export function validateSkin(skin: Skin): Map<string, Set<Input>> {
       if (layer.when?.phase && !layer.when.track)
         throw new Error(`${id}: phase requires track`)
       check(layer.properties)
+      checkTypes(layer.properties)
       check(layer.when)
+      checkTypes(layer.when)
       let cost = 1
       if ('frame' in layer.source) {
         const frame = skin.frames[layer.source.frame]
@@ -160,7 +202,10 @@ export function validateSkin(skin: Skin): Map<string, Set<Input>> {
         || ((contract.kind === 'hold' || contract.kind === 'long-hold') && HOLD.has(input))
         || (contract.kind === 'flick' && FLICK.has(input))
         || (contract.path === 'exit' && input === 'exitRewindEnd')
-      if (!allowed)
+      const bodyInput = contract.path === 'body' && (BODY.has(input)
+        || (contract.kind === 'hold' && input === 'length')
+        || (contract.kind === 'long-hold' && ['top', 'bottom', 'collapse'].includes(input)))
+      if (!allowed && !bodyInput)
         throw new Error(`${name}: input "${input}" is not available`)
     }
   }

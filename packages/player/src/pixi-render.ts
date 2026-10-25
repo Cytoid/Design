@@ -10,18 +10,27 @@ import type { ClipShape, SceneNode, StrokeStyle, Transform } from '@cytoid/notes
  * geometry/style signature changes. This keeps steady poses cheap and makes
  * animated arcs/dashes the only per-frame tessellation.
  */
+import { parseHexAlpha } from '@cytoid/notes'
 import { AlphaFilter, Color, Container, Graphics } from 'pixi.js'
 
-const colorCache = new Map<string, number>()
+const colorCache = new Map<string, { color: number, alpha: number }>()
 
-/** css color string → pixi number (memoised). */
-export function pixiColor(css: string): number {
-  let n = colorCache.get(css)
-  if (n === undefined) {
-    n = new Color(css).toNumber()
-    colorCache.set(css, n)
+/** Preserve embedded alpha for both fill and stroke paints. */
+export function pixiPaint(css: string): { color: number, alpha: number } {
+  let paint = colorCache.get(css)
+  if (!paint) {
+    const parsed = new Color(css)
+    paint = { color: parsed.toNumber(), alpha: css.startsWith('#') ? parseHexAlpha(css) : parsed.alpha }
+    // Animated gradients can produce many distinct colors over a session.
+    if (colorCache.size >= 4096)
+      colorCache.clear()
+    colorCache.set(css, paint)
   }
-  return n
+  return paint
+}
+
+export function pixiColor(css: string): number {
+  return pixiPaint(css).color
 }
 
 interface Entry {
@@ -151,7 +160,7 @@ function dashedPath(g: Graphics, pts: [number, number][], closed: boolean, s: St
 function applyStroke(g: Graphics, s: StrokeStyle) {
   g.setStrokeStyle({
     width: s.strokeWidth ?? 1,
-    color: pixiColor(s.stroke!),
+    ...pixiPaint(s.stroke!),
     cap: s.cap ?? 'butt',
     join: s.join ?? 'miter',
   })
@@ -183,7 +192,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
     case 'circle':
       g.circle(n.cx ?? 0, n.cy ?? 0, Math.max(0, n.r))
       if (n.fill)
-        g.fill(pixiColor(n.fill))
+        g.fill(pixiPaint(n.fill))
       doStroke(n)
       break
     case 'arc': {
@@ -202,7 +211,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
       if (n.w > 0 && n.h > 0) {
         g.roundRect(n.x, n.y, n.w, n.h, Math.min(n.rx ?? 0, n.w / 2, n.h / 2))
         if (n.fill)
-          g.fill(pixiColor(n.fill))
+          g.fill(pixiPaint(n.fill))
         doStroke(n)
       }
       break
@@ -215,7 +224,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
       else {
         g.poly(n.points.flat(), n.closed ?? false)
         if (n.fill)
-          g.fill(pixiColor(n.fill))
+          g.fill(pixiPaint(n.fill))
         doStroke(n)
       }
       break

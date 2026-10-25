@@ -1,7 +1,7 @@
 import type { SceneNode } from '@cytoid/notes'
 import { Container, Graphics } from 'pixi.js'
 import { describe, expect, it } from 'vitest'
-import { SceneView } from '../src/pixi-render'
+import { pixiPaint, SceneView } from '../src/pixi-render'
 
 function circle(fill: string, r = 10): SceneNode {
   return { type: 'circle', r, fill }
@@ -18,6 +18,17 @@ describe('sceneView (pixi adapter)', () => {
     const inner = view.children[0] as Container
     expect(inner.children.length).toBe(2)
     expect(inner.children[0]).toBeInstanceOf(Graphics)
+  })
+
+  it('preserves fill and stroke alpha embedded in Hex colors', () => {
+    expect(pixiPaint('#f008')).toEqual({ color: 0xFF0000, alpha: 136 / 255 })
+    const view = new SceneView()
+    view.setScene({ type: 'circle', r: 10, fill: '#ff000080', stroke: '#00ff0040', strokeWidth: 2 })
+    const graphics = view.children[0] as Graphics
+    expect(graphics.context.instructions).toMatchObject([
+      { action: 'fill', data: { style: { color: 0xFF0000, alpha: 128 / 255 } } },
+      { action: 'stroke', data: { style: { color: 0x00FF00, alpha: 64 / 255 } } },
+    ])
   })
 
   it('maps group transforms to the container', () => {

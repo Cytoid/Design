@@ -1,5 +1,4 @@
 import type { SceneNode, Skin } from '@cytoid/notes'
-import { readFileSync } from 'node:fs'
 import { createCylheimTargets, rasterize } from '@cytoid/design-tools'
 import { compileAnimation, compileSkin, NOTE_KINDS, parseSkin, toSVG } from '@cytoid/notes'
 import { createContext, designs, flat, flatSkin, holdBodyAlpha, loadSkin, renderNote, tokens } from '@cytoid/skin-flat'
@@ -45,6 +44,8 @@ function complete(skin: Skin): Skin {
   for (const kind of NOTE_KINDS) {
     for (const path of ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']) skin.slots[`${kind}:${path}`] = { animation: 'grow' }
   }
+  skin.slots['hold:body'] = { animation: 'grow' }
+  skin.slots['long-hold:body'] = { animation: 'grow' }
   return skin
 }
 
@@ -76,6 +77,8 @@ describe('skin loader and engine clocks', () => {
     skin.slots['hold:press'] = { animation: 'grow' }
     skin.slots['hold:progress'] = { animation: 'grow' }
     skin.slots['hold:loopUnder'] = { animation: 'grow' }
+    skin.slots['hold:body'] = { animation: 'grow' }
+    skin.slots['long-hold:body'] = { animation: 'grow' }
     const d = compileSkin(skin)
     expect(circle(d.click.enter.draw(0.5, ctx)).r).toBe(5)
     expect(circle(d.click.clear.perfect.draw(tokens.time.clear.perfect / 2, ctx)).r).toBe(5)
@@ -109,8 +112,10 @@ describe('skin loader and engine clocks', () => {
     expect(() => compileSkin(complete(fragment())).click.enter.draw(Infinity, ctx)).toThrow(/finite/)
   })
 
-  it('compiles the documented example and binds its complete click kinds', () => {
-    const example = JSON.parse(readFileSync(new URL('../../../docs/skin.example.json', import.meta.url), 'utf8'))
+  it('binds a partial skin to rendering and baking', () => {
+    const example = fragment()
+    for (const path of ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad'])
+      example.slots[`click:${path}`] = { animation: 'grow' }
     const loaded = loadSkin(example, designs)
     expect(loaded.click).not.toBe(designs.click)
     expect(loaded.hold).toBe(designs.hold)

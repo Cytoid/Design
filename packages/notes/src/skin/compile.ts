@@ -1,11 +1,11 @@
 import type { GroupNode, SceneNode } from '../core/scene'
 import type { Clip, DrawContext, NoteDesign } from '../notes/types'
-import type { NoteKind } from '../tokens'
+import type { Grade, NoteKind } from '../tokens'
 import type { Primitive } from './primitive'
 import type { CompiledTrack, Env } from './runtime'
 import type { Layer, Skin, Time, Track } from './schema'
 import { NOTE_KINDS, noteTiming } from '../tokens'
-import { resolveInputs } from './inputs'
+import { resolveBodyInputs, resolveInputs } from './inputs'
 import { compileGate, compileNum, compilePrimitive, compileTrack, compileTransform, gateOpen, makeEnv } from './runtime'
 import { parseSkin } from './schema'
 import { slotProgress, slotRegistry } from './slots'
@@ -37,7 +37,7 @@ function compiledTrack(track: Track): CompiledTrack {
   // Only context-dependent endpoints need checking in the draw path.
   return {
     phase: compiled.phase,
-    at(p, inputs) {
+    at(p, inputs, env, ctx) {
       if ('keys' in track) {
         let previous = -Infinity
         for (const key of track.keys) {
@@ -51,7 +51,7 @@ function compiledTrack(track: Track): CompiledTrack {
         if (timeAt(window.from, inputs) >= timeAt(window.to, inputs))
           throw new Error('invalid resolved track window')
       }
-      return compiled.at(p, inputs)
+      return compiled.at(p, inputs, env, ctx)
     },
   }
 }
@@ -128,7 +128,7 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
     }
     const layers = animation.layers.map(buildLayer)
     const draw: DrawAnimation = (p, ctx, inputs) => {
-      const env = makeEnv(inputs, tracks, p)
+      const env = makeEnv(inputs, tracks, p, ctx)
       const node: GroupNode = { type: 'group', children: [] }
       for (const layer of layers) {
         const child = layer(env, p, ctx)
@@ -172,6 +172,8 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
   const designs = {} as Record<NoteKind, NoteDesign>
   for (const kind of NOTE_KINDS) {
     const required = ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']
+    if (kind === 'hold' || kind === 'long-hold')
+      required.push('body')
     const hasHold = ['press', 'loopUnder', 'loopOver', 'progress'].some(path => Object.hasOwn(skin.slots, `${kind}:${path}`))
     if (hasHold)
       required.push('press', 'progress')
@@ -200,7 +202,8 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
             throw new Error(`${name}: driver must be finite`)
           const inputs = resolveInputs(ctx)
           inputs.exitRewindEnd = 1 - contract.duration * noteTiming.exit.rewind / Math.max(1e-6, ctx.approach)
-          return draw(slotProgress(contract, x), ctx, inputs)
+          const grade = path.startsWith('clear:') ? path.slice(6) as Grade : path === 'miss' ? 'miss' : undefined
+          return draw(slotProgress(contract, x), { ...ctx, grade }, inputs)
         },
       }
     }
@@ -208,6 +211,20 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
       kind,
       enter: clip('enter')!,
       clear: { perfect: clip('clear:perfect')!, great: clip('clear:great')!, good: clip('clear:good')!, bad: clip('clear:bad')! },
+    }
+    if (kind === 'hold' || kind === 'long-hold') {
+      const draw = build(skin.slots[`${kind}:body`]!.animation)
+      design.body = {
+        draw(options, context) {
+          const ctx = { ...context, kind, grade: undefined }
+          const inputs = resolveBodyInputs(ctx, options)
+          const node = draw(inputs.progress!, ctx, inputs)
+          // Hold bodies are authored along +y, independent of scan/color direction.
+          return kind === 'hold' && ctx.bodyDirection === 'up'
+            ? { type: 'group', transform: { scaleY: -1 }, children: [node] }
+            : node
+        },
+      }
     }
     const exit = clip('exit')
     const miss = clip('miss')

@@ -25,6 +25,7 @@ export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawConte
     hairStroke: tokens.unit * scale * tokens.stroke.hair,
     palette: palette.note(kind, direction),
     grades: palette.grade,
+    colors: palette,
     direction,
     bodyDirection: o.bodyDirection ?? direction,
     approach: o.approach ?? tokens.time.enter,

@@ -1,12 +1,17 @@
 /** Native skin numeric, curve and primitive evaluation. */
 import type { SceneNode, Transform } from '../core/scene'
 import type { DrawContext } from '../notes/types'
+import type { ShadeLevel } from '../palette'
+import type { Family, Grade } from '../tokens'
 import type { InputTable } from './inputs'
 import type { Primitive } from './primitive'
-import type { Color, Ease, Frame, Gate, Time, Track, Transform as TransformSpec, Value } from './schema'
+import type { ColorBinding, Ease, Frame, Gate, NumericTrack, Time, Track, Transform as TransformSpec, Value } from './schema'
+import { mix } from '../core/color'
 import { bump, clamp, lerp, seg } from '../core/ease'
 import * as curves from '../core/ease'
-import { ringTone, tone } from '../palette'
+import { gradePalette, ringTone } from '../palette'
+import { GRADES } from '../tokens'
+import { isColorTrack } from './schema'
 
 /* ------------------------------------------------------------------ */
 /* easing                                                              */
@@ -40,72 +45,95 @@ function resolveTime(t: Time, inputs: InputTable): number {
 /* ------------------------------------------------------------------ */
 /* tracks                                                              */
 
-export interface CompiledTrack {
+export interface CompiledTrack<T = number | string> {
   /** value at the clip's normalized clock `phi`, inputs resolved per draw */
-  at: (phi: number, inputs: InputTable) => number
+  at: (phi: number, inputs: InputTable, env: Env, ctx: DrawContext) => T
   /** the track's local clock phase — what phase-gates compare against */
-  phase: (phi: number, inputs: InputTable) => number
+  phase: (phi: number, inputs: InputTable, env: Env, ctx: DrawContext) => number
 }
 
 export function compileTrack(track: Track): CompiledTrack {
-  if ('keys' in track) {
-    const eases = track.keys.map((k) => {
-      if (!k.ease)
-        return null
-      const ease = compileEase(k.ease)
-      if (!k.window)
-        // plain: the easing input is the key segment's progress
-        return (_phi: number, _inputs: InputTable, segmentK: number) => ease(segmentK)
+  let compiled: CompiledTrack
+  if (isColorTrack(track)) {
+    const colors = new Map(track.keys.map(key => [key.value, compileColor(key.value)]))
+    compiled = compileKeys(track, (value, env, ctx) => colors.get(value)!(env, ctx), mix)
+  }
+  else {
+    compiled = compileNumericTrack(track)
+  }
+  const driver = track.driver === undefined ? null : compileNum(track.driver)
+  return {
+    phase: (phi, inputs, env, ctx) => compiled.phase(driver ? driver(env) : phi, inputs, env, ctx),
+    at: (phi, inputs, env, ctx) => compiled.at(driver ? driver(env) : phi, inputs, env, ctx),
+  }
+}
+
+function compileKeys<T, V>(
+  track: { keys: { at: Time, value: T, ease?: Ease, window?: { from: Time, to: Time } }[], rate?: number, offset?: Time },
+  resolve: (value: T, env: Env, ctx: DrawContext) => V,
+  blend: (a: V, b: V, t: number) => V,
+): CompiledTrack<V> {
+  const eases = track.keys.map((k) => {
+    if (!k.ease)
+      return null
+    const ease = compileEase(k.ease)
+    if (!k.window)
+    // plain: the easing input is the key segment's progress
+      return (_phi: number, _inputs: InputTable, segmentK: number) => ease(segmentK)
       // windowed ease: the easing input is seg(φ, w0, w1), not the key segment —
       // the imperative `ease(seg(p, a, b))` idiom with its own window
-      const w0 = k.window.from
-      const w1 = k.window.to
-      return (phi: number, inputs: InputTable) => ease(seg(phi, resolveTime(w0, inputs), resolveTime(w1, inputs)))
-    })
-    const hasRate = track.rate !== undefined || track.offset !== undefined
-    const rate = track.rate ?? 1
-    const localPhase = (phi: number, inputs: InputTable): number => {
-      if (!hasRate)
-        return phi
+    const w0 = k.window.from
+    const w1 = k.window.to
+    return (phi: number, inputs: InputTable) => ease(seg(phi, resolveTime(w0, inputs), resolveTime(w1, inputs)))
+  })
+  const hasRate = track.rate !== undefined || track.offset !== undefined
+  const rate = track.rate ?? 1
+  const localPhase = (phi: number, inputs: InputTable): number => {
+    if (!hasRate)
+      return phi
       // local = (phi · rate + offset) % 1 — exactly the imperative loop phases'
       // plain `%` (an extra +1 wrap rounds 0.999…9 + 1 up to 2 and flips the phase)
-      let local = phi * rate
-      if (track.offset !== undefined)
-        local += resolveTime(track.offset, inputs)
-      return local % 1
-    }
-    return {
-      phase: localPhase,
-      at(phi, inputs) {
-        const local = localPhase(phi, inputs)
-        const keys = track.keys
-        const first = keys[0]!
-        const last = keys[keys.length - 1]!
-        if (local <= resolveTime(first.at, inputs))
-          return first.value
-        if (local >= resolveTime(last.at, inputs))
-          return last.value
+    let local = phi * rate
+    if (track.offset !== undefined)
+      local += resolveTime(track.offset, inputs)
+    return local % 1
+  }
+  return {
+    phase: localPhase,
+    at(phi, inputs, env, ctx) {
+      const local = localPhase(phi, inputs)
+      const keys = track.keys
+      const first = keys[0]!
+      const last = keys[keys.length - 1]!
+      if (local <= resolveTime(first.at, inputs))
+        return resolve(first.value, env, ctx)
+      if (local >= resolveTime(last.at, inputs))
+        return resolve(last.value, env, ctx)
         // scan segments from the end: at a boundary the LAST containing segment
         // owns the sample, which keeps intentionally discontinuous handoffs
         // (the ringStep entrance → wake jump) on their code-accurate side
-        for (let i = keys.length - 2; i >= 0; i--) {
-          const ka = keys[i]!
-          const kb = keys[i + 1]!
-          const a = resolveTime(ka.at, inputs)
-          const b = resolveTime(kb.at, inputs)
-          if (local >= a && local <= b) {
-            // CSS/Lottie convention: a key's ease shapes the segment arriving at it
-            const ease = eases[i + 1]
-            const k = seg(local, a, b)
-            // a windowed ease reads the raw clock through its own window
-            const eased = ease ? ease(local, inputs, k) : k
-            return lerp(ka.value, kb.value, eased)
-          }
+      for (let i = keys.length - 2; i >= 0; i--) {
+        const ka = keys[i]!
+        const kb = keys[i + 1]!
+        const a = resolveTime(ka.at, inputs)
+        const b = resolveTime(kb.at, inputs)
+        if (local >= a && local <= b) {
+          // CSS/Lottie convention: a key's ease shapes the segment arriving at it
+          const ease = eases[i + 1]
+          const k = seg(local, a, b)
+          // a windowed ease reads the raw clock through its own window
+          const eased = ease ? ease(local, inputs, k) : k
+          return blend(resolve(ka.value, env, ctx), resolve(kb.value, env, ctx), eased)
         }
-        return last.value
-      },
-    }
+      }
+      return resolve(last.value, env, ctx)
+    },
   }
+}
+
+function compileNumericTrack(track: NumericTrack): CompiledTrack<number> {
+  if ('keys' in track)
+    return compileKeys(track, value => value, lerp)
   if ('ease' in track) {
     const ease = compileEase(track.ease)
     return { at: phi => ease(phi), phase: phi => phi }
@@ -192,20 +220,20 @@ export function compileNum(expr: Value): NumFn {
   return env => clamp(inner(env), min, max)
 }
 
-export function compileColor(expr: Color): (env: Env, ctx: DrawContext) => string {
-  if (typeof expr === 'string')
+export function compileColor(expr: ColorBinding): (env: Env, ctx: DrawContext) => string {
+  if (typeof expr !== 'string')
+    return env => env.color(expr.track)
+  if (expr.startsWith('#'))
     return () => expr
-  if ('shade' in expr) {
-    const v = compileNum(expr.shade)
-    return (env, ctx) => tone(ctx.palette, v(env))
-  }
-  if ('ring' in expr) {
-    const v = compileNum(expr.ring)
-    return (env, ctx) => ringTone(ctx.palette, v(env))
-  }
-  if ('grade' in expr)
-    return (_, ctx) => ctx.grades[expr.grade]
-  return (_, ctx) => expr.palette === 'ring' ? ringTone(ctx.palette, 50) : ctx.palette[400]
+  const [type, level] = expr.split(':')
+  const shade = Number(level) as ShadeLevel
+  if (type === 'ring')
+    return (_, ctx) => ringTone(ctx.palette, shade)
+  if (type === 'theme')
+    return (_, ctx) => (ctx.grade ? gradePalette(ctx.grades, ctx.grade) : ctx.palette)[shade]
+  if (GRADES.includes(type as Grade))
+    return (_, ctx) => gradePalette(ctx.grades, type as Grade)[shade]
+  return (_, ctx) => ctx.colors.family(type as Family, ctx.direction)[shade]
 }
 
 /* ------------------------------------------------------------------ */
@@ -346,13 +374,20 @@ function emitRing(
 
 export function compilePrimitive(slice: Primitive): PrimitiveFn {
   const emit = compilePrimitiveBody(slice)
-  if (!slice.blend)
+  const dash = 'dash' in slice ? slice.dash?.map(compileNum) : undefined
+  const dashOffset = 'dashOffset' in slice && slice.dashOffset !== undefined ? compileNum(slice.dashOffset) : null
+  if (!slice.blend && !dash && !dashOffset)
     return emit
-  const blend = slice.blend
   return (env, ctx) => {
     const node = emit(env, ctx)
-    if (node)
-      node.blend = blend
+    if (slice.blend)
+      node.blend = slice.blend
+    if (node.type !== 'group') {
+      if (dash)
+        node.dash = dash.map(fn => Math.max(0, fn(env)))
+      if (dashOffset)
+        node.dashOffset = dashOffset(env)
+    }
     return node
   }
 }
@@ -365,11 +400,7 @@ function compilePrimitiveBody(slice: Primitive): PrimitiveFn {
       const children = (slice.children ?? []).map(compilePrimitive)
       const transform = slice.transform ? compileTransform(slice.transform) : null
       const clip = slice.clip
-        ? {
-            r: compileNum(slice.clip.r),
-            cx: slice.clip.cx !== undefined ? compileNum(slice.clip.cx) : null,
-            cy: slice.clip.cy !== undefined ? compileNum(slice.clip.cy) : null,
-          }
+        ? { type: slice.clip.type, fields: Object.entries(slice.clip).filter(([key]) => key !== 'type').map(([key, value]) => [key, compileNum(value as Value)] as const) }
         : null
       const isolate = slice.isolate
       return (env, ctx) => {
@@ -386,14 +417,8 @@ function compilePrimitiveBody(slice: Primitive): PrimitiveFn {
           node.isolate = true
         if (transform)
           node.transform = transform(env)
-        if (clip) {
-          node.clip = {
-            type: 'circle',
-            r: clip.r(env),
-            ...(clip.cx ? { cx: clip.cx(env) } : {}),
-            ...(clip.cy ? { cy: clip.cy(env) } : {}),
-          }
-        }
+        if (clip)
+          node.clip = { type: clip.type, ...Object.fromEntries(clip.fields.map(([key, fn]) => [key, fn(env)])) } as NonNullable<typeof node.clip>
         return node
       }
     }
@@ -550,22 +575,25 @@ export interface Env {
   inputs: InputTable
   track: (name: string) => number
   phase: (name: string) => number
+  color: (name: string) => string
 }
 
-export function makeEnv(inputs: InputTable, tracks: Map<string, CompiledTrack>, phi: number): Env {
-  const values = new Map<string, number>()
+export function makeEnv(inputs: InputTable, tracks: Map<string, CompiledTrack>, phi: number, ctx: DrawContext): Env {
+  const values = new Map<string, number | string>()
   const phases = new Map<string, number>()
-  return {
+  const active = new Set<string>()
+  const env: Env = {
     inputs,
     track(name) {
-      let v = values.get(name)
-      if (v === undefined) {
-        const track = tracks.get(name)
-        if (!track)
-          throw new Error(`unknown track "${name}"`)
-        v = track.at(phi, inputs)
-        values.set(name, v)
-      }
+      const v = read(name)
+      if (typeof v !== 'number')
+        throw new Error(`expected numeric track "${name}"`)
+      return v
+    },
+    color(name) {
+      const v = read(name)
+      if (typeof v !== 'string')
+        throw new Error(`expected color track "${name}"`)
       return v
     },
     phase(name) {
@@ -574,10 +602,26 @@ export function makeEnv(inputs: InputTable, tracks: Map<string, CompiledTrack>, 
         const track = tracks.get(name)
         if (!track)
           throw new Error(`unknown track "${name}"`)
-        v = track.phase(phi, inputs)
+        v = track.phase(phi, inputs, env, ctx)
         phases.set(name, v)
       }
       return v
     },
   }
+  function read(name: string): number | string {
+    let v = values.get(name)
+    if (v === undefined) {
+      const track = tracks.get(name)
+      if (!track)
+        throw new Error(`unknown track "${name}"`)
+      if (active.has(name))
+        throw new Error(`track cycle at "${name}"`)
+      active.add(name)
+      v = track.at(phi, inputs, env, ctx)
+      active.delete(name)
+      values.set(name, v)
+    }
+    return v
+  }
+  return env
 }

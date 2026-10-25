@@ -1,7 +1,10 @@
 /** Skin: static frames, reusable normalized animations, engine slot bindings. */
 import type { z } from 'zod'
+import type { ShadeLevel } from '../palette'
+import type { ColorType } from '../tokens'
 import { z as schema } from 'zod'
-import { GRADES } from '../tokens'
+import { SHADES } from '../palette'
+import { FAMILIES, GRADES } from '../tokens'
 
 const finite = schema.number().finite()
 const name = schema.string().min(1).max(128).refine(value => !Object.hasOwn(Object.prototype, value), 'reserved identifier')
@@ -37,6 +40,17 @@ export const INPUTS = [
   'arrowTip',
   'arrowHalf',
   'exitRewindEnd',
+  'length',
+  'top',
+  'bottom',
+  'appear',
+  'progress',
+  'elapsed',
+  'remaining',
+  'duration',
+  'bodyWidth',
+  'dashPeriod',
+  'collapse',
 ] as const
 export type Input = typeof INPUTS[number]
 export type Time = number | { input: 'holdLanding' | 'exitRewindEnd' }
@@ -50,16 +64,28 @@ export type Ease = { type: 'linear' | 'inQuad' | 'outQuad' | 'inSine' | 'outSine
   | { type: 'bezier', x1: number, y1: number, x2: number, y2: number }
   | { type: 'compose', outer: Ease, inner: Ease }
   | { type: 'step' }
-export type Color = string | { shade: Value } | { ring: Value } | { grade: typeof GRADES[number] } | { palette: 'ring' | 'fill' }
+export type Color = `#${string}` | `${'ring' | 'theme' | ColorType}:${ShadeLevel}`
+export type ColorBinding = Color | { track: string }
+export interface ColorTrack {
+  keys: { at: Time, value: Color, ease?: Ease, window?: Window }[]
+  /** Optional numeric driver instead of the animation clock (normalized to 0..1). */
+  driver?: Value
+  offset?: Time
+  rate?: number
+}
 export interface Window { from: Time, to: Time }
-export type Track = {
+export type NumericTrack = ({
   keys: { at: Time, value: number, ease?: Ease, window?: Window }[]
   offset?: Time
   rate?: number
 } | { ease: Ease }
 | { curve: 'bump', windows: Window[], low?: number, high?: number }
 | { curve: 'damped', from: Time, to: Time, damping: number, low?: number, high?: number }
-| { curve: 'fade', drop: number, fall: number, power: number }
+| { curve: 'fade', drop: number, fall: number, power: number }) & { driver?: Value }
+export type Track = NumericTrack | ColorTrack
+export function isColorTrack(track: Track): track is ColorTrack {
+  return 'keys' in track && typeof track.keys[0]?.value === 'string'
+}
 export interface Gate {
   track?: string
   phase?: boolean
@@ -76,6 +102,8 @@ export interface Transform {
   scaleX?: Value
   scaleY?: Value
 }
+export type ClipSpec = { type: 'circle', cx?: Value, cy?: Value, r: Value }
+  | { type: 'rect', x: Value, y: Value, w: Value, h: Value, rx?: Value }
 export interface Properties {
   opacity?: Value
   transform?: Transform
@@ -96,11 +124,13 @@ export interface Properties {
   width?: Value
   assemble?: Value
   spin?: Value
+  dash?: Value[]
+  dashOffset?: Value
   strokeWidth?: Value
-  fill?: Color
-  stroke?: Color
+  fill?: ColorBinding
+  stroke?: ColorBinding
   points?: { x: Value, y: Value }[]
-  clip?: { type: 'circle', cx?: Value, cy?: Value, r: Value }
+  clip?: ClipSpec
 }
 
 const time: z.ZodType<Time> = schema.union([finite, object({ input: schema.enum(['holdLanding', 'exitRewindEnd']) })])
@@ -120,20 +150,22 @@ const ease: z.ZodType<Ease> = schema.lazy(() => schema.union([
   object({ type: schema.literal('bezier'), x1: finite.min(0).max(1), y1: finite, x2: finite.min(0).max(1), y2: finite }),
   object({ type: schema.literal('compose'), outer: ease, inner: ease }),
 ]))
-const color: z.ZodType<Color> = schema.union([
-  schema.string().regex(/^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i),
-  object({ shade: value }),
-  object({ ring: value }),
-  object({ grade: schema.enum(GRADES) }),
-  object({ palette: schema.enum(['ring', 'fill']) }),
-])
+const color: z.ZodType<Color> = schema.string().refine((text): text is Color => {
+  if (/^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i.test(text))
+    return true
+  const [type, level, extra] = text.split(':')
+  return extra === undefined && ['ring', 'theme', ...FAMILIES, ...GRADES].includes(type!)
+    && SHADES.some(shade => String(shade) === level)
+}, 'expected Hex or color type:shade (50, 100, …, 900, 950)') as z.ZodType<Color>
+const colorBinding: z.ZodType<ColorBinding> = schema.union([color, object({ track: name })])
 const window = object({ from: time, to: time })
 const track: z.ZodType<Track> = schema.union([
-  object({ keys: schema.array(object({ at: time, value: finite, ease: ease.optional(), window: window.optional() })).min(1).max(4096), offset: time.optional(), rate: finite.optional() }),
-  object({ ease }),
-  object({ curve: schema.literal('bump'), windows: schema.array(window).min(1).max(128), low: finite.optional(), high: finite.optional() }),
-  object({ curve: schema.literal('damped'), from: time, to: time, damping: finite.positive(), low: finite.optional(), high: finite.optional() }),
-  object({ curve: schema.literal('fade'), drop: finite.min(0).max(1), fall: finite.nonnegative(), power: finite.positive() }),
+  object({ keys: schema.array(object({ at: time, value: color, ease: ease.optional(), window: window.optional() })).min(1).max(4096), driver: value.optional(), offset: time.optional(), rate: finite.optional() }),
+  object({ keys: schema.array(object({ at: time, value: finite, ease: ease.optional(), window: window.optional() })).min(1).max(4096), offset: time.optional(), rate: finite.optional(), driver: value.optional() }),
+  object({ ease, driver: value.optional() }),
+  object({ curve: schema.literal('bump'), windows: schema.array(window).min(1).max(128), low: finite.optional(), high: finite.optional(), driver: value.optional() }),
+  object({ curve: schema.literal('damped'), from: time, to: time, damping: finite.positive(), low: finite.optional(), high: finite.optional(), driver: value.optional() }),
+  object({ curve: schema.literal('fade'), drop: finite.min(0).max(1), fall: finite.nonnegative(), power: finite.positive(), driver: value.optional() }),
 ])
 const gate: z.ZodType<Gate> = object({
   track: name.optional(),
@@ -155,14 +187,19 @@ const properties: z.ZodType<Properties> = object({
   opacity: value.optional(),
   transform: transform.optional(),
   ...Object.fromEntries(['cx', 'cy', 'r', 'start', 'end', 'x', 'y', 'w', 'h', 'rx', 'x1', 'y1', 'x2', 'y2', 'width', 'assemble', 'spin', 'strokeWidth'].map(k => [k, value.optional()])),
-  fill: color.optional(),
-  stroke: color.optional(),
+  fill: colorBinding.optional(),
+  stroke: colorBinding.optional(),
   points: schema.array(object({ x: value, y: value })).max(4096).optional(),
-  clip: object({ type: schema.literal('circle'), cx: value.optional(), cy: value.optional(), r: value }).optional(),
+  dash: schema.array(value).min(1).max(128).optional(),
+  dashOffset: value.optional(),
+  clip: schema.union([
+    object({ type: schema.literal('circle'), cx: value.optional(), cy: value.optional(), r: value }),
+    object({ type: schema.literal('rect'), x: value, y: value, w: value, h: value, rx: value.optional() }),
+  ]).optional(),
 })
 
 const paint = { opacity: finite.optional(), blend: schema.enum(['normal', 'add']).optional() }
-const stroke = { stroke: color.optional(), strokeWidth: finite.nonnegative().optional(), cap: schema.enum(['butt', 'round', 'square']).optional(), join: schema.enum(['miter', 'round', 'bevel']).optional() }
+const stroke = { dash: schema.array(finite.nonnegative()).min(1).max(128).optional(), dashOffset: finite.optional(), stroke: color.optional(), strokeWidth: finite.nonnegative().optional(), cap: schema.enum(['butt', 'round', 'square']).optional(), join: schema.enum(['miter', 'round', 'bevel']).optional() }
 const fill = { fill: color.optional() }
 const edge = object({
   color: schema.string().regex(/^#[\da-f]{6}$/i),
@@ -170,26 +207,23 @@ const edge = object({
   bands: schema.array(object({ fraction: finite.nonnegative(), opacity: finite.min(0).max(1) })).max(128),
 })
 // The numeric-only schema deliberately rejects time/track expressions inside frames.
-const staticColor = schema.union([
-  schema.string().regex(/^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i),
-  object({ shade: finite }),
-  object({ ring: finite }),
-  object({ grade: schema.enum(GRADES) }),
-  object({ palette: schema.enum(['ring', 'fill']) }),
-])
+const staticColor = color
 const staticStroke = { ...stroke, stroke: staticColor.optional() }
 const staticFill = { ...fill, fill: staticColor.optional() }
 const staticTransform = object(Object.fromEntries(['x', 'y', 'rotate', 'scale', 'scaleX', 'scaleY'].map(k => [k, finite.optional()])))
-const clip = object({ type: schema.literal('circle'), r: finite, cx: finite.optional(), cy: finite.optional() })
+const clip = schema.union([
+  object({ type: schema.literal('circle'), r: finite, cx: finite.optional(), cy: finite.optional() }),
+  object({ type: schema.literal('rect'), x: finite, y: finite, w: finite.nonnegative(), h: finite.nonnegative(), rx: finite.nonnegative().optional() }),
+])
 const leafFrame = schema.discriminatedUnion('type', [
   object({ type: schema.literal('circle'), r: finite, cx: finite.optional(), cy: finite.optional(), ...staticStroke, ...staticFill, ...paint }),
   object({ type: schema.literal('arc'), r: finite, start: finite, end: finite, cx: finite.optional(), cy: finite.optional(), ...staticStroke, ...paint }),
   object({ type: schema.literal('rect'), x: finite, y: finite, w: finite, h: finite, rx: finite.optional(), ...staticStroke, ...staticFill, ...paint }),
   object({ type: schema.literal('line'), x1: finite, y1: finite, x2: finite, y2: finite, ...staticStroke, ...paint }),
   object({ type: schema.literal('poly'), points: schema.array(object({ x: finite, y: finite })).max(4096), closed: schema.boolean().optional(), ...staticStroke, ...staticFill, ...paint }),
-  object({ type: schema.literal('ring'), r: finite, width: finite, segments: schema.number().int().min(1).max(256), assemble: finite, spin: finite.optional(), edge: edge.optional(), ...staticStroke, ...paint }),
+  object({ type: schema.literal('ring'), r: finite, width: finite, segments: schema.number().int().min(1).max(256), assemble: finite, spin: finite.optional(), edge: edge.optional(), stroke: staticStroke.stroke, strokeWidth: staticStroke.strokeWidth, cap: staticStroke.cap, join: staticStroke.join, ...paint }),
 ])
-export type Frame = z.infer<typeof leafFrame> | { type: 'group', opacity?: number, blend?: 'normal' | 'add', transform?: Record<string, number | undefined>, clip?: { type: 'circle', r: number, cx?: number, cy?: number }, isolate?: boolean, children?: Frame[] }
+export type Frame = z.infer<typeof leafFrame> | { type: 'group', opacity?: number, blend?: 'normal' | 'add', transform?: Record<string, number | undefined>, clip?: z.infer<typeof clip>, isolate?: boolean, children?: Frame[] }
 const frame: z.ZodType<Frame> = schema.lazy(() => schema.union([
   leafFrame,
   object({ type: schema.literal('group'), ...paint, transform: staticTransform.optional(), clip: clip.optional(), isolate: schema.boolean().optional(), children: schema.array(frame).max(4096).optional() }),

@@ -95,3 +95,6 @@ export const FAMILY_LABEL: Record<Family, string> = {
   'drop-click': 'Drop click',
   'drop-drag': 'Drop drag',
 }
+
+/** Named color scales available to skins. */
+export type ColorType = Family | Grade

@@ -126,28 +126,28 @@ async function bakeClip(clip: Clip, ctx: DrawContext, dir: string, rel: string, 
   }
 }
 
-async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (name: string) => boolean, appearance: BakeAppearance) {
+async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (name: string) => boolean, appearance: BakeAppearance, skin: NoteSkin) {
   const { metrics: tokens, holdDashPeriod, holdBody, longHoldBody, dragLine } = appearance
   const out: Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }> = {}
   await mkdir(join(dir, rel), { recursive: true })
   const Wb = Math.ceil(ctx.unit * tokens.stroke.holdBody) + 2
   const tile = holdDashPeriod(ctx)
-  const put = async (name: string, node: SceneNode, w: number, h: number, ox: number, oy: number, repeat: 'y' | 'none', note: string) => {
+  const put = async (name: string, draw: () => SceneNode, w: number, h: number, ox: number, oy: number, repeat: 'y' | 'none', note: string) => {
     if (!only(name))
       return
     const file = `${rel}/${name}.png`
-    await writeFile(join(dir, file), rasterize(node, w, h, ox, oy))
+    await writeFile(join(dir, file), rasterize(draw(), w, h, ox, oy))
     out[name] = { file, width: w, height: h, repeat, note }
   }
   const hctx: DrawContext = { ...ctx, bodyDirection: 'down' }
-  await put('hold-track', holdBody({ length: tile * 4, progress: 0, appear: 0.999 }, hctx), Wb, tile, Wb / 2, 0, 'y', 'Unheld hold body; tile vertically from the hold end point toward the head (flat end — no end piece). Scroll V by t·4·width for the conveyor.')
-  await put('hold-done', holdBody({ length: tile * 4, progress: 1, appear: 0.999 }, hctx), Wb, tile, Wb / 2, 0, 'y', 'Completed hold body; tile vertically, mask by progress.')
+  await put('hold-track', () => holdBody({ length: tile * 4, progress: 0, appear: 0.999 }, hctx, skin), Wb, tile, Wb / 2, 0, 'y', 'Unheld hold body; tile vertically from the hold end point toward the head (flat end — no end piece). Scroll V by t·4·width for the conveyor.')
+  await put('hold-done', () => holdBody({ length: tile * 4, progress: 1, appear: 0.999 }, hctx, skin), Wb, tile, Wb / 2, 0, 'y', 'Completed hold body; tile vertically, mask by progress.')
   const lw = Math.ceil(ctx.unit * tokens.stroke.holdBody) + 4
-  await put('long-hold-rail', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 0, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold rail with the centre conveyor; tile vertically across the full play area. Scroll the dashes toward the note at t·4·width (both halves share the dash grid at rest). Over the fill the same grid runs in 800, softer.')
-  await put('long-hold-done', longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1, t: 0 }, ctx), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
+  await put('long-hold-rail', () => longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 0, t: 0 }, ctx, skin), lw, tile, lw / 2, tile / 2, 'y', 'Long hold rail with the centre conveyor; tile vertically across the full play area. Scroll the dashes toward the note at t·4·width (both halves share the dash grid at rest). Over the fill the same grid runs in 800, softer.')
+  await put('long-hold-done', () => longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1, t: 0 }, ctx, skin), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
   const dw = Math.ceil(ctx.unit * tokens.stroke.dragLine) + 2
   const dash = Math.max(1, Math.round(ctx.unit * tokens.stroke.dragDash))
-  await put('drag-line', dragLine({ x1: 0, y1: 0, x2: 0, y2: dash * 8, dash }, ctx)!, dw, dash * 2, dw / 2, 0, 'y', 'Drag connection (white dashes, 50 % duty); tile along the segment from the source note, rotate to its angle.')
+  await put('drag-line', () => dragLine({ x1: 0, y1: 0, x2: 0, y2: dash * 8, dash }, ctx)!, dw, dash * 2, dw / 2, 0, 'y', 'Drag connection (white dashes, 50 % duty); tile along the segment from the source note, rotate to its angle.')
   return out
 }
 
@@ -211,7 +211,7 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
       const kind: NoteKind = fam === 'drag' ? 'drag-child' : fam
       const ctx = createContext(kind, { palette, direction, scale })
       const relevant = (k: string) => fam === 'hold' ? k.startsWith('hold') : fam === 'long-hold' ? k.startsWith('long-hold') : k === 'drag-line'
-      const b = await bakeBodies(ctx, options.outDir, `bodies/${direction}/${fam}`, relevant, appearance)
+      const b = await bakeBodies(ctx, options.outDir, `bodies/${direction}/${fam}`, relevant, appearance, skin)
       for (const [k, v] of Object.entries(b))
         manifest.bodies[direction]![`${fam}:${k}`] = v
     }

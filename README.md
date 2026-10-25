@@ -37,7 +37,35 @@ pnpm typecheck
 
 ## Skin format
 
-The default note skin uses the frame → animation → slot format. See the [format guide](docs/skin.md) and [example skin](docs/skin.example.json). Regenerate it with `pnpm --filter @cytoid/skin-flat gen-skin`.
+The default note skin uses the frame → animation → slot format. Regenerate it with `pnpm --filter @cytoid/skin-flat gen-skin`.
+
+Colors are strings: Hex (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`), `ring:50`, `theme:400`, or a named scale such as `click:400` / `perfect:400`. Shade levels are 50, 100, 200, 300, 400, 500, 600, 700, 800, 900 and 950. Named scales cover note families and judgement grades; note family colors follow the scan direction. `theme` selects the current note palette in note slots and the grade palette in `clear:*` / `miss` slots, including nested animations. Ring colors use the neutral ring scale; edge shadows remain fixed Hex.
+
+Color tracks use string key values and bind to `fill` / `stroke` through `{ "track": "color" }`. Interpolation happens in OKLab after resolving palette references, with premultiplied alpha. They support the same key timing, easing, offset and rate as numeric key tracks; an optional numeric `driver` samples the color ramp instead of the animation clock.
+
+```json
+{
+  "tracks": {
+    "color": {
+      "keys": [
+        { "at": 0, "value": "theme:400" },
+        { "at": 1, "value": "perfect:400", "ease": { "type": "outCubic" } }
+      ]
+    }
+  },
+  "layers": [{ "source": { "frame": "dot" }, "properties": { "fill": { "track": "color" } } }]
+}
+```
+
+### Hold bodies
+
+`hold:body` and `long-hold:body` are required parametric slots on their respective kinds. `compileSkin()` exposes each as `designs[kind].body.draw(options, context)`. Flat's `holdBody(options, context, skin?)` and `longHoldBody(options, context, skin?)` delegate to these slots; the player and native strip baker pass the selected skin through.
+
+Body animations receive `appear`, `progress`, `elapsed`, `duration`, and `remaining`, plus `length` for Hold or `top` / `bottom` for Long Hold. Geometry is in context pixels, clocks in seconds, and progress values in 0..1. `bodyWidth` and `dashPeriod` come from the fixed engine dimensions. Long Hold also receives `collapse`, the fixed final 0.6-second window normalized to 0..1 (short holds use their full duration). Offline strips omit duration and sample collapse over progress 0.86..1 instead.
+
+Hold templates extend along local +y; the engine flips their output for an upward body independently of color direction. Long Hold templates span -top..bottom. Body inputs are only available in body slots, including nested animations. Numeric tracks accept `driver` expressions to sample independent clocks. Driver dependencies must be acyclic and at most 32 tracks deep. Frames and bindings support `dash` / `dashOffset` on stroked shapes and rectangular group clips.
+
+Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly. Judgement/timing overlays remain a follow-up; Drag connections retain their existing renderer.
 
 ## Packages
 

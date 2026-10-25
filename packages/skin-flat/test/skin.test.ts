@@ -211,7 +211,7 @@ describe('holdFx sync contract', () => {
           r: { multiply: [{ input: 'R' }, { track: `pulse${i}` }] },
           opacity: { track: `pulseO${i}` },
         })
-        expect(flatSkinJson.frames[('frame' in layer.source ? layer.source.frame : '')]).toMatchObject({ type: 'circle', fill: { shade: 400 } })
+        expect(flatSkinJson.frames[('frame' in layer.source ? layer.source.frame : '')]).toMatchObject({ type: 'circle', fill: 'theme:400' })
         const offset = i === 0 ? {} : { offset: i / 4 }
         expect(clip.tracks![`pulse${i}` as keyof typeof clip.tracks]).toEqual({
           keys: [{ at: 0, value: 0 }, { at: 1, value: 1.7 }],

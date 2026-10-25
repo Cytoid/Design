@@ -41,7 +41,7 @@ export class SkinBuilder {
         // Required geometry fields retain a static placeholder; instance bindings override it.
         if (key === 'points')
           frame[key] = []
-        else if (key !== 'fill' && key !== 'stroke' && key !== 'transform' && key !== 'clip')
+        else if (key !== 'dash' && key !== 'fill' && key !== 'stroke' && key !== 'transform' && key !== 'clip')
           frame[key] = 0
         properties[key] = value
       }

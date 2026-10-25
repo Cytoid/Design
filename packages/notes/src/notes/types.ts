@@ -11,6 +11,10 @@ export interface DrawContext {
   hairStroke: number
   palette: NotePalette
   grades: Record<Grade, string>
+  /** Full color source for explicit named family references. */
+  colors: Palette
+  /** Bound by judgement slots; absent for note animation previews. */
+  grade?: Grade
   /** scan direction used for colour (Cytoid `UseAlternativeColor`) */
   direction: Direction
   /** direction the hold body extends toward (may differ: storyboards, reversed pages) */
@@ -66,6 +70,8 @@ export interface NoteDesign {
    * miss judgement, so a late miss never restarts the note at full opacity.
    */
   exit?: Clip
+  /** Parametric stretched body, present on Hold and Long Hold designs. */
+  body?: BodyClip
   /** hold-only layers, composed under → press → over → progress while holding */
   hold?: {
     /** head press-in when the hold starts */
@@ -120,6 +126,8 @@ export interface RenderOptions {
 }
 
 export interface HoldBodyOptions {
+  /** Total chart hold duration in seconds; omitted for offline strips. */
+  holdDuration?: number
   /** body length in px (from note centre to hold end) */
   length: number
   /** hold progress 0–1 */
@@ -145,6 +153,11 @@ export interface LongHoldBodyOptions {
   appear?: number
 }
 
+export type BodyOptions = HoldBodyOptions | LongHoldBodyOptions
+export interface BodyClip {
+  draw: (options: BodyOptions, context: DrawContext) => SceneNode
+}
+
 export interface DragLineOptions {
   x1: number
   y1: number
@@ -166,7 +179,7 @@ export interface NoteAppearance {
   createContext: (kind: NoteKind, options?: ContextOptions) => DrawContext
   renderNote: (kind: NoteKind, state: NoteState, context?: DrawContext, options?: RenderOptions) => SceneNode
   holdBodyAlpha: (kind: NoteKind, state: NoteState, skin?: NoteSkin) => number
-  holdBody: (options: HoldBodyOptions, context: DrawContext) => SceneNode
-  longHoldBody: (options: LongHoldBodyOptions, context: DrawContext) => SceneNode
+  holdBody: (options: HoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
+  longHoldBody: (options: LongHoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
   dragLine: (options: DragLineOptions, context: DrawContext) => SceneNode | null
 }

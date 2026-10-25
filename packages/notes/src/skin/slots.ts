@@ -14,6 +14,7 @@ for (const kind of NOTE_KINDS) {
     add('exit', 'exit', 'once', curve.duration)
   }
   if (kind === 'hold' || kind === 'long-hold') {
+    add('body', 'hold-body', 'progress', 1)
     add('press', 'hold-press', 'once', noteTiming.holdPress)
     add('loopUnder', 'hold-loop-under', 'loop', noteTiming.holdLoop)
     add('loopOver', 'hold-loop-over', 'loop', noteTiming.holdLoop)
