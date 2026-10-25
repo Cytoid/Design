@@ -36,7 +36,18 @@ export type EaseSpec = string | [number, number, number, number]
 
 /** Keyframes on the track's local clock; value holds before the first / after the last key. */
 export interface KeysTrack {
-  keys: { at: TimeRef, value: number, ease?: EaseSpec }[]
+  keys: {
+    at: TimeRef
+    value: number
+    ease?: EaseSpec
+    /**
+     * remap the ease's input to `seg(φ, window[0], window[1])` instead of the
+     * key segment — mirrors the imperative `ease(seg(p, a, b))` idiom where
+     * the easing window is not aligned with the key spacing (e.g. a ring wake
+     * ramping on the 0.3–0.85 window inside a key frame at 0.4)
+     */
+    window?: [TimeRef, TimeRef]
+  }[]
   /** phase shift and repeat rate applied to the clip clock: local = mod1(φ·rate + offset) */
   offset?: TimeRef
   rate?: number
@@ -290,7 +301,7 @@ const numExpr: z.ZodType<NumExpr> = z.lazy(() => z.union([
 ])) as z.ZodType<NumExpr>
 
 const keysTrack: z.ZodType<KeysTrack> = z.object({
-  keys: z.array(z.object({ at: timeRef, value: z.number(), ease: ease.optional() })).min(1),
+  keys: z.array(z.object({ at: timeRef, value: z.number(), ease: ease.optional(), window: z.tuple([timeRef, timeRef]).optional() })).min(1),
   offset: timeRef.optional(),
   rate: z.number().optional(),
 })

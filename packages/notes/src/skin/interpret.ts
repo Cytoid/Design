@@ -105,7 +105,19 @@ interface CompiledTrack {
 
 function compileTrack(track: Track): CompiledTrack {
   if ('keys' in track) {
-    const eases = track.keys.map(k => (k.ease ? parseEase(k.ease) : null))
+    const eases = track.keys.map(k => {
+      if (!k.ease)
+        return null
+      const ease = parseEase(k.ease)
+      if (!k.window)
+        // plain: the easing input is the key segment's progress
+        return (_phi: number, _anchors: AnchorTable, segmentK: number) => ease(segmentK)
+      // windowed ease: the easing input is seg(φ, w0, w1), not the key segment —
+      // the imperative `ease(seg(p, a, b))` idiom with its own window
+      const w0 = k.window[0]!
+      const w1 = k.window[1]!
+      return (phi: number, anchors: AnchorTable) => ease(seg(phi, resolveTime(w0, anchors), resolveTime(w1, anchors)))
+    })
     const hasRate = track.rate !== undefined || track.offset !== undefined
     const rate = track.rate ?? 1
     const localPhase = (phi: number, anchors: AnchorTable): number => {
@@ -129,16 +141,21 @@ function compileTrack(track: Track): CompiledTrack {
           return first.value
         if (local >= resolveTime(last.at, anchors))
           return last.value
-        for (let i = 0; i < keys.length - 1; i++) {
+        // scan segments from the end: at a boundary the LAST containing segment
+        // owns the sample, which keeps intentionally discontinuous handoffs
+        // (the ringStep entrance → wake jump) on their code-accurate side
+        for (let i = keys.length - 2; i >= 0; i--) {
           const ka = keys[i]!
           const kb = keys[i + 1]!
           const a = resolveTime(ka.at, anchors)
           const b = resolveTime(kb.at, anchors)
           if (local >= a && local <= b) {
-            const k = seg(local, a, b)
             // CSS/Lottie convention: a key's ease shapes the segment arriving at it
             const ease = eases[i + 1]
-            return lerp(ka.value, kb.value, ease ? ease(k) : k)
+            const k = seg(local, a, b)
+            // a windowed ease reads the raw clock through its own window
+            const eased = ease ? ease(local, anchors, k) : k
+            return lerp(ka.value, kb.value, eased)
           }
         }
         return last.value
