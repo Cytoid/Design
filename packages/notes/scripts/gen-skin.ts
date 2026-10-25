@@ -34,7 +34,8 @@ const A = (name: string): NumExpr => ({ anchor: name })
 const T = (name: string): NumExpr => ({ track: name })
 
 interface Key { at: TimeRef, value: number, ease?: EaseSpec }
-const key = (at: TimeRef, value: number, ease?: EaseSpec): Key => ease ? { at, value, ease } : { at, value }
+const key = (at: TimeRef, value: number, ease?: EaseSpec, _unused?: undefined, window?: [TimeRef, TimeRef]): Key =>
+  ({ at, value, ...(ease ? { ease } : {}), ...(window ? { window } : {}) })
 const keys = (defs: Key[], extra: { offset?: TimeRef, rate?: number } = {}): Track => ({ keys: defs, ...extra })
 const bump = (windows: [TimeRef, TimeRef][]): Track => ({ curve: 'bump', windows })
 const damped = (o: { from: TimeRef, to: TimeRef, turns: number, damping: number, low: number, high: number }): Track => ({ curve: 'damped', ...o })
@@ -447,8 +448,15 @@ function exitClip(curve: { duration: number, drop: number, fall: number, power: 
 function clickEnterClip(note: string): SkinClip {
   const tracks: Record<string, Track> = {
     fade: keys([key(0, 0), key(0.1, 1, 'outCubic')]),
-    build: keys([key(0, 0), key(CLICK_TIMING.splitFrom, 1, 'outQuart')]),
-    frameFrac: keys([key(0, 0.45), key(CLICK_TIMING.splitFrom, 1, 'outQuart')]),
+    // the ring band: enters dark (800 → 400 inCubic over 0–0.4), then wakes
+    // 400 → 50 on the shared 0.3–0.85 window (exact: the wake ease reads the
+    // raw window, keeping the handoff discontinuity at 0.4 the code has)
+    ringStep: keys([
+      key(0, 800),
+      key(0.4, 400, 'inCubic'),
+      key(0.85, 50, 'inOutSine', undefined, [0.3, 0.85]),
+      key(1, 50),
+    ]),
     split: keys([key(CLICK_TIMING.splitFrom, 0), key(CLICK_TIMING.splitTo, 1, 'outQuad')]),
     size: riseSettle(tokens.sizeCurve.click),
     thick: keys([key(CLICK_TIMING.frameFrom, 1), key(1, 1.5, 'inQuad')]),
@@ -457,7 +465,7 @@ function clickEnterClip(note: string): SkinClip {
     ap: keys([key(CLICK_TIMING.approachFrom, 0), key(1, 1)]),
     apOp: keys([key(CLICK_TIMING.approachFrom, 0), key(0.745, 1)]),
   }
-  const frameW = mul(W, T('frameFrac'), T('thick'))
+  const frameW = mul(W, T('thick'))
   const coreR = mul(INNER_HALF, T('coreG'))
   const body: Slice = {
     type: 'group',
@@ -465,14 +473,14 @@ function clickEnterClip(note: string): SkinClip {
     children: [
       { type: 'circle', r: add(INNER, 0.5), fill: { shade: lerp(700, 800, T('split')) }, opacity: 1 },
       { type: 'circle', r: coreR, fill: { shade: lerp(700, 400, T('split')) }, opacity: T('split'), gate: gate({ track: 'split', from: 0 }) },
-      { type: 'circle', r: coreR, fill: { ring: 1 }, opacity: mul(0.3, T('blink')), gate: gate({ track: 'blink', from: 0 }) },
-      { type: 'ring', r: add(R, mul(-0.5, frameW)), width: frameW, stroke: { ring: T('split') }, segments: 3, assemble: T('build'), spin: lerp(-TAU / 6, 0, T('build')), edge: EDGE, opacity: 1 },
+      { type: 'circle', r: coreR, fill: { ring: 50 }, opacity: mul(0.3, T('blink')), gate: gate({ track: 'blink', from: 0 }) },
+      { type: 'ring', r: add(R, mul(-0.5, frameW)), width: frameW, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
   const approach: Slice = {
     type: 'circle',
     r: lerp(mul(R, 1.83), RING_C, T('ap')),
-    stroke: { ring: 1 },
+    stroke: { ring: 50 },
     strokeWidth: mul(HAIR, lerp(0.375, 0.525, T('ap'))),
     opacity: mul(0.5, T('apOp')),
     gate: gate({ from: CLICK_TIMING.approachFrom, until: 1 }),
@@ -484,7 +492,12 @@ function clickEnterClip(note: string): SkinClip {
 function dragHeadClip(note: string): SkinClip {
   const tracks: Record<string, Track> = {
     fade: keys([key(0, 0), key(0.06, 1)]),
-    k: keys([key(0, 0), key(0.2, 1, 'outCubic')]),
+    ringStep: keys([
+      key(0, 800),
+      key(0.4, 400, 'inCubic'),
+      key(0.85, 50, 'inOutSine', undefined, [0.3, 0.85]),
+      key(1, 50),
+    ]),
     arrowShow: keys([key(0.06, 0), key(0.2, 1, 'outCubic')]),
     wake: keys([key(WAKE.from, 0), key(WAKE.to, 1, 'inOutQuad')]),
     size: riseSettle(tokens.sizeCurve.dragHead),
@@ -506,7 +519,7 @@ function dragHeadClip(note: string): SkinClip {
       ],
       closed: true,
       join: 'round',
-      fill: { ring: T('wake') },
+      fill: { ring: T('ringStep') },
       opacity: 1,
     }],
   }
@@ -519,7 +532,7 @@ function dragHeadClip(note: string): SkinClip {
     layers: [
       { type: 'circle', r: add(INNER, 0.5), fill: { shade: lerp(600, 400, T('wake')) }, opacity: 1 },
       arrow,
-      { type: 'ring', r: RING_C, width: W, stroke: { ring: T('wake') }, segments: 2, assemble: T('k'), spin: lerp(-TAU / 4, 0, T('k')), edge: EDGE, opacity: 1 },
+      { type: 'ring', r: RING_C, width: W, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
 }
@@ -556,9 +569,13 @@ function dragChildClip(note: string): SkinClip {
 function holdEnterClip(long: boolean, note: string): SkinClip {
   const tracks: Record<string, Track> = {
     headFade: keys([key(0, 0), key(0.08, 1)]),
-    k: keys([key(0, 0), key(0.35, 1, 'outCubic')]),
-    kQ: keys([key(0, 0), key(0.35, 1, 'outQuart(outCubic)')]),
-    widthFrac: keys([key(0, 0.5), key(0.35, 1, 'outCubic')]),
+    // the ring band rides the shared ringStep: dark entrance then 400 → 50
+    ringStep: keys([
+      key(0, 800),
+      key(0.4, 400, 'inCubic'),
+      key(0.85, 50, 'inOutSine', undefined, [0.3, 0.85]),
+      key(1, 50),
+    ]),
     glyph: keys([key(0.2, 0), key(0.42, 1)]),
     glyphOB: keys([key(0.2, 0), key(0.42, 1, 'outBack(2)')]),
     split: keys([key(0.08, 0), key(0.35, 1, 'inOutQuad')]),
@@ -568,8 +585,8 @@ function holdEnterClip(long: boolean, note: string): SkinClip {
     bracketFade: keys([key(0.1, 0), key(0.25, 1)]),
   }
   const glyphInner: Slice = long
-    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: T('wake') }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
-    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: T('wake') }, strokeWidth: A('glyphW'), opacity: 1 }
+    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: T('ringStep') }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
+    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: T('ringStep') }, strokeWidth: A('glyphW'), opacity: 1 }
   const head: Slice = {
     type: 'group',
     children: [
@@ -582,7 +599,7 @@ function holdEnterClip(long: boolean, note: string): SkinClip {
         gate: gate({ track: 'glyph', from: 0 }),
         children: [glyphInner],
       },
-      { type: 'ring', r: RING_C, width: mul(W, T('widthFrac')), stroke: { ring: T('wake') }, segments: 2, assemble: T('kQ'), spin: lerp(-TAU / 4, 0, T('k')), edge: EDGE, opacity: 1 },
+      { type: 'ring', r: RING_C, width: W, stroke: { ring: T('ringStep') }, segments: 1, assemble: 1, edge: EDGE, opacity: 1 },
     ],
   }
   const halfSpan = TAU * 0.16
@@ -596,7 +613,7 @@ function holdEnterClip(long: boolean, note: string): SkinClip {
       start: add(mid, T('spinE'), -halfSpan),
       end: add(mid, T('spinE'), halfSpan),
       strokeWidth: A('bracketW'),
-      stroke: { ring: T('wake') },
+      stroke: { ring: T('ringStep') },
       cap: 'butt',
     } satisfies Slice)),
   }
@@ -619,8 +636,8 @@ function holdPressClip(long: boolean): SkinClip {
   }
   const halfSpan = TAU * 0.16
   const glyphInner: Slice = long
-    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: 1 }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
-    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: 1 }, strokeWidth: A('glyphW'), opacity: 1 }
+    ? { type: 'rect', x: mul(R, -0.164), y: mul(R, -0.164), w: mul(R, 0.328), h: mul(R, 0.328), stroke: { ring: 50 }, strokeWidth: A('glyphW'), join: 'miter', opacity: 1 }
+    : { type: 'circle', r: mul(R, 0.2), stroke: { ring: 50 }, strokeWidth: A('glyphW'), opacity: 1 }
   return {
     mode: 'once',
     duration: tokens.time.holdPress,
@@ -637,7 +654,7 @@ function holdPressClip(long: boolean): SkinClip {
           start: add(mid, -halfSpan),
           end: add(mid, halfSpan),
           strokeWidth: lerp(A('bracketW'), W, T('k')),
-          stroke: { ring: 1 },
+          stroke: { ring: 50 },
           cap: 'butt',
         } satisfies Slice)),
       },
@@ -647,7 +664,7 @@ function holdPressClip(long: boolean): SkinClip {
           { type: 'circle', r: add(INNER, 0.5), fill: { shade: 400 }, opacity: 1 },
           { type: 'circle', r: A('coreR'), fill: { shade: 900 }, opacity: 1 },
           { type: 'group', opacity: 1, transform: { scale: 1 }, children: [glyphInner] },
-          { type: 'ring', r: RING_C, width: W, stroke: { ring: 1 }, segments: 2, assemble: 1, spin: 0, edge: EDGE, opacity: 1 },
+          { type: 'ring', r: RING_C, width: W, stroke: { ring: 50 }, segments: 1, assemble: 1, spin: 0, edge: EDGE, opacity: 1 },
         ],
       },
     ],
@@ -730,8 +747,14 @@ function flickEnterClip(note: string): SkinClip {
   const pts: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]]
   const tracks: Record<string, Track> = {
     fade: keys([key(0, 0), key(0.12, 1, 'outCubic')]),
-    build: keys([key(0, 0), key(0.45, 1, 'outQuart')]),
-    frameFrac: keys([key(0, 0.45), key(0.45, 1, 'outQuart')]),
+    // the ring band: enters dark (800 → 400 inCubic over 0–0.4), then wakes
+    // 400 → 50 on the shared 0.3–0.85 window (exact windowed ease)
+    ringStep: keys([
+      key(0, 800),
+      key(0.4, 400, 'inCubic'),
+      key(0.85, 50, 'inOutSine', undefined, [0.3, 0.85]),
+      key(1, 50),
+    ]),
     split: keys([key(CLICK_TIMING.splitFrom, 0), key(CLICK_TIMING.splitTo, 1, 'outQuad')]),
     size: riseSettle(tokens.sizeCurve.click),
     thick: keys([key(CLICK_TIMING.frameFrom, 1), key(1, 1.5, 'inQuad')]),
@@ -754,41 +777,18 @@ function flickEnterClip(note: string): SkinClip {
     }
   }
 
-  const fw = mul(A('flickW'), T('frameFrac'), T('thick'))
+  const fw = mul(A('flickW'), T('thick'))
   // the outline centreline shifts inward by (thick − 1)·W / 2cos45° as it thickens
   const fr = add(A('rv'), mul(A('flickW'), add(T('thick'), -1), -1 / (2 * C45)))
-  const closedGate = gate({ track: 'build', from: 0.999, fromInclusive: true })
-
-  /** one band of the building diamond: a closed diamond at build ≥ 0.999, four growing lines before */
-  const diamondBand = (r: NumExpr, width: NumExpr, stroke: ColorExpr, opacity: NumExpr): Slice => ({
-    type: 'switch',
-    gate: closedGate,
-    then: diamond(r, { stroke, strokeWidth: width, opacity }),
-    else: {
-      type: 'group',
-      opacity,
-      children: [0, 1, 2, 3].map(i => ({
-        type: 'line',
-        x1: mul(r, T(`g${i}x1`)),
-        y1: mul(r, T(`g${i}y1`)),
-        x2: mul(r, T(`g${i}x2`)),
-        y2: mul(r, T(`g${i}y2`)),
-        stroke,
-        strokeWidth: width,
-        cap: 'square',
-      } satisfies Slice)),
-    },
-  })
-
+  // the outline draws closed from the first frame: the diamond plus its
+  // stepped dark edge bands, all riding the frame thickening
   const outline: Slice = {
     type: 'group',
     children: [
-      // white band
-      diamondBand(fr, fw, { ring: T('split') }, 1),
-      // stepped dark edge bands on the outer silhouette, riding the same growth
+      diamond(fr, { stroke: { ring: T('ringStep') }, strokeWidth: fw }),
       ...resolvedBands().map((b): Slice => {
         const rr = add(fr, mul(fw, (0.5 + b.off) / C45))
-        return diamondBand(rr, mul(fw, b.frac), EDGE.color, b.opacity)
+        return diamond(rr, { stroke: EDGE.color, strokeWidth: mul(fw, b.frac), opacity: b.opacity })
       }),
     ],
   }
@@ -804,7 +804,7 @@ function flickEnterClip(note: string): SkinClip {
     children: [
       diamond(add(A('flickInner'), mul(A('flickW'), 0.15)), { fill: { shade: lerp(700, 800, T('split')) } }),
       { ...diamond(mul(A('coreMax'), T('coreG')), { fill: { shade: lerp(700, 400, T('split')) }, opacity: T('split') }), gate: gate({ track: 'split', from: 0 }) },
-      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: { ring: 1 }, opacity: mul(0.3, T('blink')) }), gate: gate({ track: 'blink', from: 0 }) },
+      { ...diamond(mul(A('coreMax'), T('coreG')), { fill: { ring: 50 }, opacity: mul(0.3, T('blink')) }), gate: gate({ track: 'blink', from: 0 }) },
       { type: 'line', x1: 0, y1: mul(A('flickInner'), mul(-0.5, T('coreG'))), x2: 0, y2: mul(A('flickInner'), mul(0.5, T('coreG'))), stroke: { shade: 600 }, strokeWidth: mul(A('flickW'), 0.5), opacity: T('slitOp') },
       outline,
     ],
@@ -812,13 +812,13 @@ function flickEnterClip(note: string): SkinClip {
   const arrows: Slice = {
     type: 'group',
     opacity: T('arrowOp'),
-    children: chevrons(lerp(A('nearFar'), A('near'), T('travel')), mul(A('flickW'), 0.85), { ring: T('split') }),
+    children: chevrons(lerp(A('nearFar'), A('near'), T('travel')), mul(A('flickW'), 0.85), { ring: T('ringStep') }),
   }
   const approach: Slice = {
     type: 'group',
     opacity: mul(0.5, T('apOp')),
     gate: gate({ from: CLICK_TIMING.approachFrom, until: 1 }),
-    children: chevrons(lerp(A('approachNear'), A('near'), T('ap')), mul(A('flickW'), 0.6), { ring: 1 }),
+    children: chevrons(lerp(A('approachNear'), A('near'), T('ap')), mul(A('flickW'), 0.6), { ring: 50 }),
   }
   return { mode: 'normalized', duration: tokens.time.enter, note, tracks, root: { opacity: T('fade') }, layers: [approach, arrows, body] }
 }
@@ -889,8 +889,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
       palette: {
         chroma: tokens.chroma,
         hue: Object.fromEntries(Object.entries(tokens.hue).map(([f, v]) => [f, { ...v }])),
-        ring: tokens.ring,
-        grade: { ...tokens.grade },
+          grade: { ...tokens.grade },
       },
       grades: { ...tokens.grade },
     },

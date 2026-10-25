@@ -13,9 +13,9 @@ import { describe, expect, it } from 'vitest'
 import {
   createContext,
   hexToOklch,
-  designs as imperative,
   NOTE_KINDS,
 } from '../src'
+import { designs as imperative } from './golden/legacy'
 import { createPalette } from '../src/palette'
 import flatSkinJson from '../src/skin/flat.skin.json'
 import { compileSkin } from '../src/skin/interpret'

@@ -7,7 +7,7 @@
  * shades wake WAKE_DROP steps up (600 → 400) on the palette scale over the
  * click's WAKE window (page cue).
  *
- * Drag head (0.8): neutral ring + full fill + matching arrow pointing along the
+ * Drag head (0.8): ring + full fill + matching arrow pointing along the
  *   chain (`ctx.heading`; frames are baked pointing up — rotate the sprite).
  * Drag child (0.65): solid bead, like Cytoid. Only a faint 600 hairline ring
  *   inside; the stepped edge sits on the bead's own silhouette.
@@ -16,13 +16,13 @@
  */
 import type { SceneNode } from '../../../src/core/scene'
 import type { DrawContext, NoteDesign } from '../../../src/notes/types'
-import { lerp, outCubic, riseSettleCurve, seg, TAU } from '../../../src/core/ease'
+import { outCubic, riseSettleCurve, seg } from '../../../src/core/ease'
 import { group } from '../../../src/core/scene'
 import { ringTone, tone } from '../../../src/palette'
 import { tokens } from '../../../src/tokens'
-import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
+import { dragArrow, ringStep, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
-import { assemblingRing, disk, edgeBands, ring, ringEdge } from './parts'
+import { disk, edgeBands, edgedRing, ring, ringEdge } from './parts'
 
 /** steady by this p */
 const STEADY = 0.2
@@ -38,13 +38,12 @@ export const dragChildSize = riseSettleCurve(tokens.sizeCurve.dragChild, tokens.
 function headDraw(p: number, ctx: DrawContext): SceneNode {
   const R = ctx.size / 2
   const W = ringWidth(ctx)
-  const k = outCubic(seg(p, 0, STEADY))
   const w = wakeAmount(p)
   return group([
     disk(R - W + 0.5, tone(ctx.palette, wakeShade(400, w))),
-    dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), w),
-    // ring + arrow are white material: they wake neutral 400 → 50 with the page cue
-    assemblingRing(R - W / 2, W, ringTone(ctx.palette, w), 2, k, lerp(-TAU / 4, 0, k), 1, ringEdge()),
+    dragArrow(ctx, (R - W) * 0.95, outCubic(seg(p, STEADY * 0.3, STEADY)), ringStep(p)),
+    // ring + arrow are white material: they enter darker on the ring band (500 → 400 over 0–0.4, the old assembly slot), then wake on the shared ring wake
+    edgedRing(R - W / 2, W, ringTone(ctx.palette, ringStep(p)), 1, ringEdge()),
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
 
@@ -54,7 +53,7 @@ export const dragHead: NoteDesign = {
     id: 'enter',
     mode: 'normalized',
     duration: tokens.time.enter,
-    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring closes from 2 halves by p 0.2, arrow along the chain (rotate by heading); ring + arrow wake neutral 400 → 50 over the WAKE window. Path matters, not timing.',
+    note: 'Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring complete from the first frame (no assembly), arrow along the chain (rotate by heading); ring + arrow enter darker (band 800 → 400 over 0–0.4, the old assembly slot), then wake 400 → resting on the shared gentle ring wake; the fills keep the WAKE page cue. Path matters, not timing.',
     draw: headDraw,
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),

@@ -68,48 +68,30 @@ export function edgeBands(width: number, edge?: EdgeSpec): { offset: number, wid
 }
 
 /**
- * Ring assembled from `n` equal arcs that grow from their own centre.
- * `k` = 0 → nothing, 1 → closed ring. `spin` rotates the whole set.
- *
- * `edge` draws the stepped dark falloff on the band's outer silhouette (see
- * `tokens.stroke.edge`, `edgeBands`) — the flat overlap separator. Inside
- * placement splits the band (silhouette unchanged); outside placement rings
- * it with a halo beyond `r + width/2`. Either way the bands share the
- * assembly motion — no second envelope.
+ * Ring with the stepped dark falloff on its outer silhouette (see
+ * `tokens.stroke.edge`, `edgeBands`) — the flat overlap separator.
+ * Inside placement splits the band (silhouette unchanged); outside placement
+ * rings it with a halo beyond `r + width/2`.
  */
-export function assemblingRing(
-  r: number,
-  width: number,
-  stroke: string,
-  n: number,
-  k: number,
-  spin = 0,
-  opacity = 1,
-  edge?: EdgeSpec,
-): SceneNode {
-  const closed = k >= 0.999
-  const span = TAU / n
-  const half = (span * k) / 2
-  const band = (rr: number, w: number, color: string, o = 1): SceneNode =>
-    closed
-      ? ring(rr, w, color, opacity * o)
-      : group(
-          Array.from({ length: n }, (_, i) => {
-            const c = spin + i * span
-            return arc(rr, c - half, c + half, w, color)
-          }),
-          { opacity: opacity * o },
-        )
+export function edgedRing(r: number, width: number, stroke: string, opacity = 1, edge?: EdgeSpec): SceneNode {
   const bands = edgeBands(width, edge)
   if (!bands.length)
-    return band(r, width, stroke)
+    return ring(r, width, stroke, opacity)
   const outer = r + width / 2
-  return group([band(r, width, stroke), ...bands.map(b => band(outer + b.offset, b.width, edge!.color, b.opacity))])
+  return group([ring(r, width, stroke, opacity), ...bands.map(b => ring(outer + b.offset, b.width, edge!.color, b.opacity))])
 }
 
-/** Dashed ring made of `n` dashes, duty in (0, 1]. */
+/** Dashed ring made of `n` dashes at fixed `duty` in (0, 1]. */
 export function dashedRing(r: number, width: number, stroke: string, n: number, duty: number, spin = 0, opacity = 1): SceneNode {
-  return assemblingRing(r, width, stroke, n, duty, spin, opacity)
+  const span = TAU / n
+  const half = (span * duty) / 2
+  return group(
+    Array.from({ length: n }, (_, i) => {
+      const c = spin + i * span
+      return arc(r, c - half, c + half, width, stroke)
+    }),
+    { opacity },
+  )
 }
 
 /** Short radial tick at angle `a`, from radius r0 to r1. */
@@ -120,9 +102,8 @@ export function tick(a: number, r0: number, r1: number, width: number, stroke: s
 }
 
 /**
- * Sharp-cornered diamond (square rotated 45°) — `r` = centre-to-vertex. Miter joins so a
- *  stroked outline matches the square-capped segments that build it (no corner pop at the
- *  end of the flick's edge-by-edge assembly).
+ * Sharp-cornered diamond (square rotated 45°) — `r` = centre-to-vertex. Miter
+ * joins so a stroked outline stays a clean sharp-cornered square rotated 45°.
  */
 export function diamond(r: number, style: { fill?: string, stroke?: string, strokeWidth?: number, opacity?: number }): SceneNode {
   return { type: 'poly', points: regularPolygon(4, r), closed: true, join: 'miter', ...style }
