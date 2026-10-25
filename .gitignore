@@ -26,3 +26,6 @@ logs
 # VSC
 .history
 .sheets
+
+# local CLI tooling artifacts
+.zcode/
