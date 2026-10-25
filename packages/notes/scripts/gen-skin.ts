@@ -701,9 +701,10 @@ function holdPressClip(long: boolean): SkinClip {
  * colour via fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
  *   OnNoteLoaded.startColor=BaseFillColor, sortingOrder=SortingOrder-2 |
  *   palette translation and under-head placement, not identical material blending.
- * loop, duration tokens.time.holdLoop=0.6 | prefab lifetime=0.5;
+ * loop, duration tokens.time.holdLoop=1 (design experiment; C# capture value
+ *   was 0.6) | prefab lifetime=0.5;
  *   Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:Time.HoldLoop=0.6 |
- *   deliberate ×1.2 time stretch; skin emission equivalent is 4/0.6, not 8/s.
+ *   was a deliberate ×1.2 time stretch; skin emission equivalent is 4/1, not 8/s.
  *
  * Semantic corrections: ShapeModule is DISABLED (stored Cone/type=4, radius=1,
  * angle=25 are inactive); default point emission travels along local +Z, not
