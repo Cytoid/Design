@@ -3,6 +3,7 @@ import { isColorTrack } from './schema'
 import { slotRegistry } from './slots'
 
 export const propertyNames: Record<Frame['type'], readonly string[]> = {
+  image: ['x', 'y', 'w', 'h'],
   circle: ['cx', 'cy', 'r', 'stroke', 'strokeWidth', 'fill'],
   arc: ['cx', 'cy', 'r', 'start', 'end', 'stroke', 'strokeWidth', 'dash', 'dashOffset'],
   rect: ['x', 'y', 'w', 'h', 'rx', 'stroke', 'strokeWidth', 'fill'],
@@ -181,7 +182,25 @@ export function validateSkin(skin: Skin): Map<string, Set<Input>> {
         throw new Error(`${id}: expanded node budget exceeded`)
       return cost
     }
-    const cost = 1 + animation.layers.reduce((n, layer) => n + layerCost(layer, 0), 0)
+    let cost = 1
+    if (animation.type === 'layers') {
+      cost += animation.layers.reduce((n, layer) => n + layerCost(layer, 0), 0)
+    }
+    else {
+      const validateFrame = (frame: Frame): void => {
+        if (frame.type === 'group')
+          frame.children?.forEach(validateFrame)
+        else if ((frame.type === 'arc' || frame.type === 'line' || frame.type === 'ring') && (!frame.stroke || (frame.type !== 'ring' && frame.strokeWidth === undefined)))
+          throw new Error(`${id}: sequence frame requires stroke and strokeWidth`)
+      }
+      for (const name of animation.frames) {
+        const frame = skin.frames[name]
+        if (!frame)
+          throw new Error(`${id}: unknown frame "${name}"`)
+        validateFrame(frame)
+        cost = Math.max(cost, 1 + frameCost(frame))
+      }
+    }
     if (cost > MAX_NODES)
       throw new Error(`${id}: expanded node budget exceeded`)
     active.delete(id)

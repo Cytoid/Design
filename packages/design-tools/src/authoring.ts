@@ -1,5 +1,5 @@
 /** Native authoring helpers with no dependency on a particular design. */
-import type { SkinAnimation as Animation, SkinFrame as Frame, SkinGate as Gate, SkinLayer as Layer, SkinProperties as Properties, Skin } from '@cytoid/notes'
+import type { SkinLayersAnimation as Animation, SkinFrame as Frame, SkinGate as Gate, SkinLayer as Layer, SkinProperties as Properties, SkinSequenceAnimation as SequenceAnimation, Skin } from '@cytoid/notes'
 
 type Bindings<T> = T extends unknown ? { [K in keyof T]: K extends keyof Properties ? Exclude<Properties[K], undefined> : T[K] } : never
 type Primitive = Bindings<Exclude<Frame, { type: 'group' }>> | (Omit<Bindings<Extract<Frame, { type: 'group' }>>, 'children'> & { children?: Primitive[] })
@@ -7,7 +7,7 @@ type Primitive = Bindings<Exclude<Frame, { type: 'group' }>> | (Omit<Bindings<Ex
 export type Shape = Primitive extends infer T ? T extends { type: 'group' }
   ? Omit<T, 'children'> & { children?: Shape[], when?: Gate }
   : T & { when?: Gate } : never
-export type AnimationDraft = Omit<Animation, 'layers'> & { note?: string, layers: (Shape | Layer)[] }
+export type AnimationDraft = Omit<Animation, 'type' | 'layers'> & { note?: string, layers: (Shape | Layer)[] }
 
 function constant(value: unknown): boolean {
   if (!value || typeof value !== 'object')
@@ -49,7 +49,10 @@ export class SkinBuilder {
     const serialized = JSON.stringify(frame)
     let id = this.frames.get(serialized)
     if (!id) {
-      id = `frame${this.frames.size}`
+      let index = this.frames.size
+      do {
+        id = `frame${index++}`
+      } while (Object.hasOwn(this.document.frames, id))
       this.frames.set(serialized, id)
       this.document.frames[id] = frame as unknown as Frame
     }
@@ -65,15 +68,31 @@ export class SkinBuilder {
     if (Object.hasOwn(this.document.slots, slot))
       throw new Error(`duplicate slot ${slot}`)
     const { note, layers, ...fields } = draft
-    const animation: Animation = { layers: layers.map(shape => this.layer(shape)), ...fields }
+    const animation: Animation = { type: 'layers', layers: layers.map(shape => this.layer(shape)), ...fields }
     const serialized = JSON.stringify(animation)
     let id = this.animations.get(serialized)
     if (!id) {
-      id = `animation${this.animations.size}`
+      let index = this.animations.size
+      do {
+        id = `animation${index++}`
+      } while (Object.hasOwn(this.document.animations, id))
       this.animations.set(serialized, id)
       this.document.animations[id] = animation
     }
     this.document.slots[slot] = { animation: id, ...(note ? { note } : {}) }
+    return id
+  }
+
+  frame(id: string, frame: Frame): void {
+    if (Object.hasOwn(this.document.frames, id))
+      throw new Error(`duplicate frame ${id}`)
+    this.document.frames[id] = frame
+  }
+
+  sequence(id: string, animation: Omit<SequenceAnimation, 'type'>): string {
+    if (Object.hasOwn(this.document.animations, id))
+      throw new Error(`duplicate animation ${id}`)
+    this.document.animations[id] = { type: 'sequence', ...animation }
     return id
   }
 

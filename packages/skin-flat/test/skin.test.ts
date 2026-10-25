@@ -204,6 +204,8 @@ describe('holdFx sync contract', () => {
       expect(compiled[kind].hold!.loopUnder!.mode).toBe('loop')
       expect(compiled[kind].hold!.loopUnder!.duration).toBe(tokens.time.holdLoop)
       expect(tokens.time.holdLoop).toBe(1)
+      if (clip.type !== 'layers')
+        throw new Error('expected layers animation')
       expect(clip.layers).toHaveLength(4)
       expect(Object.keys(clip.tracks!)).toHaveLength(8)
       clip.layers.forEach((layer, i) => {

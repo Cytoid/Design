@@ -1,4 +1,4 @@
-import type { DrawContext, SceneNode, Skin, SkinColor, SkinTrack } from '../src'
+import type { DrawContext, SceneNode, Skin, SkinColor, SkinLayersAnimation, SkinTrack } from '../src'
 import { describe, expect, it } from 'vitest'
 import { compileAnimation, compileSkin, derivePalette, FAMILIES, gradePalette, GRADES, mix, NOTE_KINDS, parseSkin, ringTone, SHADES } from '../src'
 
@@ -19,15 +19,15 @@ const ctx: DrawContext = {
   ringStroke: 10,
   hairStroke: 2,
 }
-function document(fill: SkinColor = 'theme:400', track?: SkinTrack): Skin {
+function document(fill: SkinColor = 'theme:400', track?: SkinTrack): Skin & { animations: Record<string, SkinLayersAnimation> } {
   return {
     schemaVersion: 2,
     id: 'color',
     name: 'Color',
     frames: { dot: { type: 'circle', r: 1, fill } },
     animations: {
-      color: { ...(track ? { tracks: { color: track } } : {}), layers: [{ source: { frame: 'dot' }, ...(track ? { properties: { fill: { track: 'color' } } } : {}) }] },
-      nested: { layers: [{ source: { animation: 'color' } }] },
+      color: { type: 'layers', ...(track ? { tracks: { color: track } } : {}), layers: [{ source: { frame: 'dot' }, ...(track ? { properties: { fill: { track: 'color' } } } : {}) }] },
+      nested: { type: 'layers', layers: [{ source: { animation: 'color' } }] },
     },
     slots: {},
   }

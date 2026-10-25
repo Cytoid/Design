@@ -13,7 +13,7 @@ describe('skin authoring', () => {
     expect(first).toBe(second)
     expect(Object.keys(skin.frames)).toHaveLength(1)
     expect(Object.keys(skin.animations)).toHaveLength(1)
-    expect(skin.animations[first]!.layers[0]!.properties).toEqual({ r: { input: 'R' } })
+    expect(skin.animations[first]!.type === 'layers' && skin.animations[first]!.layers[0]!.properties).toEqual({ r: { input: 'R' } })
   })
 
   it('rejects duplicate slot definitions', () => {

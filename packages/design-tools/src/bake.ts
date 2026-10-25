@@ -117,7 +117,7 @@ async function bakeClip(clip: Clip, ctx: DrawContext, dir: string, rel: string, 
     files: o.frames ? `${rel}/${clip.id}_{i}.png` : undefined,
     sheet: { file: `${rel}.sheet.png`, cols, rows },
     sampling: {
-      normalized: 'i = min(N-1, floor(p*N)), p = normalised approach progress (window ends at hit time)',
+      normalized: clip.includeStart ? 'i = min(N-1, floor(p*(N-1))), including the exact zero-time pose' : 'i = min(N-1, floor(p*N)), p = normalised approach progress (window ends at hit time)',
       once: 'i = min(N-1, round(t*fps)), t = seconds since judgement',
       loop: 'i = floor((t/duration mod 1)*N)',
       progress: 'i = round(progress*(N-1))',

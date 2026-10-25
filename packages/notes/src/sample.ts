@@ -17,6 +17,8 @@ export function sampleTimes(clip: Clip, fps: number, progressFrames = 61): numbe
   switch (clip.mode) {
     case 'normalized': {
       const n = Math.max(1, Math.round(clip.duration * fps))
+      if (clip.includeStart)
+        return Array.from({ length: n + 1 }, (_, i) => i / n)
       return Array.from({ length: n }, (_, i) => (i + 1) / n)
     }
     case 'once': {
@@ -35,10 +37,10 @@ export function sampleTimes(clip: Clip, fps: number, progressFrames = 61): numbe
 }
 
 /** Frame index for a clip parameter — the inverse of `sampleTimes`. */
-export function frameIndex(clip: Pick<Clip, 'mode' | 'duration'>, frames: number, x: number, fps: number): number {
+export function frameIndex(clip: Pick<Clip, 'mode' | 'duration' | 'includeStart'>, frames: number, x: number, fps: number): number {
   switch (clip.mode) {
     case 'normalized':
-      return Math.max(0, Math.min(frames - 1, Math.floor(x * frames)))
+      return Math.max(0, Math.min(frames - 1, Math.floor(x * (clip.includeStart ? frames - 1 : frames))))
     case 'once':
       return Math.max(0, Math.min(frames - 1, Math.round(x * fps)))
     case 'loop': {

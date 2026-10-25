@@ -215,7 +215,14 @@ const clip = schema.union([
   object({ type: schema.literal('circle'), r: finite, cx: finite.optional(), cy: finite.optional() }),
   object({ type: schema.literal('rect'), x: finite, y: finite, w: finite.nonnegative(), h: finite.nonnegative(), rx: finite.nonnegative().optional() }),
 ])
+export function isImageSource(src: string): boolean {
+  if (/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(src))
+    return true
+  return src.length > 0 && !/^\/|[:\\%?#]/.test(src) && !src.split('/').includes('..') && /\.png$/i.test(src)
+}
+const imageSource = schema.string().max(48_000_000).refine(isImageSource, 'expected a relative PNG path or PNG data URI')
 const leafFrame = schema.discriminatedUnion('type', [
+  object({ type: schema.literal('image'), src: imageSource, x: finite, y: finite, w: finite.nonnegative(), h: finite.nonnegative(), ...paint }),
   object({ type: schema.literal('circle'), r: finite, cx: finite.optional(), cy: finite.optional(), ...staticStroke, ...staticFill, ...paint }),
   object({ type: schema.literal('arc'), r: finite, start: finite, end: finite, cx: finite.optional(), cy: finite.optional(), ...staticStroke, ...paint }),
   object({ type: schema.literal('rect'), x: finite, y: finite, w: finite, h: finite, rx: finite.optional(), ...staticStroke, ...staticFill, ...paint }),
@@ -234,16 +241,27 @@ export interface Layer {
   at?: number
   until?: number
   properties?: Properties
+  blend?: 'normal' | 'add'
   layers?: Layer[]
   when?: Gate
   otherwise?: Layer
 }
-export interface Animation {
+export interface AnimationBase {
   tracks?: Record<string, Track>
   properties?: Pick<Properties, 'opacity' | 'transform'>
   isolate?: boolean
+}
+export interface LayersAnimation extends AnimationBase {
+  type: 'layers'
   layers: Layer[]
 }
+export interface SequenceAnimation extends AnimationBase {
+  type: 'sequence'
+  /** Omit to fit all frames evenly across the parent window. */
+  fps?: number
+  frames: string[]
+}
+export type Animation = LayersAnimation | SequenceAnimation
 export interface Slot { animation: string, note?: string }
 export interface SkinMeta {
   palette?: {
@@ -271,6 +289,7 @@ const layer: z.ZodType<Layer> = schema.lazy(() => object({
   at: finite.min(0).max(1).optional(),
   until: finite.min(0).max(1).optional(),
   properties: properties.optional(),
+  blend: schema.enum(['normal', 'add']).optional(),
   layers: schema.array(layer).max(4096).optional(),
   when: gate.optional(),
   otherwise: layer.optional(),
@@ -289,12 +308,10 @@ export const skinSchema: z.ZodType<Skin> = object({
     grades: schema.record(schema.enum(GRADES), schema.string()).optional(),
   }).optional(),
   frames: schema.record(name, frame),
-  animations: schema.record(name, object({
-    tracks: schema.record(name, track).optional(),
-    properties: object({ opacity: value.optional(), transform: transform.optional() }).optional(),
-    isolate: schema.boolean().optional(),
-    layers: schema.array(layer).max(4096),
-  })),
+  animations: schema.record(name, schema.discriminatedUnion('type', [
+    object({ type: schema.literal('layers'), tracks: schema.record(name, track).optional(), properties: object({ opacity: value.optional(), transform: transform.optional() }).optional(), isolate: schema.boolean().optional(), layers: schema.array(layer).max(4096) }),
+    object({ type: schema.literal('sequence'), tracks: schema.record(name, track).optional(), properties: object({ opacity: value.optional(), transform: transform.optional() }).optional(), isolate: schema.boolean().optional(), fps: finite.positive().optional(), frames: schema.array(name).min(1).max(4096) }),
+  ])),
   slots: schema.record(name, object({ animation: name, note: schema.string().max(4096).optional() })),
 })
 

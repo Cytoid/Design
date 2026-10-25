@@ -1,6 +1,7 @@
 import type { SceneNode } from '@cytoid/notes'
-import { Container, Graphics } from 'pixi.js'
-import { describe, expect, it } from 'vitest'
+import { SkinImage } from '@cytoid/notes'
+import { BufferImageSource, Container, Graphics, Sprite, Texture } from 'pixi.js'
+import { describe, expect, it, vi } from 'vitest'
 import { pixiPaint, SceneView } from '../src/pixi-render'
 
 function circle(fill: string, r = 10): SceneNode {
@@ -146,5 +147,51 @@ describe('sceneView (pixi adapter)', () => {
     view.setScene({ type: 'group', children: [circle('#fff')] })
     view.destroyView()
     expect(view.children.length).toBe(0)
+  })
+})
+
+describe('prepared image sprites', () => {
+  it('reuses sprites and textures, switches frame textures, and frees resources on skin disposal', () => {
+    const textures: Texture[] = []
+    const from = vi.spyOn(Texture, 'from').mockImplementation(() => {
+      const texture = new Texture({ source: new BufferImageSource({ resource: new Uint8Array([255, 0, 0, 255]), width: 1, height: 1 }) })
+      textures.push(texture)
+      return texture
+    })
+    const a = new SkinImage('data:image/png;base64,AAAA', 1, 1, {} as HTMLCanvasElement)
+    const b = new SkinImage('data:image/png;base64,BBBB', 1, 1, {} as HTMLCanvasElement)
+    const node = (image: SkinImage): SceneNode => ({ type: 'image', image, x: -10, y: -20, w: 20, h: 40, opacity: 0.5, blend: 'add' })
+    const first = new SceneView()
+    const second = new SceneView()
+    try {
+      first.setScene(node(a))
+      second.setScene(node(a))
+      const sprite = first.children[0] as Sprite
+      expect(sprite).toBeInstanceOf(Sprite)
+      expect(sprite.texture).toBe((second.children[0] as Sprite).texture)
+      expect(sprite.x).toBe(-10)
+      expect(sprite.y).toBe(-20)
+      expect(sprite.width).toBe(20)
+      expect(sprite.height).toBe(40)
+      expect(sprite.alpha).toBe(0.5)
+      expect(sprite.blendMode).toBe('add')
+      expect(from).toHaveBeenCalledOnce()
+      first.setScene(node(b))
+      expect(first.children[0]).toBe(sprite)
+      expect(sprite.texture).toBe(textures[1])
+      first.setScene(circle('#fff'))
+      expect(first.children[0]).toBeInstanceOf(Graphics)
+      expect(textures[0]!.destroyed).toBe(false)
+      a.dispose()
+      expect(textures[0]!.destroyed).toBe(true)
+      expect(() => second.setScene(node(a))).toThrow(/disposed/)
+    }
+    finally {
+      first.destroyView()
+      second.destroyView()
+      a.dispose()
+      b.dispose()
+      from.mockRestore()
+    }
   })
 })

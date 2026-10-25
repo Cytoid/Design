@@ -45,6 +45,7 @@ Color tracks use string key values and bind to `fill` / `stroke` through `{ "tra
 
 ```json
 {
+  "type": "layers",
   "tracks": {
     "color": {
       "keys": [
@@ -56,6 +57,51 @@ Color tracks use string key values and bind to `fill` / `stroke` through `{ "tra
   "layers": [{ "source": { "frame": "dot" }, "properties": { "fill": { "track": "color" } } }]
 }
 ```
+
+### Images and frame sequences
+
+Animations have an explicit `type`: `layers` for vector composition, or `sequence` for frame playback. A sequence can reference any static frame, including image or group frames:
+
+```json
+{
+  "frames": {
+    "vector-ring": { "type": "circle", "r": 48, "stroke": "theme:400", "strokeWidth": 4 },
+    "spark-0": { "type": "image", "src": "assets/spark/000.png", "x": -64, "y": -64, "w": 128, "h": 128 },
+    "spark-1": { "type": "image", "src": "assets/spark/001.png", "x": -64, "y": -64, "w": 128, "h": 128 }
+  },
+  "animations": {
+    "spark": { "type": "sequence", "fps": 30, "frames": ["spark-0", "spark-1"] },
+    "mixed": {
+      "type": "layers",
+      "layers": [
+        { "source": { "frame": "vector-ring" } },
+        { "source": { "animation": "spark" }, "at": 0.1, "until": 0.8, "blend": "add", "properties": { "opacity": 0.75 } }
+      ]
+    }
+  }
+}
+```
+
+Image rectangles use design coordinates, independently of source pixel resolution. `src` accepts a PNG path relative to the skin JSON or a `data:image/png;base64,...` URI. Images use their original colors; no runtime fonts, atlas coordinates, or tint masks are required.
+
+With `fps`, sequences sample **elapsed seconds**, using `min(floor(max(0, elapsed) * fps), frames.length - 1)`. Without `fps`, a sequence distributes all frames evenly over its parent window: `min(floor(progress * frames.length), frames.length - 1)`. This lets a fully pre-rendered enter sequence adapt to any actual approach duration. With `fps`, a short sequence holds its final frame until the parent window ends; append a transparent frame to hide early. A long sequence stops at the window end without jumping to its last frame. Layer windows preserve an explicitly specified fps; adaptive sequences fit the local window. Explicit `source.sample` mappings opt into retiming: for a sequence, 0..1 maps to its natural `frames.length / fps` duration, so 1..0 plays backwards. Slots retain their fixed duration; approach clips use the actual approach window in seconds.
+
+Prepare resources before compiling; drawing never reads files or fetches images:
+
+```ts
+// Browser: baseURL is the absolute URL of skin.json.
+const loaded = await loadSkinResources(document, { baseURL })
+const skin = compileSkin(loaded)
+// For direct previews, specify both clocks; the default is a one-second window.
+const preview = compileAnimation(loaded, 'mixed')
+preview(0.5, context, { elapsed: 1, duration: 2 })
+// After consumers stop using the skin, release decoded images and Pixi textures.
+loaded.dispose()
+```
+
+`loadSkinFile(filename)` from `@cytoid/design-tools` provides a Node filesystem adapter; the bake CLI's `--skin` option uses it automatically. ZIP/custom loaders can supply `loadSkinResources(document, { resolve, decode })`. Browsers decode PNGs before drawing; a custom platform can supply its own Canvas-compatible decoder. SVG/native baking embeds the prepared PNG data directly. Assets have bounded byte/pixel sizes, and relative paths cannot leave the skin directory.
+
+Normalized clips containing sequences include their zero-time pose when baked, so a source's first frame is preserved. The baked manifest records this sampling rule. The baker's output fps and a sequence's source fps are independent.
 
 ### Hold bodies
 

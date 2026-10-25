@@ -41,6 +41,8 @@ export interface DrawContext {
 export type ClipMode = 'normalized' | 'once' | 'loop' | 'progress' | 'static'
 
 export interface Clip {
+  /** Include the exact zero-time pose when baking normalized clips containing sequences. */
+  includeStart?: boolean
   id: string
   mode: ClipMode
   /** nominal duration in seconds (for `progress`: suggested seconds to sample at bake fps) */

@@ -1,4 +1,4 @@
-import type { SceneNode, Skin } from '@cytoid/notes'
+import type { SceneNode, Skin, SkinLayersAnimation } from '@cytoid/notes'
 import { createCylheimTargets, rasterize } from '@cytoid/design-tools'
 import { compileAnimation, compileSkin, NOTE_KINDS, parseSkin, toSVG } from '@cytoid/notes'
 import { createContext, designs, flat, flatSkin, holdBodyAlpha, loadSkin, renderNote, tokens } from '@cytoid/skin-flat'
@@ -7,7 +7,7 @@ import { buildFlatSkin } from '../scripts/gen-skin'
 import flatDocument from '../src/flat.skin.json'
 import { designs as reference } from './golden/reference'
 
-function fragment(): Skin {
+function fragment(): Skin & { animations: Record<string, SkinLayersAnimation> } {
   return {
     schemaVersion: 2,
     id: 'test',
@@ -15,6 +15,7 @@ function fragment(): Skin {
     frames: { dot: { type: 'circle', r: 1, fill: '#ffffff' } },
     animations: {
       grow: {
+        type: 'layers',
         tracks: { radius: { keys: [{ at: 0, value: 1 }, { at: 1, value: 9 }] } },
         layers: [{ source: { frame: 'dot' }, properties: { r: { track: 'radius' } } }],
       },

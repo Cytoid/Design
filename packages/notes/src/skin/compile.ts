@@ -6,13 +6,15 @@ import type { CompiledTrack, Env } from './runtime'
 import type { Layer, Skin, Time, Track } from './schema'
 import { NOTE_KINDS, noteTiming } from '../tokens'
 import { resolveBodyInputs, resolveInputs } from './inputs'
+import { LoadedSkin } from './resources'
 import { compileGate, compileNum, compilePrimitive, compileTrack, compileTransform, gateOpen, makeEnv } from './runtime'
 import { parseSkin } from './schema'
 import { slotProgress, slotRegistry } from './slots'
 import { validateSkin } from './validate'
 
-type DrawAnimation = (p: number, ctx: DrawContext, inputs: Record<string, number>) => GroupNode
-type DrawLayer = (env: Env, p: number, ctx: DrawContext) => SceneNode | null
+export interface AnimationClock { elapsed: number, duration: number }
+type DrawAnimation = (p: number, ctx: DrawContext, inputs: Record<string, number>, clock: AnimationClock) => GroupNode
+type DrawLayer = (env: Env, p: number, ctx: DrawContext, clock: AnimationClock) => SceneNode | null
 const clampTime = (p: number) => Math.max(0, Math.min(1, p))
 
 function timeAt(value: Time, inputs: Record<string, number>): number {
@@ -56,7 +58,7 @@ function compiledTrack(track: Track): CompiledTrack {
   }
 }
 
-function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
+function animationCompiler(skin: Skin, images: LoadedSkin['images']): (id: string) => DrawAnimation {
   const cache = new Map<string, DrawAnimation>()
   const build = (id: string): DrawAnimation => {
     const cached = cache.get(id)
@@ -77,13 +79,13 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
         const wrapperTransform = wrap && props.transform ? compileTransform(props.transform) : null
         if (wrap)
           delete props.transform
-        const emit = compilePrimitive({ ...frame, ...props } as Primitive)
+        const emit = compilePrimitive({ ...frame, ...props } as Primitive, images)
         const children = (layer.layers ?? []).map(buildLayer)
-        draw = (env, p, ctx) => {
+        draw = (env, p, ctx, clock) => {
           const node = emit(env, ctx)
           if (node.type === 'group') {
             for (const child of children) {
-              const result = child(env, p, ctx)
+              const result = child(env, p, ctx, clock)
               if (result)
                 node.children.push(result)
             }
@@ -92,7 +94,8 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
         }
       }
       else {
-        const child = build(layer.source.animation)
+        const sourceId = layer.source.animation
+        const child = build(sourceId)
         const sample = layer.source.sample
         const from = sample?.from ?? 0
         const to = sample?.to ?? 1
@@ -100,9 +103,12 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
         const end = compileNum(to)
         const opacity = layer.properties?.opacity !== undefined ? compileNum(layer.properties.opacity) : null
         const transform = layer.properties?.transform ? compileTransform(layer.properties.transform) : null
-        draw = (env, p, ctx) => {
+        draw = (env, p, ctx, clock) => {
           const local = sample ? clampTime(start(env) + (end(env) - start(env)) * p) : p
-          const node = child(local, ctx, env.inputs)
+          const sourceAnimation = skin.animations[sourceId]!
+          const sampleDuration = sourceAnimation.type === 'sequence' && sourceAnimation.fps !== undefined ? sourceAnimation.frames.length / sourceAnimation.fps : clock.duration
+          const elapsed = sample ? local * sampleDuration : clock.elapsed
+          const node = child(local, ctx, env.inputs, { elapsed, duration: clock.duration })
           if (!opacity && !transform)
             return node
           const wrapper: GroupNode = { type: 'group', children: [node] }
@@ -115,23 +121,31 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
           return wrapper
         }
       }
-      return (env, p, ctx) => {
+      return (env, p, ctx, clock) => {
         const at = layer.at ?? 0
         const until = layer.until ?? 1
         const windowed = layer.at !== undefined || layer.until !== undefined
         if (windowed && (p < at || p > until || (p === until && until !== 1)))
           return null
         if (!gateOpen(gate, p, env))
-          return otherwise ? otherwise(env, p, ctx) : null
-        return draw(env, windowed ? (p - at) / (until - at) : p, ctx)
+          return otherwise ? otherwise(env, p, ctx, clock) : null
+        const localClock = windowed ? { elapsed: clock.elapsed - at * clock.duration, duration: (until - at) * clock.duration } : clock
+        const node = draw(env, windowed ? (p - at) / (until - at) : p, ctx, localClock)
+        return node && layer.blend ? { type: 'group', blend: layer.blend, children: [node] } : node
       }
     }
-    const layers = animation.layers.map(buildLayer)
-    const draw: DrawAnimation = (p, ctx, inputs) => {
+    const layers = animation.type === 'layers' ? animation.layers.map(buildLayer) : []
+    const frames = animation.type === 'sequence' ? animation.frames.map(id => compilePrimitive(skin.frames[id] as Primitive, images)) : []
+    const draw: DrawAnimation = (p, ctx, inputs, clock) => {
       const env = makeEnv(inputs, tracks, p, ctx)
       const node: GroupNode = { type: 'group', children: [] }
+      if (animation.type === 'sequence' && p >= 0 && p <= 1) {
+        const position = animation.fps === undefined ? Math.max(0, p) * frames.length : Math.max(0, clock.elapsed) * animation.fps
+        const index = Math.min(Math.floor(position), frames.length - 1)
+        node.children.push(frames[index]!(env, ctx))
+      }
       for (const layer of layers) {
-        const child = layer(env, p, ctx)
+        const child = layer(env, p, ctx, clock)
         if (child)
           node.children.push(child)
       }
@@ -150,25 +164,48 @@ function animationCompiler(skin: Skin): (id: string) => DrawAnimation {
 }
 
 /** Compile a fragment for tooling/previews without requiring engine slot coverage. */
-export function compileAnimation(json: unknown, animation: string): (p: number, ctx: DrawContext) => SceneNode {
-  const skin = parseSkin(json)
+export function compileAnimation(json: unknown, animation: string): (p: number, ctx: DrawContext, clock?: AnimationClock) => SceneNode {
+  const loaded = json instanceof LoadedSkin ? json : new LoadedSkin(parseSkin(json), new Map())
+  const skin = loaded.document
   validateSkin(skin)
   if (!Object.hasOwn(skin.animations, animation))
     throw new Error(`unknown animation "${animation}"`)
-  const draw = animationCompiler(skin)(animation)
-  return (p, ctx) => {
+  const draw = animationCompiler(skin, loaded.images)(animation)
+  return (p, ctx, clock = { elapsed: p, duration: 1 }) => {
     if (!Number.isFinite(p))
       throw new Error('animation progress must be finite')
     const inputs = resolveInputs(ctx)
-    return draw(p, ctx, inputs)
+    if (!Number.isFinite(clock.elapsed) || !Number.isFinite(clock.duration) || clock.duration <= 0)
+      throw new Error('animation clock must be finite with positive duration')
+    return draw(p, ctx, inputs, clock)
   }
+}
+
+/** Sequence-containing approach clips need their zero-time pose in offline output. */
+function sequenceDetector(skin: Skin): (id: string) => boolean {
+  const cache = new Map<string, boolean>()
+  function visitLayer(layer: Layer): boolean {
+    return ('animation' in layer.source && visit(layer.source.animation))
+      || (layer.layers ?? []).some(visitLayer) || (!!layer.otherwise && visitLayer(layer.otherwise))
+  }
+  function visit(id: string): boolean {
+    if (cache.has(id))
+      return cache.get(id)!
+    const animation = skin.animations[id]!
+    const result = animation.type === 'sequence' || animation.layers.some(visitLayer)
+    cache.set(id, result)
+    return result
+  }
+  return visit
 }
 
 /** Compile the skin document. With fallback, incomplete kinds inherit the entire built-in kind. */
 export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesign>): Record<NoteKind, NoteDesign> {
-  const skin = parseSkin(json)
+  const loaded = json instanceof LoadedSkin ? json : new LoadedSkin(parseSkin(json), new Map())
+  const skin = loaded.document
   validateSkin(skin)
-  const build = animationCompiler(skin)
+  const build = animationCompiler(skin, loaded.images)
+  const hasSequence = sequenceDetector(skin)
   const designs = {} as Record<NoteKind, NoteDesign>
   for (const kind of NOTE_KINDS) {
     const required = ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']
@@ -193,6 +230,7 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
       const contract = slotRegistry.get(name)!
       const draw = build(binding.animation)
       return {
+        ...(hasSequence(binding.animation) ? { includeStart: true } : {}),
         id: contract.id,
         mode: contract.mode,
         duration: contract.duration,
@@ -203,7 +241,9 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
           const inputs = resolveInputs(ctx)
           inputs.exitRewindEnd = 1 - contract.duration * noteTiming.exit.rewind / Math.max(1e-6, ctx.approach)
           const grade = path.startsWith('clear:') ? path.slice(6) as Grade : path === 'miss' ? 'miss' : undefined
-          return draw(slotProgress(contract, x), { ...ctx, grade }, inputs)
+          const p = slotProgress(contract, x)
+          const duration = contract.mode === 'normalized' ? ctx.approach : contract.duration
+          return draw(p, { ...ctx, grade }, inputs, { elapsed: p * duration, duration })
         },
       }
     }
@@ -218,7 +258,7 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
         draw(options, context) {
           const ctx = { ...context, kind, grade: undefined }
           const inputs = resolveBodyInputs(ctx, options)
-          const node = draw(inputs.progress!, ctx, inputs)
+          const node = draw(inputs.progress!, ctx, inputs, { elapsed: inputs.elapsed!, duration: inputs.duration! || 1 })
           // Hold bodies are authored along +y, independent of scan/color direction.
           return kind === 'hold' && ctx.bodyDirection === 'up'
             ? { type: 'group', transform: { scaleY: -1 }, children: [node] }

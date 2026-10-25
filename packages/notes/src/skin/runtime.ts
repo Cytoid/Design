@@ -5,6 +5,7 @@ import type { ShadeLevel } from '../palette'
 import type { Family, Grade } from '../tokens'
 import type { InputTable } from './inputs'
 import type { Primitive } from './primitive'
+import type { SkinImage } from './resources'
 import type { ColorBinding, Ease, Frame, Gate, NumericTrack, Time, Track, Transform as TransformSpec, Value } from './schema'
 import { mix } from '../core/color'
 import { bump, clamp, lerp, seg } from '../core/ease'
@@ -372,8 +373,8 @@ function emitRing(
   }
 }
 
-export function compilePrimitive(slice: Primitive): PrimitiveFn {
-  const emit = compilePrimitiveBody(slice)
+export function compilePrimitive(slice: Primitive, images: ReadonlyMap<string, SkinImage>): PrimitiveFn {
+  const emit = compilePrimitiveBody(slice, images)
   const dash = 'dash' in slice ? slice.dash?.map(compileNum) : undefined
   const dashOffset = 'dashOffset' in slice && slice.dashOffset !== undefined ? compileNum(slice.dashOffset) : null
   if (!slice.blend && !dash && !dashOffset)
@@ -382,7 +383,7 @@ export function compilePrimitive(slice: Primitive): PrimitiveFn {
     const node = emit(env, ctx)
     if (slice.blend)
       node.blend = slice.blend
-    if (node.type !== 'group') {
+    if (node.type !== 'group' && node.type !== 'image') {
       if (dash)
         node.dash = dash.map(fn => Math.max(0, fn(env)))
       if (dashOffset)
@@ -392,12 +393,26 @@ export function compilePrimitive(slice: Primitive): PrimitiveFn {
   }
 }
 
-function compilePrimitiveBody(slice: Primitive): PrimitiveFn {
+function compilePrimitiveBody(slice: Primitive, images: ReadonlyMap<string, SkinImage>): PrimitiveFn {
   const opacity = slice.opacity !== undefined ? compileNum(slice.opacity) : null
 
   switch (slice.type) {
+    case 'image': {
+      const image = images.get(slice.src)
+      if (!image)
+        throw new Error(`image "${slice.src.slice(0, 128)}" is not loaded; call loadSkinResources first`)
+      const x = compileNum(slice.x)
+      const y = compileNum(slice.y)
+      const w = compileNum(slice.w)
+      const h = compileNum(slice.h)
+      return (env) => {
+        if (image.disposed)
+          throw new Error('skin image has been disposed')
+        return { type: 'image', image, x: x(env), y: y(env), w: Math.max(0, w(env)), h: Math.max(0, h(env)), ...(opacity ? { opacity: opacity(env) } : {}) }
+      }
+    }
     case 'group': {
-      const children = (slice.children ?? []).map(compilePrimitive)
+      const children = (slice.children ?? []).map(child => compilePrimitive(child, images))
       const transform = slice.transform ? compileTransform(slice.transform) : null
       const clip = slice.clip
         ? { type: slice.clip.type, fields: Object.entries(slice.clip).filter(([key]) => key !== 'type').map(([key, value]) => [key, compileNum(value as Value)] as const) }

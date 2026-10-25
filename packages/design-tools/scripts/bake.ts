@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { loadSkin } from '@cytoid/notes'
 import { bake } from '../src/bake'
+import { loadSkinFile } from '../src/load-skin'
 
 const { values } = parseArgs({
   options: {
@@ -46,27 +47,31 @@ if (values.palette)
 if (values['hue-shift'])
   palette.hueShift = Number(values['hue-shift'])
 
-const skin = values.skin ? loadSkin(JSON.parse(await readFile(values.skin, 'utf8')), appearance.designs) : undefined
+const loaded = values.skin ? await loadSkinFile(values.skin) : undefined
+try {
+  const skin = loaded ? loadSkin(loaded, appearance.designs) : undefined
 
-if (values.clean)
-  await rm(values.out!, { recursive: true, force: true })
+  if (values.clean)
+    await rm(values.out!, { recursive: true, force: true })
 
-const started = performance.now()
-let count = 0
-await bake({
-  appearance,
-  outDir: values.out!,
-  fps: Number(values.fps),
-  scale: Number(values.scale),
-  kinds: values.kinds?.split(',') as NoteKind[] | undefined,
-  directions: values.dirs?.split(',') as ('up' | 'down')[] | undefined,
-  palette,
-  skin,
-  frames: !values['no-frames'],
-  cylheim: values.cylheim,
-  onProgress: (m) => {
-    count++
-    process.stdout.write(`\r\x1B[2K${count} ${m}`)
-  },
-})
-console.log(`\nBaked to ${values.out} in ${((performance.now() - started) / 1000).toFixed(1)}s`)
+  const started = performance.now()
+  let count = 0
+  await bake({
+    appearance,
+    outDir: values.out!,
+    fps: Number(values.fps),
+    scale: Number(values.scale),
+    kinds: values.kinds?.split(',') as NoteKind[] | undefined,
+    directions: values.dirs?.split(',') as ('up' | 'down')[] | undefined,
+    palette,
+    skin,
+    frames: !values['no-frames'],
+    cylheim: values.cylheim,
+    onProgress: (m) => {
+      count++
+      process.stdout.write(`\r\x1B[2K${count} ${m}`)
+    },
+  })
+  console.log(`\nBaked to ${values.out} in ${((performance.now() - started) / 1000).toFixed(1)}s`)
+}
+finally { loaded?.dispose() }

@@ -1,8 +1,8 @@
-import type { DrawContext, SceneNode, Skin } from '../src'
+import type { DrawContext, SceneNode, Skin, SkinLayersAnimation } from '../src'
 import { describe, expect, it } from 'vitest'
 import { compileAnimation, compileSkin, composeNote, derivePalette, NOTE_KINDS, parseSkin } from '../src'
 
-function fragment(): Skin {
+function fragment(): Skin & { animations: Record<string, SkinLayersAnimation> } {
   return {
     schemaVersion: 2,
     id: 'test',
@@ -10,6 +10,7 @@ function fragment(): Skin {
     frames: { dot: { type: 'circle', r: 1, fill: '#ffffff' } },
     animations: {
       grow: {
+        type: 'layers',
         tracks: { radius: { keys: [{ at: 0, value: 1 }, { at: 1, value: 9 }] } },
         layers: [{ source: { frame: 'dot' }, properties: { r: { track: 'radius' } } }],
       },
@@ -63,13 +64,13 @@ describe('skin animation composition', () => {
     ['reverse fragment', 0.2, 0.8, 0.8, 0.2, 0.5, 5],
   ])('%s samples directly from the parent clock', (_name, at, until, from, to, p, radius) => {
     const skin = fragment()
-    skin.animations.mapped = { layers: [{ at, until, source: { animation: 'grow', sample: { from, to } } }] }
+    skin.animations.mapped = { type: 'layers', layers: [{ at, until, source: { animation: 'grow', sample: { from, to } } }] }
     expect(circle(draw(skin, 'mapped')(p, ctx)).r).toBeCloseTo(radius)
   })
 
   it('owns interval boundaries and includes the final pose', () => {
     const skin = fragment()
-    skin.animations.windowed = { layers: [{ at: 0.2, until: 0.8, source: { animation: 'grow' } }] }
+    skin.animations.windowed = { type: 'layers', layers: [{ at: 0.2, until: 0.8, source: { animation: 'grow' } }] }
     const sample = draw(skin, 'windowed')
     expect(sample(0.199999, ctx)).toMatchObject({ children: [] })
     expect(circle(sample(0.2, ctx)).r).toBe(1)
@@ -80,8 +81,8 @@ describe('skin animation composition', () => {
 
   it('composes nested trims and returns independent trees on random seeks', () => {
     const skin = fragment()
-    skin.animations.half = { layers: [{ source: { animation: 'grow', sample: { from: 0.25, to: 0.75 } } }] }
-    skin.animations.reverse = { layers: [{ source: { animation: 'half', sample: { from: 1, to: 0 } } }] }
+    skin.animations.half = { type: 'layers', layers: [{ source: { animation: 'grow', sample: { from: 0.25, to: 0.75 } } }] }
+    skin.animations.reverse = { type: 'layers', layers: [{ source: { animation: 'half', sample: { from: 1, to: 0 } } }] }
     const sample = draw(skin, 'reverse')
     const first = sample(0.2, ctx)
     expect(circle(first).r).toBeCloseTo(6.2)
@@ -93,8 +94,8 @@ describe('skin animation composition', () => {
 
   it('wraps primitive transforms and composes opacity on isolated animation groups', () => {
     const skin = fragment()
-    skin.animations.instance = { layers: [{ source: { frame: 'dot' }, properties: { transform: { x: 5, rotate: 0.5, scale: 2 } } }] }
-    skin.animations.outer = { layers: [{ source: { animation: 'instance' }, properties: { opacity: 0.5, transform: { y: 2 } } }] }
+    skin.animations.instance = { type: 'layers', layers: [{ source: { frame: 'dot' }, properties: { transform: { x: 5, rotate: 0.5, scale: 2 } } }] }
+    skin.animations.outer = { type: 'layers', layers: [{ source: { animation: 'instance' }, properties: { opacity: 0.5, transform: { y: 2 } } }] }
     const tree = draw(skin, 'outer')(0.5, ctx)
     expect(tree).toMatchObject({ children: [{ type: 'group', opacity: 0.5, isolate: true, transform: { y: 2 }, children: [{ children: [{ transform: { x: 5, rotate: 0.5, scale: 2 } }] }] }] })
   })
@@ -109,28 +110,28 @@ describe('skin animation composition', () => {
 
 describe('skin rejects invalid documents at load time', () => {
   it.each([
-    ['unknown fields', (s: Skin) => { Object.assign(s.frames.dot!, { typo: 1 }) }],
-    ['animated frames', (s: Skin) => { Object.assign(s.frames.dot!, { r: { track: 'radius' } }) }],
-    ['tuple parameters', (s: Skin) => { Object.assign(s.frames.dot!, { type: 'poly', points: [[0, 1]] }) }],
-    ['string expressions', (s: Skin) => { Object.assign(s.animations.grow!.tracks!, { radius: { ease: 'outBack(2)' } }) }],
-    ['unknown frame', (s: Skin) => { s.animations.grow!.layers[0]!.source = { frame: 'missing' } }],
-    ['unknown animation', (s: Skin) => { s.animations.grow!.layers[0]!.source = { animation: 'missing' } }],
-    ['unknown track', (s: Skin) => { s.animations.grow!.layers[0]!.properties = { r: { track: 'missing' } } }],
-    ['unknown slot', (s: Skin) => { s.slots['click:unknown'] = { animation: 'grow' } }],
-    ['direct cycle', (s: Skin) => { s.animations.grow!.layers.push({ source: { animation: 'grow' } }) }],
-    ['indirect cycle', (s: Skin) => {
-      s.animations.next = { layers: [{ source: { animation: 'grow' } }] }
+    ['unknown fields', (s: ReturnType<typeof fragment>) => { Object.assign(s.frames.dot!, { typo: 1 }) }],
+    ['animated frames', (s: ReturnType<typeof fragment>) => { Object.assign(s.frames.dot!, { r: { track: 'radius' } }) }],
+    ['tuple parameters', (s: ReturnType<typeof fragment>) => { Object.assign(s.frames.dot!, { type: 'poly', points: [[0, 1]] }) }],
+    ['string expressions', (s: ReturnType<typeof fragment>) => { Object.assign(s.animations.grow!.tracks!, { radius: { ease: 'outBack(2)' } }) }],
+    ['unknown frame', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.source = { frame: 'missing' } }],
+    ['unknown animation', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.source = { animation: 'missing' } }],
+    ['unknown track', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.properties = { r: { track: 'missing' } } }],
+    ['unknown slot', (s: ReturnType<typeof fragment>) => { s.slots['click:unknown'] = { animation: 'grow' } }],
+    ['direct cycle', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers.push({ source: { animation: 'grow' } }) }],
+    ['indirect cycle', (s: ReturnType<typeof fragment>) => {
+      s.animations.next = { type: 'layers', layers: [{ source: { animation: 'grow' } }] }
       s.animations.grow!.layers.push({ source: { animation: 'next' } })
     }],
-    ['invalid property', (s: Skin) => { s.animations.grow!.layers[0]!.properties = { assemble: 1 } }],
-    ['zero interval', (s: Skin) => { Object.assign(s.animations.grow!.layers[0]!, { at: 0.5, until: 0.5 }) }],
-    ['duplicate keys', (s: Skin) => { s.animations.grow!.tracks = { radius: { keys: [{ at: 0, value: 1 }, { at: 0, value: 2 }] } } }],
-    ['missing context', (s: Skin) => {
+    ['invalid property', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.properties = { assemble: 1 } }],
+    ['zero interval', (s: ReturnType<typeof fragment>) => { Object.assign(s.animations.grow!.layers[0]!, { at: 0.5, until: 0.5 }) }],
+    ['duplicate keys', (s: ReturnType<typeof fragment>) => { s.animations.grow!.tracks = { radius: { keys: [{ at: 0, value: 1 }, { at: 0, value: 2 }] } } }],
+    ['missing context', (s: ReturnType<typeof fragment>) => {
       s.animations.grow!.layers[0]!.properties = { r: { input: 'holdLanding' } }
       s.slots['click:enter'] = { animation: 'grow' }
     }],
-    ['nonfinite value', (s: Skin) => { s.animations.grow!.layers[0]!.properties = { r: Infinity } }],
-    ['invalid clamp', (s: Skin) => { s.animations.grow!.layers[0]!.properties = { r: { clamp: { value: 1, min: 2, max: 1 } } } }],
+    ['nonfinite value', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.properties = { r: Infinity } }],
+    ['invalid clamp', (s: ReturnType<typeof fragment>) => { s.animations.grow!.layers[0]!.properties = { r: { clamp: { value: 1, min: 2, max: 1 } } } }],
   ])('%s', (_name, mutate) => {
     const skin = fragment()
     mutate(skin)
@@ -141,7 +142,7 @@ describe('skin rejects invalid documents at load time', () => {
     const skin = fragment()
     for (let i = 0; i < 20; i++) {
       const animation = i === 0 ? 'grow' : `branch${i - 1}`
-      skin.animations[`branch${i}`] = { layers: [{ source: { animation } }, { source: { animation } }] }
+      skin.animations[`branch${i}`] = { type: 'layers', layers: [{ source: { animation } }, { source: { animation } }] }
     }
     expect(() => draw(skin)).toThrow(/budget/)
   })
