@@ -15,12 +15,12 @@ import {
   hexToOklch,
   NOTE_KINDS,
 } from '../src'
-import { designs as imperative } from './golden/legacy'
 import { createPalette } from '../src/palette'
 import flatSkinJson from '../src/skin/flat.skin.json'
 import { compileSkin } from '../src/skin/interpret'
 import { parseSkin } from '../src/skin/schema'
 import { tokens } from '../src/tokens'
+import { designs as imperative } from './golden/legacy'
 
 const compiled = compileSkin(parseSkin(flatSkinJson))
 

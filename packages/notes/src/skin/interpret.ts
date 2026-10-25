@@ -105,7 +105,7 @@ interface CompiledTrack {
 
 function compileTrack(track: Track): CompiledTrack {
   if ('keys' in track) {
-    const eases = track.keys.map(k => {
+    const eases = track.keys.map((k) => {
       if (!k.ease)
         return null
       const ease = parseEase(k.ease)

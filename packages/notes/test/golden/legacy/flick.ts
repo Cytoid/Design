@@ -19,8 +19,8 @@
  *  0.00–1.00  the diamond body plays Click's fitted S-curve (`tokens.sizeCurve.click`)
  */
 import type { SceneNode } from '../../../src/core/scene'
-import type { EdgeSpec } from './parts'
 import type { DrawContext, NoteDesign } from '../../../src/notes/types'
+import type { EdgeSpec } from './parts'
 import { cubicBezier, lerp, outCubic, seg } from '../../../src/core/ease'
 import { group } from '../../../src/core/scene'
 import { ringTone } from '../../../src/palette'

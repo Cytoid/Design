@@ -34,8 +34,9 @@ const A = (name: string): NumExpr => ({ anchor: name })
 const T = (name: string): NumExpr => ({ track: name })
 
 interface Key { at: TimeRef, value: number, ease?: EaseSpec }
-const key = (at: TimeRef, value: number, ease?: EaseSpec, _unused?: undefined, window?: [TimeRef, TimeRef]): Key =>
-  ({ at, value, ...(ease ? { ease } : {}), ...(window ? { window } : {}) })
+function key(at: TimeRef, value: number, ease?: EaseSpec, _unused?: undefined, window?: [TimeRef, TimeRef]): Key {
+  return { at, value, ...(ease ? { ease } : {}), ...(window ? { window } : {}) }
+}
 const keys = (defs: Key[], extra: { offset?: TimeRef, rate?: number } = {}): Track => ({ keys: defs, ...extra })
 const bump = (windows: [TimeRef, TimeRef][]): Track => ({ curve: 'bump', windows })
 const damped = (o: { from: TimeRef, to: TimeRef, turns: number, damping: number, low: number, high: number }): Track => ({ curve: 'damped', ...o })
@@ -913,7 +914,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
       palette: {
         chroma: tokens.chroma,
         hue: Object.fromEntries(Object.entries(tokens.hue).map(([f, v]) => [f, { ...v }])),
-          grade: { ...tokens.grade },
+        grade: { ...tokens.grade },
       },
       grades: { ...tokens.grade },
     },
