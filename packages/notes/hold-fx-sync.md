@@ -13,7 +13,7 @@
 | strokeWidth = R/3 | 同 prefab `:284` startSize=1；`:4770` Renderer 材质指向 NoteFillMat | **历史截图校准**。startSize 是 billboard 边长/圆盘外接尺寸，不是半径。固定带宽不等价于当前 SizeModule |
 | opacity 0.39→0.196@1/3→0，线性 | 同 prefab `:1355` ColorModule，maxGradient 的 alpha 为 0.39215687、0.19607843、0；atime 为 0、21781/65535≈0.332356、1；m_Mode=0 | prefab 曲线的**取整近似**；minMaxState=1 为单 Gradient，仅使用 maxGradient；minGradient 全 1 不参与随机插值（TwoGradients=3） |
 | stroke shade 400，无 fill | `Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:85` startColor=BaseFillColor；`:88` sortingOrder=SortingOrder−2 | **调色板语义映射**；loopUnder 对应在头部下方。材质纹理和混合、外部 alpha 乘数不等同于纯 stroke opacity |
-| mode loop，duration=tokens.time.holdLoop=0.6 s | `Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:106` HoldLoop=0.6；prefab startLifetime=0.5 | **设计时间拉伸 ×1.2**；等效发射间隔 0.15 s，而 Unity 为 0.125 s；不是 prefab duration 的直接复制 |
+| mode loop，duration=tokens.time.holdLoop（当前 1 s，视觉实验；C# 采集值为 0.6 s） | `Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:106` HoldLoop=0.6；prefab startLifetime=0.5 | 原为**设计时间拉伸 ×1.2**（0.6 s vs 0.125 s 发射间隔）；现周期为设计侧实验值，不再是 C# 常量的映射 |
 
 R 定义为未按压、未动态缩放的设计头半径（ctx.size/2），不是直径。实现见 `scripts/gen-skin.ts:holdPulseClip` 与 `test/golden/legacy/hold.ts:holdLoopUnder`；字面量契约见 `test/skin.test.ts` 的 `holdFx sync contract`（同时检查 hold / long-hold）。
 
@@ -55,7 +55,7 @@ D_unpressed = (128 × K) × WorldScale × A × V
 ## 保留的实机差异
 
 1. 四条全圆环带、径向外扩、固定宽度：对比点发射的中心圆盘、+Z 运动、非线性缩小。
-2. 0.6 s 周期及四个预置相位：对比0.5 s寿命、8/s发射的启动/停止过程与残留粒子。
+2. 周期与四个预置相位（当前 1 s，实验值；采集校准时为 0.6 s）：对比0.5 s寿命、8/s发射的启动/停止过程与残留粒子。
 3. alpha 与中间时间点取整、shade 400 语义色：对比真实 gradient、纹理覆盖、材质混合及 renderer 外部 opacity 乘数。
 4. 固定 R 比例：对比玩家 NoteSize/ClearEffectsSize、chart/note override、按压及进场缩放的不同路径。
 
