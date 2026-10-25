@@ -191,49 +191,27 @@ function holdPress(long: boolean) {
  * Both are seamless over `holdLoop`.
  */
 /**
- * While held, the looping decorations come as two independent layers so a
- * skin can sandwich the body freely:
- *  - under (`holdLoopUnder`): two thin ripples, half a period apart, beyond
- *    the progress ring — drawn beneath the head.
- *  - over (`holdLoopOver`): the dark socket itself pings (Tailwind
- *    `animate-ping`): a copy of the core disc scales 1 → 2 and fades out over
- *    the first 75 % of each half period — the same rate as the outer ripples.
- *    The glyph stays still on top. Drawn above the head.
- * Both are seamless over `holdLoop`.
+ * While held, the shipped holdFx pulse (synced from the engine's particle
+ * system against a gameplay capture): four translucent fill-coloured discs,
+ * phase-offset by a quarter of the period, each growing 0 → 1.7 R under the
+ * head while fading to 0 — stacked into the layered while-held glow, and the
+ * phase wrap stays invisible. The design-phase socket ping + ripples were
+ * dropped from the shipped client (holdFx particles cover the motion).
  */
-function holdLoopUnder(long: boolean) {
+function holdLoopUnder(_long: boolean) {
   return (t: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
-    const hair = ctx.unit * tokens.stroke.hair
     const P = tokens.time.holdLoop
     const u = (((t % P) + P) % P) / P
-    const ripples: SceneNode[] = []
-    for (let i = 0; i < 2; i++) {
-      const v = (u + i / 2) % 1
-      ripples.push(ring(R * lerp(PROGRESS_R + 0.12, long ? 2.05 : 1.85, outCubic(v)), hair * lerp(2.4, 0.6, v), ctx.palette[300], (1 - v) ** 1.5 * 0.85))
+    const discs: SceneNode[] = []
+    for (let i = 0; i < 4; i++) {
+      const v = (u + i / 4) % 1
+      const opacity = v < 0.5
+        ? lerp(0.55, 0.4, v / 0.5)
+        : lerp(0.4, 0, (v - 0.5) / 0.5)
+      discs.push(disk(R * lerp(0, 1.7, v), tone(ctx.palette, 400), opacity))
     }
-    return group(ripples)
-  }
-}
-
-function holdLoopOver(long: boolean) {
-  return (t: number, ctx: DrawContext): SceneNode => {
-    const R = ctx.size / 2
-    const hair = ctx.unit * tokens.stroke.hair
-    const P = tokens.time.holdLoop
-    const u = (((t % P) + P) % P) / P
-    // one ping per ripple: two per period, in phase with the outer ripples
-    const w = (u * 2) % 1
-    const k = outCubic(seg(w, 0, 0.75))
-    const coreR = R * PRESSED * CORE_R
-    const coreColour = tone(ctx.palette, HOLD_CORE)
-    // clipped to the head interior so the ping never dims the white ring
-    const innerPressed = (R - ringWidth(ctx)) * PRESSED
-    const ping = w < 0.75
-      ? group([disk(coreR * lerp(1, 2, k), coreColour, 0.8 * (1 - k))], { clip: { type: 'circle', r: innerPressed } })
-      : null
-    const glyph = glyphShape(long, R * PRESSED * GLYPH, hair * 1.6 * PRESSED, ctx.palette.ring)
-    return group([ping, glyph].filter(Boolean) as SceneNode[])
+    return group(discs)
   }
 }
 
@@ -266,8 +244,7 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.' },
-      loopOver: { id: 'hold-loop-over', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopOver(long), note: 'The dark socket pings (scale 1→2 + fade) under the still glyph. Drawn above the head. Seamless.' },
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'The shipped holdFx pulse: four translucent fill-coloured discs phase-offset by a quarter of the period, each growing 0→1.7 R under the head while fading to 0. Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),

@@ -34,8 +34,9 @@ const A = (name: string): NumExpr => ({ anchor: name })
 const T = (name: string): NumExpr => ({ track: name })
 
 interface Key { at: TimeRef, value: number, ease?: EaseSpec }
-const key = (at: TimeRef, value: number, ease?: EaseSpec, _unused?: undefined, window?: [TimeRef, TimeRef]): Key =>
-  ({ at, value, ...(ease ? { ease } : {}), ...(window ? { window } : {}) })
+function key(at: TimeRef, value: number, ease?: EaseSpec, _unused?: undefined, window?: [TimeRef, TimeRef]): Key {
+  return { at, value, ...(ease ? { ease } : {}), ...(window ? { window } : {}) }
+}
 const keys = (defs: Key[], extra: { offset?: TimeRef, rate?: number } = {}): Track => ({ keys: defs, ...extra })
 const bump = (windows: [TimeRef, TimeRef][]): Track => ({ curve: 'bump', windows })
 const damped = (o: { from: TimeRef, to: TimeRef, turns: number, damping: number, low: number, high: number }): Track => ({ curve: 'damped', ...o })
@@ -672,52 +673,76 @@ function holdPressClip(long: boolean): SkinClip {
 }
 
 /**
- * `hold.holdLoop` split in two so a skin can sandwich the body freely:
- * `loopUnder` carries the outer ripples (drawn beneath the head), `loopOver`
- * the socket ping and glyph (drawn above it).
+ * `hold.loopUnder` — retained capture-calibrated band contract, NOT an exact
+ * orthographic projection of the current Unity HoldFx. Full audit, formulas,
+ * uncertainty and Unity references: packages/notes/hold-fx-sync.md.
+ * Game paths below are relative to Assets/; R = unpressed design head radius.
+ *
+ * Skin constant | Unity source | Mapping status
+ * 4 filled circles, offsets i/4 | StaticResources/Prefabs/Game/HoldFx.prefab:
+ *   InitialModule.startLifetime=0.5, EmissionModule.rateOverTime=8 |
+ *   8 × 0.5 = 4 live PARTICLES; rendering them as stacked translucent discs
+ *   matches the gameplay reference (several discs layered, per design review).
+ * disc radius keys 0→1.7 R | InitialModule.startSpeed=5, lifetime=0.5 |
+ *   2.5 is nominal unscaled 3D travel, NOT projected radial travel;
+ *   1.7 is a historical screenshot calibration, not code-derived.
+ * fill shade 400, no stroke | InitialModule.startSize=1;
+ *   NoteFillMat/NoteFill.png | screenshot calibration; the discs are solid
+ *   fill-colour circles stacked under the head (the SizeModule shrink and
+ *   Local scaling prevent a fixed-width band mapping). Fading to 0 by the
+ *   end of the sweep makes the phase wrap invisible — a ripple, not a twitch.
+ * opacity 0.55→0.4@0.5→0 | ColorModule.maxGradient is 0.39→0.196@1/3→0
+ *   (rounded from 0.39215687/0.19607843@21781/65535), but that is the
+ *   single-particle alpha: the gameplay capture measures the stacked on-screen
+ *   layers at ≈0.7 near the head and ≈0.12-0.33 at the sweep's end, so the
+ *   keys fit those anchors instead (capture-recalibrated revision); the
+ *   final segment decays to 0 so each disc dies where it wraps.
+ *   minMaxState=1 means Gradient, so minGradient is unused (not randomized).
+ * colour via fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
+ *   OnNoteLoaded.startColor=BaseFillColor, sortingOrder=SortingOrder-2 |
+ *   palette translation and under-head placement, not identical material blending.
+ * loop, duration tokens.time.holdLoop=0.6 | prefab lifetime=0.5;
+ *   Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:Time.HoldLoop=0.6 |
+ *   deliberate ×1.2 time stretch; skin emission equivalent is 4/0.6, not 8/s.
+ *
+ * Semantic corrections: ShapeModule is DISABLED (stored Cone/type=4, radius=1,
+ * angle=25 are inactive); default point emission travels along local +Z, not
+ * radially in XY. Orthographic depth travel cannot create expanding rings.
+ * scalingMode=1 is Local (Hierarchy=0); own transform scale affects particle
+ * size/movement, parent scale is ignored. Both Flat and Classic set own scale
+ * to 5 × (1 + ClearEffectsSize) × fxScale in UpdateTransformScale.
+ * SizeModule is enabled; ClampVelocityModule is enabled with separate axes,
+ * z limit 0 and dampen 0.75, so speed × lifetime is not even actual Z travel.
+ *
+ * Camera source is Scenes/Game.unity:12421 (ortho=5), wired at :2490.
+ * GameConfig.cs:67-74 + FlatNoteRendererBase.cs:63,89-95 give default unpressed
+ * head diameter ≈2.234555 world units, not 3; see the audit for settings/overrides.
+ * Revision note (design review): the while-held layers are stacked growing
+ * translucent discs — not ring bands. Opacity keys were capture-recalibrated
+ * (0.39→0.196→0 is the per-particle gradient; the stacked layers measure
+ * brighter). Sweep 1.7 R and quarter-period offsets are unchanged. A faithful
+ * particle translation (centre spawn, +Z travel clamped, shrink curve 1→0.6)
+ * remains a separately reviewed visual revision.
  */
-function holdLoopUnderClip(long: boolean, note: string): SkinClip {
-  const far = long ? 2.05 : 1.85
+function holdPulseClip(_long: boolean): SkinClip {
   const tracks: Record<string, Track> = {}
-  const ripples: Slice[] = [0, 1].map((i) => {
-    const p = i === 0 ? {} : { offset: 0.5 as const }
-    tracks[`rip${i}r`] = keys([key(0, 1.46), key(1, far, 'outCubic')], p)
-    tracks[`rip${i}w`] = keys([key(0, 2.4), key(1, 0.6)], p)
-    tracks[`rip${i}o`] = keys([key(0, 0.85), key(1, 0, 'outPow(1.5)')], p)
+  const layers: Slice[] = [0, 1, 2, 3].map((i) => {
+    const p = i === 0 ? {} : { offset: i / 4 }
+    tracks[`pulse${i}`] = keys([key(0, 0), key(1, 1.7)], p)
+    tracks[`pulseO${i}`] = keys([key(0, 0.55), key(0.5, 0.4), key(1, 0)], p)
     return {
       type: 'circle',
-      r: mul(R, T(`rip${i}r`)),
-      stroke: { shade: 300 },
-      strokeWidth: mul(HAIR, T(`rip${i}w`)),
-      opacity: T(`rip${i}o`),
+      r: mul(R, T(`pulse${i}`)),
+      fill: { shade: 400 },
+      opacity: T(`pulseO${i}`),
     } satisfies Slice
   })
-  return { mode: 'loop', duration: tokens.time.holdLoop, note, tracks, layers: ripples }
-}
-
-function holdLoopOverClip(long: boolean, note: string): SkinClip {
-  const tracks: Record<string, Track> = {
-    ping: keys([key(0, 1), key(0.75, 2, 'outCubic')], { rate: 2 }),
-    pingO: keys([key(0, 0.8), key(0.75, 0, 'outCubic')], { rate: 2 }),
-  }
-  const glyphR = A('loopGlyphR')
-  const glyph: Slice = long
-    ? { type: 'rect', x: mul(glyphR, -0.82), y: mul(glyphR, -0.82), w: mul(glyphR, 1.64), h: mul(glyphR, 1.64), stroke: { ring: 1 }, strokeWidth: A('loopGlyphW'), join: 'miter', opacity: 1 }
-    : { type: 'circle', r: glyphR, stroke: { ring: 1 }, strokeWidth: A('loopGlyphW'), opacity: 1 }
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
-    note,
+    note: 'Capture-calibrated holdFx ripple: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head while fading to 0 — stacking into the layered while-held glow, and the phase wrap stays invisible. Seamless.',
     tracks,
-    layers: [
-      {
-        type: 'group',
-        clip: { type: 'circle', r: A('innerPressed') },
-        gate: gate({ track: 'ping', phase: true, until: 0.75 }),
-        children: [{ type: 'circle', r: mul(A('pingR'), T('ping')), fill: { shade: 900 }, opacity: T('pingO') }],
-      },
-      glyph,
-    ],
+    layers,
   }
 }
 
@@ -889,7 +914,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
       palette: {
         chroma: tokens.chroma,
         hue: Object.fromEntries(Object.entries(tokens.hue).map(([f, v]) => [f, { ...v }])),
-          grade: { ...tokens.grade },
+        grade: { ...tokens.grade },
       },
       grades: { ...tokens.grade },
     },
@@ -931,8 +956,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(false),
-          loopUnder: holdLoopUnderClip(false, 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.'),
-          loopOver: holdLoopOverClip(false, 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph. Drawn above the head. Seamless.'),
+          loopUnder: holdPulseClip(false),
           progress: holdProgressClip(),
         },
       },
@@ -943,8 +967,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(true),
-          loopUnder: holdLoopUnderClip(true, 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.'),
-          loopOver: holdLoopOverClip(true, 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still square glyph. Drawn above the head. Seamless.'),
+          loopUnder: holdPulseClip(true),
           progress: holdProgressClip(),
         },
       },

@@ -15,11 +15,12 @@ import {
   hexToOklch,
   NOTE_KINDS,
 } from '../src'
-import { designs as imperative } from './golden/legacy'
 import { createPalette } from '../src/palette'
 import flatSkinJson from '../src/skin/flat.skin.json'
 import { compileSkin } from '../src/skin/interpret'
 import { parseSkin } from '../src/skin/schema'
+import { tokens } from '../src/tokens'
+import { designs as imperative } from './golden/legacy'
 
 const compiled = compileSkin(parseSkin(flatSkinJson))
 
@@ -197,6 +198,39 @@ function contextsOf(kind: NoteKind): [string, DrawContext][] {
 
 /* ------------------------------------------------------------------ */
 /* the golden sweep                                                    */
+
+// Frozen design values, not recomputed from Unity: see ../hold-fx-sync.md
+// and scripts/gen-skin.ts:holdPulseClip. Golden equality alone permits both
+// implementations to drift together; these literal assertions prevent that.
+describe('holdFx sync contract', () => {
+  for (const kind of ['hold', 'long-hold'] as const) {
+    it(`${kind}: preserves the calibrated loopUnder bands`, () => {
+      const clip = flatSkinJson.notes[kind].hold.loopUnder
+      expect(clip.mode).toBe('loop')
+      expect(clip.duration).toBe(tokens.time.holdLoop)
+      expect(clip.duration).toBe(0.6)
+      expect(clip.layers).toHaveLength(4)
+      expect(Object.keys(clip.tracks)).toHaveLength(8)
+      clip.layers.forEach((layer, i) => {
+        expect(layer).toEqual({
+          type: 'circle',
+          r: { mul: [{ anchor: 'R' }, { track: `pulse${i}` }] },
+          fill: { shade: 400 },
+          opacity: { track: `pulseO${i}` },
+        })
+        const offset = i === 0 ? {} : { offset: i / 4 }
+        expect(clip.tracks[`pulse${i}` as keyof typeof clip.tracks]).toEqual({
+          keys: [{ at: 0, value: 0 }, { at: 1, value: 1.7 }],
+          ...offset,
+        })
+        expect(clip.tracks[`pulseO${i}` as keyof typeof clip.tracks]).toEqual({
+          keys: [{ at: 0, value: 0.55 }, { at: 0.5, value: 0.4 }, { at: 1, value: 0 }],
+          ...offset,
+        })
+      })
+    })
+  }
+})
 
 describe('skin golden: compiled skin matches the imperative designs', () => {
   for (const kind of NOTE_KINDS) {
