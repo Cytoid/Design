@@ -225,7 +225,7 @@ describe('holdFx sync contract', () => {
           ...offset,
         })
         expect(clip.tracks[`pulseO${i}` as keyof typeof clip.tracks]).toEqual({
-          keys: [{ at: 0, value: 0.39 }, { at: 1 / 3, value: 0.196 }, { at: 1, value: 0 }],
+          keys: [{ at: 0, value: 0.7 }, { at: 0.6, value: 0.6 }, { at: 1, value: 0.33 }],
           ...offset,
         })
       })

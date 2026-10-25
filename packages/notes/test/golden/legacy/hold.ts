@@ -198,7 +198,7 @@ function holdPress(long: boolean) {
 
 /**
  * Retained capture-calibrated holdFx band contract: four shade-400 rings,
- * offsets i/4, radius 0→1.7 R, width R/3, alpha 0.39→0.196@1/3→0,
+ * offsets i/4, radius 0→1.7 R, width R/3, opacity 0.7→0.6@0.6→0.33
  * stretched from 0.5 s particle life to tokens.time.holdLoop (0.6 s).
  * This is a design approximation, not Unity's exact orthographic projection:
  * ShapeModule is disabled (+Z point emission), scalingMode=1 is Local,
@@ -214,9 +214,9 @@ function holdLoopUnder(_long: boolean) {
     const bands: SceneNode[] = []
     for (let i = 0; i < 4; i++) {
       const v = (u + i / 4) % 1
-      const opacity = v < 1 / 3
-        ? lerp(0.39, 0.196, v * 3)
-        : lerp(0.196, 0, (v - 1 / 3) * (3 / 2))
+      const opacity = v < 0.6
+        ? lerp(0.7, 0.6, v / 0.6)
+        : lerp(0.6, 0.33, (v - 0.6) / 0.4)
       bands.push(ring(R * lerp(0, 1.7, v), R / 3, tone(ctx.palette, 400), opacity))
     }
     return group(bands)
@@ -252,7 +252,7 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Capture-calibrated holdFx approximation: four shade-400 ring bands, quarter-period offsets, radius 0→1.7 R, width R/3, alpha 0.39 → 0.196@1/3 → 0. Seamless.' },
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Capture-calibrated holdFx approximation: four shade-400 ring bands, quarter-period offsets, radius 0→1.7 R, width R/3, opacity 0.7 → 0.6@0.6 → 0.33 (capture-measured). Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),
