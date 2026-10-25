@@ -9,11 +9,10 @@
  * dependent bracket landing time is a time input — see `holdLanding`).
  */
 import type { DrawContext } from '../notes/types'
-import { tokens } from '../tokens'
 
 /** Ring stroke for a note of this size (thinner on small notes). Mirrors the designs' `ringWidth`. */
 function ringWidth(ctx: DrawContext): number {
-  return ctx.unit * tokens.stroke.ring * (ctx.size / ctx.unit) ** 0.5
+  return ctx.ringStroke * (ctx.size / ctx.unit) ** 0.5
 }
 
 /** The hold brackets land `settle` seconds (≈ 4 frames @ 60 fps) before the hit — real time. */
@@ -25,7 +24,7 @@ export function resolveInputs(ctx: DrawContext): InputTable {
   const { unit, size, heading, approach } = ctx
   const R = size / 2
   const W = ringWidth(ctx)
-  const hair = unit * tokens.stroke.hair
+  const hair = ctx.hairStroke
   const a: InputTable = {
     unit,
     size,
@@ -37,7 +36,7 @@ export function resolveInputs(ctx: DrawContext): InputTable {
     innerHalf: R - W * 1.5,
     hair,
     // unscaled ring stroke (`unit · ring`) — the judgement effects stroke with this
-    ringW: unit * tokens.stroke.ring,
+    ringW: ctx.ringStroke,
   }
   switch (ctx.kind) {
     case 'hold':
@@ -54,7 +53,7 @@ export function resolveInputs(ctx: DrawContext): InputTable {
     }
     case 'flick': {
       // flickEnter constants — note: the flick strokes with the *unscaled* ring width
-      const FW = unit * tokens.stroke.ring
+      const FW = ctx.ringStroke
       const rv = R - FW * 0.7
       a.flickW = FW
       a.rv = rv

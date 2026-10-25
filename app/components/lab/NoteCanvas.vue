@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Clip, Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { bounds, createContext, drawScene, group, renderJudgement, renderNote, renderTiming, showsTiming } from '@cytoid/notes'
+import { bounds, drawScene, group, showsTiming } from '@cytoid/notes'
+import { createContext, renderJudgement, renderNote, renderTiming } from '@cytoid/skin-flat'
 import { clipMax } from '../../composables/clips'
 import { palette } from '../../composables/usePalette'
 import StageCanvas from './StageCanvas.vue'

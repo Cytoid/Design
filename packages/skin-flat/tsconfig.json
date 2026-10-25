@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@cytoid/notes": [
+        "../notes/src/index.ts"
+      ],
+      "@cytoid/skin-flat": [
+        "../skin-flat/src/index.ts"
+      ],
+      "@cytoid/design-tools": [
+        "../design-tools/src/index.ts"
+      ],
+      "@cytoid/design-tools/authoring": [
+        "../design-tools/src/authoring.ts"
+      ]
+    },
+    "resolveJsonModule": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src",
+    "scripts",
+    "test"
+  ]
+}

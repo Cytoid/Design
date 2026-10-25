@@ -1,8 +1,8 @@
-import type { Direction, NoteSkin, Palette, SceneNode } from '@cytoid/notes'
+import type { Direction, NoteAppearance, NoteSkin, Palette, SceneNode } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { BoardRect } from './layout'
 import type { DerivedFrame, DerivedNote, DeriveOptions, Position } from './state'
-import { clamp01, createContext, dragLine, group, holdBody, holdBodyAlpha, longHoldBody, renderNote } from '@cytoid/notes'
+import { clamp01, group } from '@cytoid/notes'
 /**
  * Pixi stage for the player: turns `deriveFrame` output into display
  * objects drawn with the design library's vector clips — live, no baking.
@@ -17,6 +17,7 @@ import { SceneView } from './pixi-render'
 import { deriveFrame, notePos } from './state'
 
 export interface StageOptions {
+  appearance: NoteAppearance
   skin?: NoteSkin
   palette: Palette
   /** px per design px (1 → click note = 128 px) */
@@ -183,8 +184,8 @@ export class PlayStage {
         this.segmentViews.set(seg.key, view)
         this.layers.lines.addChild(view)
       }
-      const ctx = createContext('drag-child', { palette, direction: seg.direction, scale })
-      view.setScene(dragLine(
+      const ctx = this.options.appearance.createContext('drag-child', { palette, direction: seg.direction, scale })
+      view.setScene(this.options.appearance.dragLine(
         {
           x1: seg.from.x - board.x,
           y1: seg.from.y - board.y,
@@ -233,6 +234,7 @@ export class PlayStage {
     board: BoardRect,
     screen: BoardRect,
   ) {
+    const { createContext, holdBody, holdBodyAlpha, longHoldBody, renderNote } = this.options.appearance
     const note = d.note
     const dir: Direction = note.direction === -1 ? 'down' : 'up'
     const base = { palette, direction: dir, scale, approach: note.duration.fadein }

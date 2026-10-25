@@ -1,52 +1,9 @@
 import type { SceneNode } from '../core/scene'
-import type { Palette } from '../palette'
-import type { Direction, Grade, NoteKind } from '../tokens'
+import type { Grade, NoteKind } from '../tokens'
+import type { TimedGrade, Timing } from './timing'
 import type { Clip, DrawContext, NoteDesign, NoteSkin, NoteState } from './types'
 import { group } from '../core/scene'
-import { defaultPalette } from '../palette'
-import { loadFlatSkin } from '../skin'
-import { tokens } from '../tokens'
-import { judgementClips, judgementOffset } from './judgement'
-import { exitAlpha } from './shared'
-import { renderTiming, showsTiming } from './timing'
-
-/**
- * The truth source: the shipped v2 flat skin (frames → animations → slots), validated
- * and compiled into drop-in designs by the TS reference interpreter. The
- * imperative draw code this table used to hold lives on as the golden oracle
- * in `test/golden/reference`, which pins the interpreter to byte-identical trees.
- */
-export const designs: Record<NoteKind, NoteDesign> = loadFlatSkin()
-
-export interface ContextOptions {
-  palette?: Palette
-  direction?: Direction
-  /** px per design px (1 → click note = 128 px) */
-  scale?: number
-  /** hold body direction, defaults to `direction` */
-  bodyDirection?: Direction
-  /** real approach window in seconds, defaults to the nominal enter duration */
-  approach?: number
-  /** drag-head arrow heading in radians (0 = up, clockwise); point it at the next chain node */
-  heading?: number
-}
-
-export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawContext {
-  const palette = o.palette ?? defaultPalette
-  const direction = o.direction ?? 'up'
-  const scale = o.scale ?? 1
-  return {
-    kind,
-    palette: palette.note(kind, direction),
-    grades: palette.grade,
-    direction,
-    bodyDirection: o.bodyDirection ?? direction,
-    approach: o.approach ?? tokens.time.enter,
-    heading: o.heading ?? 0,
-    unit: tokens.unit * scale,
-    size: tokens.unit * tokens.size[kind] * scale,
-  }
-}
+import { showsTiming } from './timing'
 
 /** All frame clips of a design, flattened (enter, hold layers, clears, miss). */
 export function clipsOf(design: NoteDesign): Clip[] {
@@ -69,32 +26,26 @@ export function clipsOf(design: NoteDesign): Clip[] {
   ]
 }
 
-export interface RenderOptions {
-  /** Compiled skin; defaults to the shipped flat skin. */
-  skin?: NoteSkin
-  /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
-  judgement?: boolean
-  /**
-   * draw the FAST / SLOW timing label when the clear state carries a `timing`
-   * (GREAT / GOOD / BAD only). Independent of `judgement`: stacked under the
-   * judgement text when both are on, alone in the centre otherwise. Default true.
-   */
-  timing?: boolean
+export function missExitTime(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>): number | null {
+  const since = state.since ?? state.t
+  // judged at the deadline (= the exit's end, Cytoid's miss threshold) still
+  // counts as riding it; the epsilon absorbs float error in since − t
+  if (!d.exit || (d.miss && since - state.t > d.exit.duration + 1e-3))
+    return null
+  return since
 }
 
-/** Judgement text placed above the note (t = seconds since judgement). */
-export function renderJudgement(grade: Grade, t: number, ctx: DrawContext): SceneNode {
-  const o = judgementOffset(ctx)
-  return group([judgementClips[grade].draw(t, ctx)], { transform: o })
+export * from './timing'
+export type * from './types'
+
+/** Optional visual overlays; no default font or style is selected by notes. */
+export interface NoteLayers {
+  judgement?: (grade: Grade, time: number, context: DrawContext) => SceneNode
+  timing?: (timing: Timing, grade: TimedGrade, time: number, context: DrawContext) => SceneNode
 }
 
-/**
- * Composed vector renderer: one call per note per frame.
- * (Bodies / drag lines are separate — see `bodies.ts`.)
- */
-export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = createContext(kind), options: RenderOptions = {}): SceneNode {
-  const d = (options.skin ?? designs)[kind]
-  const text = options.judgement ?? true
+export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, skin: NoteSkin, layers: NoteLayers = {}): SceneNode {
+  const d = skin[kind]
   switch (state.phase) {
     case 'enter':
       return d.enter.draw(state.p, ctx)
@@ -112,37 +63,21 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
     }
     case 'clear': {
       const fx = d.clear[state.grade].draw(state.t, ctx)
-      const layers = [fx]
-      if (text)
-        layers.push(renderJudgement(state.grade, state.t, ctx))
-      if (state.timing && (options.timing ?? true) && showsTiming(state.grade))
-        layers.push(renderTiming(state.timing, state.grade, state.t, ctx, text ? 'stacked' : 'centre'))
-      return layers.length > 1 ? group(layers) : fx
+      const result = [fx]
+      if (layers.judgement)
+        result.push(layers.judgement(state.grade, state.t, ctx))
+      if (state.timing && layers.timing && showsTiming(state.grade))
+        result.push(layers.timing(state.timing, state.grade, state.t, ctx))
+      return result.length > 1 ? group(result) : fx
     }
     case 'exit':
       return d.exit ? d.exit.draw(state.t, ctx) : d.enter.draw(1, ctx)
     case 'miss': {
       const fx = missBody(d, state, ctx)
-      const layers = [fx, text ? renderJudgement('miss', state.t, ctx) : null].filter(Boolean) as SceneNode[]
-      return layers.length === 1 ? layers[0]! : group(layers)
+      const result = [fx, layers.judgement?.('miss', state.t, ctx)].filter(Boolean) as SceneNode[]
+      return result.length === 1 ? result[0]! : group(result)
     }
   }
-}
-
-/**
- * Seconds past the chart hit time a miss rides the exit fade, or null when it
- * plays the design's own miss clip. A miss judged before the exit ran out
- * (deadline misses, dead-chain children judged ahead of their time) keeps the
- * exit timeline; one judged later — a hold released early, alive until then —
- * has no exit left to ride.
- */
-export function missExitTime(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>): number | null {
-  const since = state.since ?? state.t
-  // judged at the deadline (= the exit's end, Cytoid's miss threshold) still
-  // counts as riding it; the epsilon absorbs float error in since − t
-  if (!d.exit || (d.miss && since - state.t > d.exit.duration + 1e-3))
-    return null
-  return since
 }
 
 function missBody(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>, ctx: DrawContext): SceneNode | null {
@@ -151,29 +86,3 @@ function missBody(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>, c
     return d.miss?.draw(state.t, ctx) ?? null
   return since < d.exit!.duration ? d.exit!.draw(since, ctx) : null
 }
-
-/**
- * Hold body opacity for a note state: full while entering /
- * holding; on the exit (and a miss riding it) it fades on its own curve —
- * gone in half the head's window. 0 = don't draw the body.
- */
-export function holdBodyAlpha(kind: NoteKind, state: NoteState, skin: NoteSkin = designs): number {
-  switch (state.phase) {
-    case 'enter':
-    case 'holding':
-      return 1
-    case 'exit':
-      return exitAlpha(state.t, tokens.time.exit.holdBody)
-    case 'miss': {
-      const since = missExitTime(skin[kind], state)
-      return since == null ? 0 : exitAlpha(since, tokens.time.exit.holdBody)
-    }
-    default:
-      return 0
-  }
-}
-
-export * from './bodies'
-export * from './judgement'
-export * from './timing'
-export type * from './types'

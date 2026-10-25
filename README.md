@@ -37,4 +37,13 @@ pnpm typecheck
 
 ## Skin format
 
-The default note skin uses the frame → animation → slot format. See the [format guide](docs/skin.md) and [example skin](docs/skin.example.json). Regenerate it with `pnpm --filter @cytoid/notes gen-skin`.
+The default note skin uses the frame → animation → slot format. See the [format guide](docs/skin.md) and [example skin](docs/skin.example.json). Regenerate it with `pnpm --filter @cytoid/skin-flat gen-skin`.
+
+## Packages
+
+- `@cytoid/notes`: note contracts, scene graph/renderers, palette math and skin runtime. No default skin data or Node rasterizer.
+- `@cytoid/skin-flat`: Flat assets, visual tokens, palette defaults, body/text rendering, and design-specific generators.
+- `@cytoid/design-tools`: design-independent authoring (`/authoring`), raster baking and Cylheim export.
+- `@cytoid/player`: chart playback and Pixi integration; receives an appearance from its caller.
+
+The app selects `flat` from `@cytoid/skin-flat` and passes it as `appearance` to the player. Bake with `bake({ appearance: flat, outDir })` from `@cytoid/design-tools`. Build libraries with `pnpm -r --if-present build`.

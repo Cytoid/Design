@@ -1,7 +1,7 @@
 import type { Oklch } from './core/color'
 import type { Direction, Family, Grade, NoteKind } from './tokens'
 import { alpha, hexToOklch, oklch } from './core/color'
-import { FAMILIES, FAMILY_OF, tokens } from './tokens'
+import { FAMILIES } from './tokens'
 
 /**
  * A colour input is either an OKLCH hue in degrees (recommended — the
@@ -103,13 +103,13 @@ const NEUTRAL = (() => {
   return scale
 })()
 
-export function derivePalette(input: ColorInput, opts: { saturation?: number, ring?: string } = {}): NotePalette {
+export function derivePalette(input: ColorInput, opts: { chroma: number, saturation?: number, ring?: string }): NotePalette {
   const sat = opts.saturation ?? 1
   let l: number, c: number, h: number
   if (typeof input === 'number') {
     h = ((input % 360) + 360) % 360
     l = fitLightness(h)
-    c = tokens.chroma
+    c = opts.chroma
   }
   else {
     ({ l, c, h } = hexToOklch(input))
@@ -125,33 +125,6 @@ export function derivePalette(input: ColorInput, opts: { saturation?: number, ri
     hue: h,
   }
 }
-
-export function createPalette(options: PaletteOptions = {}): Palette {
-  const cache = new Map<string, NotePalette>()
-  const shift = options.hueShift ?? 0
-  const family = (fam: Family, dir: Direction): NotePalette => {
-    const key = `${fam}:${dir}`
-    let p = cache.get(key)
-    if (!p) {
-      const override = options.families?.[fam]?.[dir]
-      const input = override ?? tokens.hue[fam][dir] + shift
-      p = derivePalette(typeof input === 'number' && override !== undefined ? input + shift : input, {
-        saturation: options.saturation,
-        ring: options.ring,
-      })
-      cache.set(key, p)
-    }
-    return p
-  }
-  return {
-    family,
-    note: (kind, dir) => family(FAMILY_OF[kind], dir),
-    grade: { ...tokens.grade, ...options.grades },
-    ring: options.ring ?? NEUTRAL[50],
-  }
-}
-
-export const defaultPalette = createPalette()
 
 const parsed = new WeakMap<Record<Shade, string>, Map<Shade, Oklch>>()
 
@@ -221,5 +194,7 @@ export function exportPalette(p: Palette) {
     out[f] = { up: p.family(f, 'up'), down: p.family(f, 'down') }
   return { families: out, grade: p.grade, ring: p.ring }
 }
+
+export const DEFAULT_RING_COLOR = NEUTRAL[50]
 
 export { alpha }

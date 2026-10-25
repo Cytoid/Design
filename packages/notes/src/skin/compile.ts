@@ -4,7 +4,7 @@ import type { NoteKind } from '../tokens'
 import type { Primitive } from './primitive'
 import type { CompiledTrack, Env } from './runtime'
 import type { Layer, Skin, Time, Track } from './schema'
-import { NOTE_KINDS, tokens } from '../tokens'
+import { NOTE_KINDS, noteTiming } from '../tokens'
 import { resolveInputs } from './inputs'
 import { compileGate, compileNum, compilePrimitive, compileTrack, compileTransform, gateOpen, makeEnv } from './runtime'
 import { parseSkin } from './schema'
@@ -199,7 +199,7 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
           if (!Number.isFinite(x))
             throw new Error(`${name}: driver must be finite`)
           const inputs = resolveInputs(ctx)
-          inputs.exitRewindEnd = 1 - contract.duration * tokens.time.exit.rewind / Math.max(1e-6, ctx.approach)
+          inputs.exitRewindEnd = 1 - contract.duration * noteTiming.exit.rewind / Math.max(1e-6, ctx.approach)
           return draw(slotProgress(contract, x), ctx, inputs)
         },
       }

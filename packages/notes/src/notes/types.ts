@@ -1,11 +1,14 @@
 import type { SceneNode } from '../core/scene'
-import type { NotePalette } from '../palette'
+import type { NotePalette, Palette } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
 import type { Timing } from './timing'
 
 /** Everything a clip needs to draw one frame. */
 export interface DrawContext {
   kind: NoteKind
+  /** Base ring and hair widths in context pixels, before kind-specific ring adjustment. */
+  ringStroke: number
+  hairStroke: number
   palette: NotePalette
   grades: Record<Grade, string>
   /** scan direction used for colour (Cytoid `UseAlternativeColor`) */
@@ -89,3 +92,81 @@ export type NoteState
     | { phase: 'exit', t: number }
     /** t = seconds since the miss judgement; `since` = seconds since the chart hit time (defaults to t: judged on the beat) */
     | { phase: 'miss', t: number, since?: number }
+
+export interface ContextOptions {
+  palette?: Palette
+  direction?: Direction
+  /** px per design px (1 → click note = 128 px) */
+  scale?: number
+  /** hold body direction, defaults to `direction` */
+  bodyDirection?: Direction
+  /** real approach window in seconds, defaults to the nominal enter duration */
+  approach?: number
+  /** drag-head arrow heading in radians (0 = up, clockwise); point it at the next chain node */
+  heading?: number
+}
+
+export interface RenderOptions {
+  /** Override the selected appearance's note clips. */
+  skin?: NoteSkin
+  /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
+  judgement?: boolean
+  /**
+   * draw the FAST / SLOW timing label when the clear state carries a `timing`
+   * (GREAT / GOOD / BAD only). Independent of `judgement`: stacked under the
+   * judgement text when both are on, alone in the centre otherwise. Default true.
+   */
+  timing?: boolean
+}
+
+export interface HoldBodyOptions {
+  /** body length in px (from note centre to hold end) */
+  length: number
+  /** hold progress 0–1 */
+  progress: number
+  /** seconds — scrolls the centre dashes while holding */
+  t?: number
+  /** fade-in of the body (follows the head entrance) */
+  appear?: number
+}
+
+export interface LongHoldBodyOptions {
+  /** distance from note centre to the top of the play area */
+  top: number
+  /** distance from note centre to the bottom of the play area */
+  bottom: number
+  /** hold progress 0–1 */
+  progress: number
+  /** seconds since the hit — scrolls the centre dashes, drives the live collapse */
+  t?: number
+  /** hit → finish seconds; enables the time-anchored collapse */
+  holdDuration?: number
+  /** fade-in of the body (follows the head entrance) */
+  appear?: number
+}
+
+export interface DragLineOptions {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  /** leading edge 0–1 (line grows from source toward destination) */
+  lead?: number
+  /** trailing edge 0–1 (line retracts as the scanner passes) */
+  trail?: number
+  opacity?: number
+  /** override dash length in px (bakers round it to whole pixels for seamless tiles) */
+  dash?: number
+}
+
+/** Presentation supplied by the application; player and tools never select a default skin. */
+export interface NoteAppearance {
+  metrics: { unit: number }
+  designs: NoteSkin
+  createContext: (kind: NoteKind, options?: ContextOptions) => DrawContext
+  renderNote: (kind: NoteKind, state: NoteState, context?: DrawContext, options?: RenderOptions) => SceneNode
+  holdBodyAlpha: (kind: NoteKind, state: NoteState, skin?: NoteSkin) => number
+  holdBody: (options: HoldBodyOptions, context: DrawContext) => SceneNode
+  longHoldBody: (options: LongHoldBodyOptions, context: DrawContext) => SceneNode
+  dragLine: (options: DragLineOptions, context: DrawContext) => SceneNode | null
+}

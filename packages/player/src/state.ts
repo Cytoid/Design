@@ -7,7 +7,7 @@
 import type { Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
 import type { JudgeGrade } from './judgement'
-import { clamp01, tokens } from '@cytoid/notes'
+import { clamp01, noteTiming } from '@cytoid/notes'
 import { HOLD_TYPES, KIND_OF, pageAtTime, scanlineRatio } from './chart'
 
 export interface BoardTransform {
@@ -75,7 +75,7 @@ export function notePos(note: ParsedNote, ratioY: number, board: BoardTransform)
 const CHILD_TYPES = new Set(['drag_child', 'cdrag_child'])
 
 /** Longest exit fade — a miss stays derived at least this long past the chart time. */
-const EXIT_MAX = Math.max(...Object.values(tokens.time.exit).map(c => (typeof c === 'number' ? 0 : c.duration)))
+const EXIT_MAX = Math.max(...Object.values(noteTiming.exit).map(c => (typeof c === 'number' ? 0 : c.duration)))
 
 /** Cytoid clear-effect window per grade (seconds). */
 export function clearDuration(grade: Grade): number {

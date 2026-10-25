@@ -7,7 +7,8 @@
 ## 加载和预览
 
 ```ts
-import { compileAnimation, createContext, loadSkin } from '@cytoid/notes'
+import { compileAnimation } from '@cytoid/notes'
+import { createContext, loadSkin } from '@cytoid/skin-flat'
 
 const designs = loadSkin(document)
 const context = createContext('click')
@@ -18,14 +19,14 @@ const preview = compileAnimation(document, 'clickEnter')
 const frame = preview(0.5, context)
 ```
 
-`parseSkin(unknown)` 校验文档结构；`compileSkin(unknown, fallback?)` 进一步校验引用、属性、时间、上下文和 slot 覆盖，并输出全部 note kinds。`loadSkin` 只读取当前 schema，并默认提供内置皮肤作为 fallback。无效引用等错误会抛出，不会默默回退；缺少必需 slot 的 kind 才整体回退。
+`parseSkin(unknown)` 校验文档结构；`compileSkin(unknown, fallback?)` 进一步校验引用、属性、时间、上下文和 slot 覆盖，并输出全部 note kinds。`@cytoid/notes` 的 `loadSkin` 只读取当前 schema，可显式传入 fallback；`@cytoid/skin-flat` 的同名便利函数默认使用 Flat 作为 fallback。无效引用等错误会抛出，不会默默回退；缺少必需 slot 的 kind 才整体回退。
 
-组合渲染调用 `renderNote(kind, state, context, { skin: designs })`；`holdBodyAlpha` 的第三个参数也可传 designs。播放器支持 `PlayerOptions.skin`，可通过 `player.updateOptions({ skin: designs })` 切换。`bake({ skin: designs, outDir: ... })` 会对 native sheets 与 Cylheim 输出同时应用皮肤。没有传 skin 时均使用内置皮肤。
+组合渲染调用 `renderNote(kind, state, context, { skin: designs })`；`holdBodyAlpha` 的第三个参数也可传 designs。播放器通过 `PlayerOptions.appearance` 选择设计（例如 `appearance: flat`），并支持 `PlayerOptions.skin`，可通过 `player.updateOptions({ skin: designs })` 切换。`bake({ appearance: flat, skin: designs, outDir: ... })`（从 `@cytoid/design-tools` 导入） 会对 native sheets 与 Cylheim 输出同时应用皮肤。没有传 skin 时使用所选 appearance 的 designs。`flat` 从 `@cytoid/skin-flat` 导入。
 
 命令行烘焙示例（从仓库根目录运行）：
 
 ```sh
-pnpm --filter @cytoid/notes bake --skin ../../docs/skin.example.json --out /tmp/my-cytoid-skin --kinds click --dirs up --no-frames
+pnpm --filter @cytoid/design-tools bake --appearance ../skin-flat/src/index.ts --skin ../../docs/skin.example.json --out /tmp/my-cytoid-skin --kinds click --dirs up --no-frames
 ```
 
 没有 fallback 的 `compileSkin` 要求所有 kind 都具备 enter 和四种 clear。如果定义任意 hold 层，还必须同时提供 press、progress。exit、miss、loopUnder、loopOver 为可选 slot。preview 不自动提供 slot 专属的 `exitRewindEnd`；预览实际 exit 应调用对应 `Clip.draw`。
@@ -176,22 +177,33 @@ holdLanding 用于 key.at；exitRewindEnd 用于 source.sample.to，倒放起点
 
 编译器检查每个 slot 引用图的全部 input 要求；未知 track、frame、animation 和不可用 input 在加载时失败。动态时间端点在实际上下文求值时再次检查。
 
-## 生成、兼容和验证
+## 生成与验证
 
 ```sh
-pnpm --filter @cytoid/notes gen-skin
+pnpm --filter @cytoid/skin-flat gen-skin
 pnpm --filter @cytoid/notes test
 pnpm --filter @cytoid/notes typecheck
 ```
 
-`scripts/gen-skin.ts` 直接使用当前格式的 Value、Ease、Track 和图元声明，`SkinBuilder` 将绑定形状拆分为静态 frame 与 animation properties，按内容去重，并直接绑定 slot。输出文件为 `src/skin/flat.skin.json`，生成前通过当前 schema 与编译器校验。`scripts/overlap.ts` 同样直接使用这条构建路径。
+`packages/skin-flat/scripts/gen-skin.ts` 直接使用当前格式的 Value、Ease、Track 和图元声明，`@cytoid/design-tools/authoring` 中的 `SkinBuilder` 将绑定形状拆分为静态 frame 与 animation properties，按内容去重，并直接绑定 slot。输出文件为 `packages/skin-flat/src/flat.skin.json`，生成前通过当前 schema 与编译器校验。`packages/skin-flat/scripts/overlap.ts` 同样直接使用这条构建路径。
 
 只有一套 schema、编译器和生成器，没有格式分流、迁移器、中间文档格式或字符串 easing 解析。公共接口统一为 `parseSkin`、`compileSkin`、`compileAnimation`、`Skin`；schemaVersion 当前固定为 2，其他值直接拒绝。
 
 当前内置皮肤有 87 个 frame、55 个 animation、68 个 slot。JSON / 默认 gzip / 默认 Brotli 分别为 328,400 / 34,412 / 23,251 字节（压缩结果依赖 Node 版本和参数）。
 
-全部 kind / slot 的场景树测试覆盖方向、调色板、heading、缩放及 approach=0.01 / 0.6 / 1.2 / 2.4。`test/golden/reference` 是仅供测试使用的独立绘制参考，不参与加载或生成；所有 kind 的入场与判定 PNG 均与参考逐字节相同。另有裁切、嵌套、倒放、定格、随机 seek、实例隔离、fallback、五种 slot 时钟和无效文档测试。
+全部 kind / slot 的场景树测试覆盖方向、调色板、heading、缩放及 approach=0.01 / 0.6 / 1.2 / 2.4。`packages/skin-flat/test/golden/reference` 是仅供测试使用的独立绘制参考，不参与加载或生成；所有 kind 的入场与判定 PNG 均与参考逐字节相同。另有裁切、嵌套、倒放、定格、随机 seek、实例隔离、fallback、五种 slot 时钟和无效文档测试。
 
 载入有文档深度 / 节点数、资产数、引用深度、展开图元数和关键帧数预算；静态与间接循环引用都拒绝。
 
 本次完成仓库内现有 note skin 系统的三层格式。hold body、drag 连接线、judgement / timing 字形仍沿用既有独立绘制接口；Unity / C# 消费端不在此仓库，尚未移植。没有新增可视化皮肤编辑器或自定义游戏时长。
+
+## 包边界
+
+只有 `design-tools` 和 `skin-flat` 是从 notes 抽出的新包；通用绘图继续留在 notes。
+
+- notes 定义游戏时长（`noteTiming`）、slot、输入和类型；不加载 Flat JSON，不依赖 Node 原生烘焙库。
+- skin-flat 持有视觉 tokens 和默认调色、具体动画、body 与文字。`createContext` 将 ringStroke / hairStroke 等视觉度量写入 DrawContext，编译器不读取 Flat tokens。
+- design-tools 的 `bake` 显式接收 `BakeAppearance`；`SkinBuilder` 位于独立的 `/authoring` 入口，不加载原生栅格化库。工具包不依赖 skin-flat。
+- player 只依赖 notes。应用负责注入 `flat` 或其他实现 `NoteAppearance` 的设计。
+
+Flat 的生成脚本开发依赖 design-tools；两个新包的运行时依赖方向均指向 notes。Flat 原始 JSON 也通过 `@cytoid/skin-flat/skin.json` 导出，供数据消费者使用。
