@@ -208,7 +208,7 @@ describe('holdFx sync contract', () => {
       const clip = flatSkinJson.notes[kind].hold.loopUnder
       expect(clip.mode).toBe('loop')
       expect(clip.duration).toBe(tokens.time.holdLoop)
-      expect(clip.duration).toBe(0.6)
+      expect(clip.duration).toBe(1)
       expect(clip.layers).toHaveLength(4)
       expect(Object.keys(clip.tracks)).toHaveLength(8)
       clip.layers.forEach((layer, i) => {

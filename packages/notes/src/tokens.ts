@@ -132,7 +132,7 @@ export const tokens = {
     /** hold press-in */
     holdPress: 0.2,
     /** hold loop period */
-    holdLoop: 0.6,
+    holdLoop: 1,
     /** clear effects per grade (Cytoid FlatFX: 0.4 / speed) */
     clear: { perfect: 0.42, great: 0.46, good: 0.52, bad: 0.56, miss: 0.5 } satisfies Record<Grade, number>,
   },
