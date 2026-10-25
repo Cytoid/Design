@@ -20,8 +20,8 @@ import {
   tone,
   toSVG,
 } from '../src'
-import { clickSize, ringWidth } from '../src/notes/click'
-import { dragChildSize, dragHeadSize } from '../src/notes/drag'
+import { clickSize, ringWidth } from './golden/legacy/click'
+import { dragChildSize, dragHeadSize } from './golden/legacy/drag'
 
 describe('color', () => {
   it('round-trips hex through oklch', () => {
@@ -219,10 +219,11 @@ describe('designs', () => {
     expect(withText.length).toBeGreaterThan(without.length)
   })
 
-  it('hold loop is seamless', () => {
-    const clip = designs.hold.hold!.loop
+  it('hold looping layers are seamless', () => {
     const ctx = createContext('hold')
-    expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(clip.duration, ctx)))
+    for (const clip of [designs.hold.hold!.loopUnder!, designs.hold.hold!.loopOver!]) {
+      expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(clip.duration, ctx)))
+    }
   })
 })
 
@@ -237,7 +238,7 @@ describe('sampling', () => {
 
 describe('exit fade', () => {
   it('steps to 0.8 at the hit time, falls as 0.8 − p³, gone by 0.3 s', async () => {
-    const { exitAlpha } = await import('../src/notes/effects')
+    const { exitAlpha } = await import('../src/notes/shared')
     expect(exitAlpha(-0.01)).toBe(1)
     expect(exitAlpha(0)).toBeCloseTo(0.8)
     expect(exitAlpha(0.15)).toBeCloseTo(0.675)
@@ -249,7 +250,7 @@ describe('exit fade', () => {
       expect(designs[kind].exit != null, kind).toBe(!kind.startsWith('drop-'))
   })
   it('hold head has no step, the body is gone in half the window, children fade linearly', async () => {
-    const { exitAlpha } = await import('../src/notes/effects')
+    const { exitAlpha } = await import('../src/notes/shared')
     const { tokens } = await import('../src/tokens')
     const e = tokens.time.exit
     expect(exitAlpha(0, e.holdHead)).toBe(1)

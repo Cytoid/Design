@@ -63,12 +63,14 @@ export interface NoteDesign {
    * miss judgement, so a late miss never restarts the note at full opacity.
    */
   exit?: Clip
-  /** hold-only layers */
+  /** hold-only layers, composed under → press → over → progress while holding */
   hold?: {
     /** head press-in when the hold starts */
     press: Clip
-    /** looping decoration while holding */
-    loop: Clip
+    /** looping layer drawn *under* the head (e.g. ripples) — sandwich the body */
+    loopUnder?: Clip
+    /** looping layer drawn *over* the head (e.g. socket ping, glyph) */
+    loopOver?: Clip
     /** progress indicator, x = hold progress */
     progress: Clip
   }

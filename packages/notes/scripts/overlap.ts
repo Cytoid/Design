@@ -7,18 +7,14 @@ import type { NoteKind } from '../src'
 // variant to .sheets/overlap*.png (2× scale).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
-import { createContext, designs, tokens, toSVGMarkup } from '../src'
+import { createContext, tokens, toSVGMarkup } from '../src'
+import { compileSkin } from '../src/skin/interpret'
+import { parseSkin } from '../src/skin/schema'
+import { buildFlatSkin } from './gen-skin'
 
 const cell = 260
 
 interface Placement { kind: NoteKind, x: number, y: number, opts?: Parameters<typeof createContext>[1] }
-
-/** One note at its hit pose, centred on (x, y). */
-function note(p: Placement, x: number, y: number) {
-  const ctx = createContext(p.kind, p.opts)
-  const node = designs[p.kind].enter.draw(1, ctx)
-  return `<g transform="translate(${x} ${y})">${toSVGMarkup(node)}</g>`
-}
 
 /** Overlap clusters (hit poses), centred inside each cell. */
 const clusters: { name: string, notes: Placement[] }[] = [
@@ -69,8 +65,7 @@ const clusters: { name: string, notes: Placement[] }[] = [
   },
 ]
 
-type EdgeToken = typeof tokens.stroke.edge
-interface Variant { id: string, label: string, edge: EdgeToken }
+interface Variant { id: string, label: string, edge: { placement: 'inside' | 'outside', bands: { fraction: number, opacity: number }[] } }
 
 const variants: Variant[] = [
   { id: 'none', label: 'no edge', edge: { placement: 'inside', bands: [] } },
@@ -84,13 +79,16 @@ const colX = (col: number) => col * cell + cell / 2
 const rowY = (row: number) => row * cell + cell / 2
 const SCALE = 2
 
-// The designs read tokens at draw time: swap `tokens.stroke.edge` per pass.
-const stroke = tokens.stroke as { edge: EdgeToken }
-const saved = stroke.edge
+// The edge falloff is embedded in the skin document now, so each variant is a
+// rebuilt skin compiled to its own designs (`buildFlatSkin(edge)`).
 function column(v: Variant, col: number) {
-  stroke.edge = v.edge
-  const cells = clusters.map((c, r) => c.notes.map(n => note(n, colX(col) + n.x, rowY(r) + n.y)).join('')).join('')
-  stroke.edge = saved
+  // the falloff colour is constant across variants (`tokens.edge`); only the shape varies
+  const designs = compileSkin(parseSkin(buildFlatSkin({ color: tokens.edge, ...v.edge })))
+  const cells = clusters.map((c, r) => c.notes.map((p) => {
+    const ctx = createContext(p.kind, p.opts)
+    const node = designs[p.kind].enter.draw(1, ctx)
+    return `<g transform="translate(${colX(col) + p.x} ${rowY(r) + p.y})">${toSVGMarkup(node)}</g>`
+  }).join('')).join('')
   return cells
 }
 
@@ -113,7 +111,7 @@ function write(name: string, svg: string) {
 }
 
 mkdirSync('.sheets', { recursive: true })
-const current: Variant = { id: 'current', label: 'current tokens', edge: saved }
+const current: Variant = { id: 'current', label: 'current tokens', edge: { placement: tokens.stroke.edge.placement, bands: tokens.stroke.edge.bands.map(b => ({ ...b })) } }
 write('overlap', sheet([...variants, current]))
 for (const v of [...variants.slice(1), current])
   write(`overlap-${v.id}`, sheet([v]))

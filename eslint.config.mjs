@@ -7,7 +7,10 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 export default withNuxt(
   // @antfu/eslint-config owns formatting & general linting, appended after
   // the Nuxt-generated config so its rules take precedence on conflicts.
-  antfu(),
+  antfu(
+    // generated skin documents are machine-written single-line JSON
+    { ignores: ['**/*.skin.json'] },
+  ),
   betterTailwindcss.configs['correctness-error'],
   {
     // docs content contains markdown examples with demo headings; the rules

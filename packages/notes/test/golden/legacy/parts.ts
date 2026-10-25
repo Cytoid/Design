@@ -2,10 +2,10 @@
  * Reusable flat building blocks. Each returns plain scene nodes; nothing
  * here knows about note kinds.
  */
-import type { SceneNode } from '../core/scene'
-import { lerp, outCubic, outQuart, rng, seg, TAU } from '../core/ease'
-import { group, polar, regularPolygon } from '../core/scene'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import { lerp, outCubic, outQuart, rng, seg, TAU } from '../../../src/core/ease'
+import { group, polar, regularPolygon } from '../../../src/core/scene'
+import { tokens } from '../../../src/tokens'
 
 export function disk(r: number, fill: string, opacity = 1): SceneNode {
   return { type: 'circle', r: Math.max(0, r), fill, opacity }
@@ -175,6 +175,8 @@ export function shards(o: ShardOptions): SceneNode {
   const rand = rng(o.seed)
   const items: SceneNode[] = []
   for (let i = 0; i < o.count; i++) {
+    // per-item params are sampled eagerly — a fixed number of draws each — so
+    // a shard's flight path never shifts when a neighbour is born or dies
     let a: number
     if (o.sectors) {
       const s = o.sectors[i % o.sectors.length]!
@@ -186,19 +188,21 @@ export function shards(o: ShardOptions): SceneNode {
     const reach = lerp(0.55, 1, rand())
     const delay = rand() * 0.12
     const life = lerp(0.55, 0.86, rand())
+    const sizeMul = lerp(0.6, 1.2, rand())
+    const dir = rand() > 0.5 ? 1 : -1
     const k = seg(o.u, delay, delay + life)
     if (k <= 0 || k >= 1)
       continue
     const d = lerp(o.r0, o.r0 + (o.r1 - o.r0) * reach, outQuart(k))
     const [x, y] = polar(d, a)
-    const s = o.size * lerp(0.6, 1.2, rand()) * (1 - outCubic(seg(k, 0.35, 1)))
+    const s = o.size * sizeMul * (1 - outCubic(seg(k, 0.35, 1)))
     if (o.shape === 'bar') {
       const [x2, y2] = polar(d + s * 2.4, a)
       items.push({ type: 'line', x1: x, y1: y, x2, y2, stroke: o.color, strokeWidth: s * 0.55, cap: 'butt' })
     }
     else {
       items.push(group([{ type: 'rect', x: -s / 2, y: -s / 2, w: s, h: s, fill: o.color }], {
-        transform: { x, y, rotate: a + k * 2.2 * (rand() > 0.5 ? 1 : -1) },
+        transform: { x, y, rotate: a + k * 2.2 * dir },
       }))
     }
   }

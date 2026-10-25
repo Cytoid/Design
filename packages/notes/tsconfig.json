@@ -3,9 +3,14 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src", "scripts", "test"]
+  "include": [
+    "src",
+    "scripts",
+    "test"
+  ]
 }

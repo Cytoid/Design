@@ -3,11 +3,13 @@
  * square shards, all in the grade colour. Better grades = faster, bigger,
  * more pieces (Cytoid FlatFX speeds 1 / .9 / .7 / .5).
  */
-import type { SceneNode } from '../core/scene'
-import type { ClearGrade, Clip, DrawContext } from './types'
-import { lerp, outCubic, outExpo, outQuad, outQuart, outQuint, seg, TAU } from '../core/ease'
-import { group } from '../core/scene'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import type { ExitCurve } from '../../../src/notes/shared'
+import type { ClearGrade, Clip, DrawContext } from '../../../src/notes/types'
+import { lerp, outCubic, outExpo, outQuad, outQuart, outQuint, seg, TAU } from '../../../src/core/ease'
+import { group } from '../../../src/core/scene'
+import { exitAlpha } from '../../../src/notes/shared'
+import { tokens } from '../../../src/tokens'
 import { arc, capsule, dashedRing, diamond, disk, flickChevron, ring, shards } from './parts'
 
 export type EffectShape = 'circle' | 'diamond' | 'capsule'
@@ -186,23 +188,6 @@ export function missEffect(shape: EffectShape, u: number, ctx: DrawContext, cap?
       ]
   // no cross: the MISS judgement text carries the meaning
   return group(parts, { opacity: EFFECT_ALPHA * op, transform: { y: lerp(0, ctx.unit * 0.08, k) } })
-}
-
-/** One exit fade curve (see `tokens.time.exit`). */
-export interface ExitCurve { duration: number, drop: number, fall: number, power: number }
-
-/**
- * Exit opacity: drop − fall · p^power over the curve's duration,
- * clamped, 0 from the end. t = seconds since the chart hit time; 1 before it.
- * The default (`tap`) steps from 1 to 0.8 the moment the hit time passes — a
- * discrete "you're late" cue — then falls as 0.8 − p³, readable through the
- * hit window and gone at ≈ 0.93 of it.
- */
-export function exitAlpha(t: number, curve: ExitCurve = tokens.time.exit.tap): number {
-  if (t < 0)
-    return 1
-  const p = t / curve.duration
-  return p >= 1 ? 0 : Math.max(0, curve.drop - curve.fall * p ** curve.power)
 }
 
 /**
