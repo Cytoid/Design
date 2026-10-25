@@ -79,13 +79,14 @@ function assertSameSlot(design: NoteDesign, skin: NoteDesign, kind: string, slot
 
 function slotsOf(d: NoteDesign): [string, Clip][] {
   const out: [string, Clip][] = [['enter', d.enter]]
-  if (d.hold)
+  if (d.hold) {
     out.push(
       ['press', d.hold.press],
       ...(d.hold.loopUnder ? [['loopUnder', d.hold.loopUnder] as [string, Clip]] : []),
       ...(d.hold.loopOver ? [['loopOver', d.hold.loopOver] as [string, Clip]] : []),
       ['progress', d.hold.progress],
     )
+  }
   for (const g of ['perfect', 'great', 'good', 'bad'] as const)
     out.push([`clear-${g}`, d.clear[g]])
   if (d.exit)
