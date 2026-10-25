@@ -671,12 +671,14 @@ function holdPressClip(long: boolean): SkinClip {
  * fill shade 400, no stroke | InitialModule.startSize=1;
  *   NoteFillMat/NoteFill.png | screenshot calibration; the discs are solid
  *   fill-colour circles stacked under the head (the SizeModule shrink and
- *   Local scaling prevent a fixed-width band mapping).
- * opacity 0.5→0.4@0.6→0.12 | ColorModule.maxGradient is 0.39→0.196@1/3→0
+ *   Local scaling prevent a fixed-width band mapping). Fading to 0 by the
+ *   end of the sweep makes the phase wrap invisible — a ripple, not a twitch.
+ * opacity 0.55→0.4@0.5→0 | ColorModule.maxGradient is 0.39→0.196@1/3→0
  *   (rounded from 0.39215687/0.19607843@21781/65535), but that is the
  *   single-particle alpha: the gameplay capture measures the stacked on-screen
  *   layers at ≈0.7 near the head and ≈0.12-0.33 at the sweep's end, so the
- *   keys fit those anchors instead (capture-recalibrated revision).
+ *   keys fit those anchors instead (capture-recalibrated revision); the
+ *   final segment decays to 0 so each disc dies where it wraps.
  *   minMaxState=1 means Gradient, so minGradient is unused (not randomized).
  * colour via fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
  *   OnNoteLoaded.startColor=BaseFillColor, sortingOrder=SortingOrder-2 |
@@ -709,7 +711,7 @@ function holdPulseClip(_long: boolean): SkinClip {
   const layers: Slice[] = [0, 1, 2, 3].map((i) => {
     const p = i === 0 ? {} : { offset: i / 4 }
     tracks[`pulse${i}`] = keys([key(0, 0), key(1, 1.7)], p)
-    tracks[`pulseO${i}`] = keys([key(0, 0.5), key(0.6, 0.4), key(1, 0.12)], p)
+    tracks[`pulseO${i}`] = keys([key(0, 0.55), key(0.5, 0.4), key(1, 0)], p)
     return {
       type: 'circle',
       r: mul(R, T(`pulse${i}`)),
@@ -720,7 +722,7 @@ function holdPulseClip(_long: boolean): SkinClip {
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
-    note: 'Capture-calibrated holdFx approximation: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head and stacking into the layered while-held glow (opacity 0.5 → 0.4 → 0.12, capture-measured). Seamless.',
+    note: 'Capture-calibrated holdFx ripple: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head while fading to 0 — stacking into the layered while-held glow, and the phase wrap stays invisible. Seamless.',
     tracks,
     layers,
   }

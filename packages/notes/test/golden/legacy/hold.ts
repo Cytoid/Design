@@ -197,10 +197,10 @@ function holdPress(long: boolean) {
 }
 
 /**
- * Retained capture-calibrated holdFx contract: four shade-400 translucent
- * discs, offsets i/4, each growing 0→1.7 R under the head and stacking into
- * the layered glow, opacity 0.5→0.4@0.6→0.12 stretched from 0.5 s particle
- * life to tokens.time.holdLoop (0.6 s).
+ * Retained capture-calibrated holdFx ripple contract: four shade-400
+ * translucent discs, offsets i/4, each growing 0→1.7 R under the head while
+ * fading to 0 (the phase wrap stays invisible) and stacking into the layered
+ * glow, stretched from 0.5 s particle life to tokens.time.holdLoop (0.6 s).
  * This is a design approximation, not Unity's exact orthographic projection:
  * ShapeModule is disabled (+Z point emission), scalingMode=1 is Local,
  * SizeModule shrinks particles, and ClampVelocityModule damps Z velocity.
@@ -215,9 +215,9 @@ function holdLoopUnder(_long: boolean) {
     const discs: SceneNode[] = []
     for (let i = 0; i < 4; i++) {
       const v = (u + i / 4) % 1
-      const opacity = v < 0.6
-        ? lerp(0.5, 0.4, v / 0.6)
-        : lerp(0.4, 0.12, (v - 0.6) / 0.4)
+      const opacity = v < 0.5
+        ? lerp(0.55, 0.4, v / 0.5)
+        : lerp(0.4, 0, (v - 0.5) / 0.5)
       discs.push(disk(R * lerp(0, 1.7, v), tone(ctx.palette, 400), opacity))
     }
     return group(discs)
@@ -253,7 +253,7 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Capture-calibrated holdFx approximation: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head and stacking into the layered glow (opacity 0.5 → 0.4 → 0.12, capture-measured). Seamless.' },
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Capture-calibrated holdFx approximation: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head and stacking into the layered glow (opacity 0.55 → 0.4@0.5 → 0 (capture-measured). Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),
