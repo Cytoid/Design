@@ -1,6 +1,6 @@
 /**
  * Engine-side pure helpers shared by the live renderer, the player and the
- * legacy golden oracle (test/golden/legacy). The note draw code itself is
+ * independent drawing reference (test/golden/reference). The note draw code itself is
  * data-driven now (see `../skin`) — these survive because consumers outside
  * the skin still call them.
  */

@@ -8,7 +8,7 @@ import type { NoteKind } from '../src'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import { createContext, tokens, toSVGMarkup } from '../src'
-import { compileSkin } from '../src/skin/interpret'
+import { compileSkin } from '../src/skin/compile'
 import { parseSkin } from '../src/skin/schema'
 import { buildFlatSkin } from './gen-skin'
 

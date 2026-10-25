@@ -1,4 +1,4 @@
-import type { Grade, Palette, Timing } from '@cytoid/notes'
+import type { Grade, NoteSkin, Palette, Timing } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { Clock } from './clock'
 import type { JudgeMode } from './judgement'
@@ -19,6 +19,8 @@ import { layoutBoard, layoutPlayer, NOTE_HEIGHT_RATIO } from './layout'
 import { PlayStage } from './stage'
 
 export interface PlayerOptions {
+  /** Compiled custom skin, also replaceable through updateOptions. */
+  skin?: NoteSkin
   palette: Palette
   scale: number
   judgement: boolean
@@ -56,6 +58,7 @@ export class Player {
   private get stageOptions(): StageOptions {
     return {
       palette: this.options.palette,
+      skin: this.options.skin,
       scale: this.options.scale,
       judgement: this.options.judgement,
       timing: this.options.timing,

@@ -34,3 +34,7 @@ pnpm lint        # check
 pnpm lint:fix    # auto-fix / format
 pnpm typecheck
 ```
+
+## Skin format
+
+The default note skin uses the frame → animation → slot format. See the [format guide](docs/skin.md) and [example skin](docs/skin.example.json). Regenerate it with `pnpm --filter @cytoid/notes gen-skin`.

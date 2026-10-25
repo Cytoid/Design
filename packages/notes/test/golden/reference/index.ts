@@ -1,11 +1,4 @@
-/**
- * The legacy imperative designs — the golden oracle.
- *
- * This is the pre-skin draw code, kept verbatim (imports repointed into src
- * after the truth-source switch). `test/skin.test.ts` pins the compiled skin's
- * SceneNode trees to these, byte for byte; the C# interpreter inherits the
- * same contract.
- */
+/** Independent imperative drawing reference used only for visual regression tests. */
 import type { NoteDesign } from '../../../src/notes/types'
 import type { NoteKind } from '../../../src/tokens'
 import { click, clickDragHead } from './click'

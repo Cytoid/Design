@@ -76,6 +76,9 @@ export interface NoteDesign {
   }
 }
 
+/** A compiled skin, suitable for renderers, players and baking. */
+export type NoteSkin = Record<NoteKind, NoteDesign>
+
 /** Live state of a note for the composed vector renderer. */
 export type NoteState
   = | { phase: 'enter', p: number }

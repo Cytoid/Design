@@ -1,12 +1,12 @@
 /**
- * Context anchors — the named geometry constants a skin's value expressions
- * reference (`{ anchor: 'innerHalf' }`). This table is the exact contract the
+ * Geometry and time inputs — the named geometry constants a skin's value expressions
+ * reference (`{ input: 'innerHalf' }`). This table is the exact contract the
  * C# interpreter's geometry provider must reproduce: everything derives from
  * the `DrawContext` alone, per draw call.
  *
  * Names mirror the imperative designs' locals (`R`, `W`, `inner`…). Kind
  * blocks add the constants only that family uses (the hold's approach-
- * dependent bracket landing time is a *time* anchor — see `landP`).
+ * dependent bracket landing time is a time input — see `holdLanding`).
  */
 import type { DrawContext } from '../notes/types'
 import { tokens } from '../tokens'
@@ -19,14 +19,14 @@ function ringWidth(ctx: DrawContext): number {
 /** The hold brackets land `settle` seconds (≈ 4 frames @ 60 fps) before the hit — real time. */
 const BRACKET_SETTLE = 4 / 60
 
-export type AnchorTable = Record<string, number>
+export type InputTable = Record<string, number>
 
-export function resolveAnchors(ctx: DrawContext): AnchorTable {
+export function resolveInputs(ctx: DrawContext): InputTable {
   const { unit, size, heading, approach } = ctx
   const R = size / 2
   const W = ringWidth(ctx)
   const hair = unit * tokens.stroke.hair
-  const a: AnchorTable = {
+  const a: InputTable = {
     unit,
     size,
     heading,
@@ -45,7 +45,7 @@ export function resolveAnchors(ctx: DrawContext): AnchorTable {
       // BRACKET_TIMING / holdSize / holdEnter / holdPress / holdLoop constants
       a.bracketR = R * 1.2
       a.bracketW = hair * 2.6
-      a.landP = 1 - Math.min(0.2, BRACKET_SETTLE / Math.max(1e-3, approach))
+      a.holdLanding = 1 - Math.min(0.2, BRACKET_SETTLE / Math.max(1e-3, approach))
       a.glyphW = hair * 1.6
       a.coreR = R * 0.6
       a.progressR = R * 1.34

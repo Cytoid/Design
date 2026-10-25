@@ -32,10 +32,11 @@
   ],
   "scripts": {
     "build": "obuild",
-    "bake": "tsx scripts/bake.ts",
+    "bake": "node --import tsx scripts/bake.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "gen-skin": "node --import tsx scripts/gen-skin.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

@@ -11,6 +11,7 @@ import { readFile, rm } from 'node:fs/promises'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
 import { bake } from '../src/bake'
+import { loadSkin } from '../src/skin'
 
 const { values } = parseArgs({
   options: {
@@ -21,6 +22,7 @@ const { values } = parseArgs({
     'dirs': { type: 'string' },
     'hue-shift': { type: 'string' },
     'palette': { type: 'string' },
+    'skin': { type: 'string' },
     'no-frames': { type: 'boolean', default: false },
     'cylheim': { type: 'boolean', default: false },
     'clean': { type: 'boolean', default: true },
@@ -32,6 +34,8 @@ if (values.palette)
   palette = JSON.parse(await readFile(values.palette, 'utf8'))
 if (values['hue-shift'])
   palette.hueShift = Number(values['hue-shift'])
+
+const skin = values.skin ? loadSkin(JSON.parse(await readFile(values.skin, 'utf8'))) : undefined
 
 if (values.clean)
   await rm(values.out!, { recursive: true, force: true })
@@ -45,6 +49,7 @@ await bake({
   kinds: values.kinds?.split(',') as NoteKind[] | undefined,
   directions: values.dirs?.split(',') as ('up' | 'down')[] | undefined,
   palette,
+  skin,
   frames: !values['no-frames'],
   cylheim: values.cylheim,
   onProgress: (m) => {

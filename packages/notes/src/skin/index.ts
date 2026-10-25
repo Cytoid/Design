@@ -1,22 +1,36 @@
-import type { NoteDesign } from '../notes/types'
-import type { NoteKind } from '../tokens'
+import type { NoteSkin } from '../notes/types'
+import { compileSkin } from './compile'
 import flatSkinJson from './flat.skin.json'
-import { compileSkin } from './interpret'
 import { parseSkin } from './schema'
 
-export * from './anchors'
-export * from './interpret'
-/**
- * Skin module — the data-driven note design format (v1) and its TS reference
- * interpreter. The C# side ports `interpret.ts` + `anchors.ts` and validates
- * against this same JSON via the golden tests.
- */
-export * from './schema'
+export { compileAnimation, compileSkin } from './compile'
+export { resolveInputs } from './inputs'
+export { INPUTS, parseSkin, skinSchema } from './schema'
+export type {
+  Skin,
+  Animation as SkinAnimation,
+  Color as SkinColor,
+  Ease as SkinEase,
+  Frame as SkinFrame,
+  Gate as SkinGate,
+  Input as SkinInput,
+  Layer as SkinLayer,
+  SkinMeta,
+  Properties as SkinProperties,
+  Slot as SkinSlot,
+  Time as SkinTime,
+  Track as SkinTrack,
+  Value as SkinValue,
+} from './schema'
 
-/** The shipped skin document, validated at import time. */
+/** The shipped frame → animation → slot document. */
 export const flatSkin = parseSkin(flatSkinJson)
 
-/** The shipped flat skin, compiled to drop-in designs. */
-export function loadFlatSkin(): Record<NoteKind, NoteDesign> {
+export function loadFlatSkin(): NoteSkin {
   return compileSkin(flatSkin)
+}
+
+/** Incomplete kinds inherit an entire fallback design. Invalid documents throw. */
+export function loadSkin(json: unknown, fallback: NoteSkin = loadFlatSkin()): NoteSkin {
+  return compileSkin(json, fallback)
 }

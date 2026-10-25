@@ -15,7 +15,7 @@
 | stroke shade 400，无 fill | `Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:85` startColor=BaseFillColor；`:88` sortingOrder=SortingOrder−2 | **调色板语义映射**；loopUnder 对应在头部下方。材质纹理和混合、外部 alpha 乘数不等同于纯 stroke opacity |
 | mode loop，duration=tokens.time.holdLoop（当前 1 s，视觉实验；C# 采集值为 0.6 s） | `Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:106` HoldLoop=0.6；prefab startLifetime=0.5 | 原为**设计时间拉伸 ×1.2**（0.6 s vs 0.125 s 发射间隔）；现周期为设计侧实验值，不再是 C# 常量的映射 |
 
-R 定义为未按压、未动态缩放的设计头半径（ctx.size/2），不是直径。实现见 `scripts/gen-skin.ts:holdPulseClip` 与 `test/golden/legacy/hold.ts:holdLoopUnder`；字面量契约见 `test/skin.test.ts` 的 `holdFx sync contract`（同时检查 hold / long-hold）。
+R 定义为未按压、未动态缩放的设计头半径（ctx.size/2），不是直径。实现见 `scripts/gen-skin.ts:holdPulseClip` 与 `test/golden/reference/hold.ts:holdLoopUnder`；字面量契约见 `test/skin.test.ts` 的 `holdFx sync contract`（同时检查 hold / long-hold）。
 
 ## Unity 语义验证与修正
 

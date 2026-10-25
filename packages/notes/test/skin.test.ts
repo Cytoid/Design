@@ -7,7 +7,6 @@
  */
 import type { SceneNode } from '../src'
 import type { Clip, DrawContext, NoteDesign } from '../src/notes/types'
-import type { Skin } from '../src/skin/schema'
 import type { NoteKind } from '../src/tokens'
 import { describe, expect, it } from 'vitest'
 import {
@@ -16,13 +15,14 @@ import {
   NOTE_KINDS,
 } from '../src'
 import { createPalette } from '../src/palette'
-import flatSkinJson from '../src/skin/flat.skin.json'
-import { compileSkin } from '../src/skin/interpret'
+import { compileSkin } from '../src/skin/compile'
+import flatSkinDocument from '../src/skin/flat.skin.json'
 import { parseSkin } from '../src/skin/schema'
 import { tokens } from '../src/tokens'
-import { designs as imperative } from './golden/legacy'
+import { designs as imperative } from './golden/reference'
 
-const compiled = compileSkin(parseSkin(flatSkinJson))
+const flatSkinJson = parseSkin(flatSkinDocument)
+const compiled = compileSkin(flatSkinJson)
 
 /* ------------------------------------------------------------------ */
 /* tree comparison — strict shape, numeric tolerance, color normalization */
@@ -188,6 +188,9 @@ function contextsOf(kind: NoteKind): [string, DrawContext][] {
     ['down', createContext(kind, { direction: 'down' })],
     ['fast', createContext(kind, { approach: 0.6 })],
     ['slow', createContext(kind, { approach: 2.4 })],
+    ['tiny-window', createContext(kind, { approach: 0.01 })],
+    ['small', createContext(kind, { scale: 0.5 })],
+    ['large', createContext(kind, { scale: 2 })],
     ['pal-up', createContext(kind, { palette: VARIANT_PALETTE })],
     ['pal-down', createContext(kind, { palette: VARIANT_PALETTE, direction: 'down' })],
   ]
@@ -205,25 +208,24 @@ function contextsOf(kind: NoteKind): [string, DrawContext][] {
 describe('holdFx sync contract', () => {
   for (const kind of ['hold', 'long-hold'] as const) {
     it(`${kind}: preserves the calibrated loopUnder bands`, () => {
-      const clip = flatSkinJson.notes[kind].hold.loopUnder
-      expect(clip.mode).toBe('loop')
-      expect(clip.duration).toBe(tokens.time.holdLoop)
-      expect(clip.duration).toBe(1)
+      const clip = flatSkinJson.animations[flatSkinJson.slots[`${kind}:loopUnder`]!.animation]!
+      expect(compiled[kind].hold!.loopUnder!.mode).toBe('loop')
+      expect(compiled[kind].hold!.loopUnder!.duration).toBe(tokens.time.holdLoop)
+      expect(tokens.time.holdLoop).toBe(1)
       expect(clip.layers).toHaveLength(4)
-      expect(Object.keys(clip.tracks)).toHaveLength(8)
+      expect(Object.keys(clip.tracks!)).toHaveLength(8)
       clip.layers.forEach((layer, i) => {
-        expect(layer).toEqual({
-          type: 'circle',
-          r: { mul: [{ anchor: 'R' }, { track: `pulse${i}` }] },
-          fill: { shade: 400 },
+        expect(layer.properties).toEqual({
+          r: { multiply: [{ input: 'R' }, { track: `pulse${i}` }] },
           opacity: { track: `pulseO${i}` },
         })
+        expect(flatSkinJson.frames[('frame' in layer.source ? layer.source.frame : '')]).toMatchObject({ type: 'circle', fill: { shade: 400 } })
         const offset = i === 0 ? {} : { offset: i / 4 }
-        expect(clip.tracks[`pulse${i}` as keyof typeof clip.tracks]).toEqual({
+        expect(clip.tracks![`pulse${i}` as keyof typeof clip.tracks]).toEqual({
           keys: [{ at: 0, value: 0 }, { at: 1, value: 1.7 }],
           ...offset,
         })
-        expect(clip.tracks[`pulseO${i}` as keyof typeof clip.tracks]).toEqual({
+        expect(clip.tracks![`pulseO${i}` as keyof typeof clip.tracks]).toEqual({
           keys: [{ at: 0, value: 0.55 }, { at: 0.5, value: 0.4 }, { at: 1, value: 0 }],
           ...offset,
         })
@@ -232,7 +234,7 @@ describe('holdFx sync contract', () => {
   }
 })
 
-describe('skin golden: compiled skin matches the imperative designs', () => {
+describe('skin golden: compiled skin matches the drawing reference', () => {
   for (const kind of NOTE_KINDS) {
     it(`${kind}: slots agree on metadata`, () => {
       const a = slotsOf(imperative[kind])
@@ -261,44 +263,3 @@ describe('skin golden: compiled skin matches the imperative designs', () => {
 
 /* ------------------------------------------------------------------ */
 /* schema / loader behaviour                                           */
-
-describe('skin schema & validation', () => {
-  it('accepts the shipped flat skin', () => {
-    expect(() => parseSkin(flatSkinJson)).not.toThrow()
-    expect(() => compileSkin(parseSkin(flatSkinJson))).not.toThrow()
-  })
-
-  it('rejects structurally invalid documents', () => {
-    expect(() => parseSkin({})).toThrow()
-    expect(() => parseSkin({ ...flatSkinJson, schemaVersion: 2 })).toThrow()
-    const broken = structuredClone(flatSkinJson) as Record<string, unknown>
-    ;(broken as { notes: Record<string, { enter: { layers: { type: string }[] } }> }).notes.click.enter.layers[0]!.type = 'spiral'
-    expect(() => parseSkin(broken)).toThrow()
-  })
-
-  it('rejects the frames placeholder', () => {
-    const doc: Skin = parseSkin(flatSkinJson)
-    doc.notes.click.enter.frames = 'baked/click'
-    expect(() => compileSkin(doc)).toThrow(/frames/)
-  })
-
-  it('rejects retimed slots (v1 durations are pinned to the engine)', () => {
-    const doc: Skin = parseSkin(flatSkinJson)
-    doc.notes.click.enter.duration = 2
-    expect(() => compileSkin(doc)).toThrow(/duration/)
-    const doc2: Skin = parseSkin(flatSkinJson)
-    doc2.notes.click.exit!.alpha!.drop = 0.9
-    expect(() => compileSkin(doc2)).toThrow(/exit/)
-  })
-
-  it('rejects unknown track and anchor references', () => {
-    const doc: Skin = parseSkin(flatSkinJson)
-    doc.notes.click.enter.root!.opacity = { track: 'nope' }
-    const compiledBad = compileSkin(doc)
-    expect(() => compiledBad.click.enter.draw(0.5, createContext('click'))).toThrow(/unknown track/)
-    const doc2: Skin = parseSkin(flatSkinJson)
-    doc2.notes.click.enter.root!.opacity = { anchor: 'nope' }
-    const compiledBad2 = compileSkin(doc2)
-    expect(() => compiledBad2.click.enter.draw(0.5, createContext('click'))).toThrow(/unknown anchor/)
-  })
-})

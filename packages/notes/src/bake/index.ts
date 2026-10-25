@@ -4,7 +4,7 @@ import type { Buffer } from 'node:buffer'
  * resvg into PNG sequences + per-clip sprite sheets + a JSON manifest.
  */
 import type { SceneNode } from '../core/scene'
-import type { Clip, DrawContext } from '../notes/types'
+import type { Clip, DrawContext, NoteSkin } from '../notes/types'
 import type { Palette, PaletteOptions } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -15,10 +15,12 @@ import { clipsOf, createContext, designs, dragLine, holdBody, holdDashPeriod, ju
 import { createPalette, exportPalette } from '../palette'
 import { toSVGMarkup } from '../render/svg'
 import { GRADES, NOTE_KINDS, tokens } from '../tokens'
-import { CYLHEIM_PX_PER_UNIT, CYLHEIM_TARGETS, cylheimSamples } from './cylheim'
+import { createCylheimTargets, CYLHEIM_PX_PER_UNIT, cylheimSamples } from './cylheim'
 import { sampleTimes } from './sample'
 
 export interface BakeOptions {
+  /** Compiled skin for both native sheets and Cylheim output. */
+  skin?: NoteSkin
   outDir: string
   /** frames per second (Cylheim plays 30) */
   fps?: number
@@ -154,6 +156,7 @@ async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (nam
 }
 
 export async function bake(options: BakeOptions): Promise<FrameManifest> {
+  const skin = options.skin ?? designs
   const fps = options.fps ?? 30
   const scale = options.scale ?? 1
   const kinds = options.kinds ?? NOTE_KINDS
@@ -178,7 +181,7 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     for (const direction of directions) {
       const ctx = createContext(kind, { palette, direction, scale })
       const entry: Record<string, ClipManifest> = {}
-      for (const clip of clipsOf(designs[kind])) {
+      for (const clip of clipsOf(skin[kind])) {
         entry[clip.id] = await bakeClip(clip, ctx, options.outDir, `${kind}/${direction}/${clip.id}`, o)
         log(`${kind}/${direction}/${clip.id} (${entry[clip.id]!.frames}f)`)
       }
@@ -217,17 +220,17 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     log(`bodies/${direction}`)
   }
   if (options.cylheim) {
-    await bakeCylheim(options.outDir, palette, scale, log)
+    await bakeCylheim(options.outDir, palette, scale, log, skin)
   }
   await writeFile(join(options.outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
 }
 
 /** Cylheim-named compat export (`src/images/designer` drop-in names). */
-async function bakeCylheim(outDir: string, palette: Palette, scale: number, log: (m: string) => void) {
+async function bakeCylheim(outDir: string, palette: Palette, scale: number, log: (m: string) => void, skin: NoteSkin) {
   const dir = join(outDir, 'cylheim')
   await mkdir(dir, { recursive: true })
-  for (const t of CYLHEIM_TARGETS) {
+  for (const t of createCylheimTargets(skin)) {
     const ctx = createContext(t.kind, { palette, direction: t.direction ?? 'up', scale: scale * CYLHEIM_PX_PER_UNIT / (t.displayScale ?? 1) })
     const samples = cylheimSamples(t)
     const nodes = samples.map(s => t.draw(s.x, ctx))
@@ -237,5 +240,5 @@ async function bakeCylheim(outDir: string, palette: Palette, scale: number, log:
   }
 }
 
-export { CYLHEIM_PX_PER_UNIT, CYLHEIM_TARGETS, cylheimSamples } from './cylheim'
+export { createCylheimTargets, CYLHEIM_PX_PER_UNIT, CYLHEIM_TARGETS, cylheimSamples } from './cylheim'
 export * from './sample'

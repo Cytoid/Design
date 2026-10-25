@@ -1,7 +1,7 @@
 import type { SceneNode } from '../core/scene'
 import type { Palette } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
-import type { Clip, DrawContext, NoteDesign, NoteState } from './types'
+import type { Clip, DrawContext, NoteDesign, NoteSkin, NoteState } from './types'
 import { group } from '../core/scene'
 import { defaultPalette } from '../palette'
 import { loadFlatSkin } from '../skin'
@@ -11,10 +11,10 @@ import { exitAlpha } from './shared'
 import { renderTiming, showsTiming } from './timing'
 
 /**
- * The truth source: the shipped flat skin (a plain JSON document), validated
+ * The truth source: the shipped v2 flat skin (frames → animations → slots), validated
  * and compiled into drop-in designs by the TS reference interpreter. The
  * imperative draw code this table used to hold lives on as the golden oracle
- * in `test/golden/legacy`, which pins the interpreter to byte-identical trees.
+ * in `test/golden/reference`, which pins the interpreter to byte-identical trees.
  */
 export const designs: Record<NoteKind, NoteDesign> = loadFlatSkin()
 
@@ -70,6 +70,8 @@ export function clipsOf(design: NoteDesign): Clip[] {
 }
 
 export interface RenderOptions {
+  /** Compiled skin; defaults to the shipped flat skin. */
+  skin?: NoteSkin
   /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
   judgement?: boolean
   /**
@@ -91,7 +93,7 @@ export function renderJudgement(grade: Grade, t: number, ctx: DrawContext): Scen
  * (Bodies / drag lines are separate — see `bodies.ts`.)
  */
 export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = createContext(kind), options: RenderOptions = {}): SceneNode {
-  const d = designs[kind]
+  const d = (options.skin ?? designs)[kind]
   const text = options.judgement ?? true
   switch (state.phase) {
     case 'enter':
@@ -155,7 +157,7 @@ function missBody(d: NoteDesign, state: Extract<NoteState, { phase: 'miss' }>, c
  * holding; on the exit (and a miss riding it) it fades on its own curve —
  * gone in half the head's window. 0 = don't draw the body.
  */
-export function holdBodyAlpha(kind: NoteKind, state: NoteState): number {
+export function holdBodyAlpha(kind: NoteKind, state: NoteState, skin: NoteSkin = designs): number {
   switch (state.phase) {
     case 'enter':
     case 'holding':
@@ -163,7 +165,7 @@ export function holdBodyAlpha(kind: NoteKind, state: NoteState): number {
     case 'exit':
       return exitAlpha(state.t, tokens.time.exit.holdBody)
     case 'miss': {
-      const since = missExitTime(designs[kind], state)
+      const since = missExitTime(skin[kind], state)
       return since == null ? 0 : exitAlpha(since, tokens.time.exit.holdBody)
     }
     default:

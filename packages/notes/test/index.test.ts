@@ -20,8 +20,8 @@ import {
   tone,
   toSVG,
 } from '../src'
-import { clickSize, ringWidth } from './golden/legacy/click'
-import { dragChildSize, dragHeadSize } from './golden/legacy/drag'
+import { clickSize, ringWidth } from './golden/reference/click'
+import { dragChildSize, dragHeadSize } from './golden/reference/drag'
 
 describe('color', () => {
   it('round-trips hex through oklch', () => {
