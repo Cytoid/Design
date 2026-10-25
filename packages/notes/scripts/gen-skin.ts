@@ -661,22 +661,24 @@ function holdPressClip(long: boolean): SkinClip {
  * Game paths below are relative to Assets/; R = unpressed design head radius.
  *
  * Skin constant | Unity source | Mapping status
- * 4 circles, offsets i/4 | StaticResources/Prefabs/Game/HoldFx.prefab:
+ * 4 filled circles, offsets i/4 | StaticResources/Prefabs/Game/HoldFx.prefab:
  *   InitialModule.startLifetime=0.5, EmissionModule.rateOverTime=8 |
- *   8 × 0.5 = 4 live PARTICLES; replacing them with full bands is a design choice.
- * r keys 0→1.7 R | InitialModule.startSpeed=5, lifetime=0.5 |
+ *   8 × 0.5 = 4 live PARTICLES; rendering them as stacked translucent discs
+ *   matches the gameplay reference (several discs layered, per design review).
+ * disc radius keys 0→1.7 R | InitialModule.startSpeed=5, lifetime=0.5 |
  *   2.5 is nominal unscaled 3D travel, NOT projected radial travel;
  *   1.7 is a historical screenshot calibration, not code-derived.
- * strokeWidth R/3 | InitialModule.startSize=1; NoteFillMat/NoteFill.png |
- *   historical screenshot calibration; startSize is billboard extent, not radius.
- *   Local scaling and enabled SizeModule (1→0.5988693) prevent a fixed-width mapping.
- * alpha 0.7→0.6@0.6→0.33 | ColorModule.maxGradient is 0.39→0.196@1/3→0
+ * fill shade 400, no stroke | InitialModule.startSize=1;
+ *   NoteFillMat/NoteFill.png | screenshot calibration; the discs are solid
+ *   fill-colour circles stacked under the head (the SizeModule shrink and
+ *   Local scaling prevent a fixed-width band mapping).
+ * opacity 0.5→0.4@0.6→0.12 | ColorModule.maxGradient is 0.39→0.196@1/3→0
  *   (rounded from 0.39215687/0.19607843@21781/65535), but that is the
- *   single-particle alpha: the gameplay capture measures the layered on-screen
- *   bands at ≈0.77 near the head and ≈0.33 at the sweep's end, so the skin
- *   keys fit those anchors instead (capture-recalibrated revision)
+ *   single-particle alpha: the gameplay capture measures the stacked on-screen
+ *   layers at ≈0.7 near the head and ≈0.12-0.33 at the sweep's end, so the
+ *   keys fit those anchors instead (capture-recalibrated revision).
  *   minMaxState=1 means Gradient, so minGradient is unused (not randomized).
- * stroke shade 400, no fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
+ * colour via fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
  *   OnNoteLoaded.startColor=BaseFillColor, sortingOrder=SortingOrder-2 |
  *   palette translation and under-head placement, not identical material blending.
  * loop, duration tokens.time.holdLoop=0.6 | prefab lifetime=0.5;
@@ -695,10 +697,11 @@ function holdPressClip(long: boolean): SkinClip {
  * Camera source is Scenes/Game.unity:12421 (ortho=5), wired at :2490.
  * GameConfig.cs:67-74 + FlatNoteRendererBase.cs:63,89-95 give default unpressed
  * head diameter ≈2.234555 world units, not 3; see the audit for settings/overrides.
- * Revision note: the opacity keys were capture-recalibrated (0.39→0.196→0 is
- * the per-particle gradient; on-screen bands measure brighter) — the sweep
- * 1.7 R, width R/3, wave count and phase offsets are unchanged. A faithful
- * particle-disc translation (centre spawn, +Z travel clamped, shrink curve)
+ * Revision note (design review): the while-held layers are stacked growing
+ * translucent discs — not ring bands. Opacity keys were capture-recalibrated
+ * (0.39→0.196→0 is the per-particle gradient; the stacked layers measure
+ * brighter). Sweep 1.7 R and quarter-period offsets are unchanged. A faithful
+ * particle translation (centre spawn, +Z travel clamped, shrink curve 1→0.6)
  * remains a separately reviewed visual revision.
  */
 function holdPulseClip(_long: boolean): SkinClip {
@@ -706,19 +709,18 @@ function holdPulseClip(_long: boolean): SkinClip {
   const layers: Slice[] = [0, 1, 2, 3].map((i) => {
     const p = i === 0 ? {} : { offset: i / 4 }
     tracks[`pulse${i}`] = keys([key(0, 0), key(1, 1.7)], p)
-    tracks[`pulseO${i}`] = keys([key(0, 0.7), key(0.6, 0.6), key(1, 0.33)], p)
+    tracks[`pulseO${i}`] = keys([key(0, 0.5), key(0.6, 0.4), key(1, 0.12)], p)
     return {
       type: 'circle',
       r: mul(R, T(`pulse${i}`)),
-      stroke: { shade: 400 },
-      strokeWidth: mul(R, 1 / 3),
+      fill: { shade: 400 },
       opacity: T(`pulseO${i}`),
     } satisfies Slice
   })
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
-    note: 'Capture-calibrated holdFx approximation: four shade-400 ring bands, quarter-period offsets, radius 0→1.7 R, width R/3, opacity 0.7 → 0.6@0.6 → 0.33 (capture-measured; the raw particle gradient undershoots the layered brightness). Seamless.',
+    note: 'Capture-calibrated holdFx approximation: four shade-400 translucent discs, quarter-period offsets, each growing 0→1.7 R under the head and stacking into the layered while-held glow (opacity 0.5 → 0.4 → 0.12, capture-measured). Seamless.',
     tracks,
     layers,
   }

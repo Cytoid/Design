@@ -215,8 +215,7 @@ describe('holdFx sync contract', () => {
         expect(layer).toEqual({
           type: 'circle',
           r: { mul: [{ anchor: 'R' }, { track: `pulse${i}` }] },
-          stroke: { shade: 400 },
-          strokeWidth: { mul: [{ anchor: 'R' }, 1 / 3] },
+          fill: { shade: 400 },
           opacity: { track: `pulseO${i}` },
         })
         const offset = i === 0 ? {} : { offset: i / 4 }
@@ -225,7 +224,7 @@ describe('holdFx sync contract', () => {
           ...offset,
         })
         expect(clip.tracks[`pulseO${i}` as keyof typeof clip.tracks]).toEqual({
-          keys: [{ at: 0, value: 0.7 }, { at: 0.6, value: 0.6 }, { at: 1, value: 0.33 }],
+          keys: [{ at: 0, value: 0.5 }, { at: 0.6, value: 0.4 }, { at: 1, value: 0.12 }],
           ...offset,
         })
       })
