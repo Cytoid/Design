@@ -239,7 +239,10 @@ export interface SkinClip {
 
 export interface SkinHoldSlots {
   press: SkinClip
-  loop: SkinClip
+  /** looping layer drawn under the head (e.g. ripples) */
+  loopUnder?: SkinClip
+  /** looping layer drawn over the head (e.g. socket ping) */
+  loopOver?: SkinClip
   progress: SkinClip
 }
 
@@ -399,7 +402,7 @@ const skinNote: z.ZodType<SkinNote> = z.object({
   }),
   miss: skinClip.optional(),
   exit: skinClip.optional(),
-  hold: z.object({ press: skinClip, loop: skinClip, progress: skinClip }).optional(),
+  hold: z.object({ press: skinClip, loopUnder: skinClip.optional(), loopOver: skinClip.optional(), progress: skinClip }).optional(),
 })
 
 export const skinSchema: z.ZodType<Skin> = z.object({

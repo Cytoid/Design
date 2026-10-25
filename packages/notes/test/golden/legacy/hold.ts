@@ -196,15 +196,33 @@ function holdPress(long: boolean) {
 }
 
 /**
- * While held:
- *  - inside: the dark socket itself pings (Tailwind `animate-ping`): a copy of
- *    the core disc scales 1 → 2 and fades out over the first 75 % of each
- *    half period — the same rate as the outer ripples — ease ≈
- *    cubic-bezier(0, 0, 0.2, 1). The glyph stays still on top.
- *  - outside: two thin ripples, half a period apart, beyond the progress ring.
+ * While held, the looping decorations come as two independent layers so a
+ * skin can sandwich the body freely:
+ *  - under (`holdLoopUnder`): two thin ripples, half a period apart, beyond
+ *    the progress ring — drawn beneath the head.
+ *  - over (`holdLoopOver`): the dark socket itself pings (Tailwind
+ *    `animate-ping`): a copy of the core disc scales 1 → 2 and fades out over
+ *    the first 75 % of each half period — the same rate as the outer ripples —
+ *    ease ≈ cubic-bezier(0, 0, 0.2, 1). The glyph stays still on top. Drawn
+ *    above the head.
  * Both are seamless over `holdLoop`.
  */
-function holdLoop(long: boolean) {
+function holdLoopUnder(long: boolean) {
+  return (t: number, ctx: DrawContext): SceneNode => {
+    const R = ctx.size / 2
+    const hair = ctx.unit * tokens.stroke.hair
+    const P = tokens.time.holdLoop
+    const u = (((t % P) + P) % P) / P
+    const ripples: SceneNode[] = []
+    for (let i = 0; i < 2; i++) {
+      const v = (u + i / 2) % 1
+      ripples.push(ring(R * lerp(PROGRESS_R + 0.12, long ? 2.05 : 1.85, outCubic(v)), hair * lerp(2.4, 0.6, v), ctx.palette[300], (1 - v) ** 1.5 * 0.85))
+    }
+    return group(ripples)
+  }
+}
+
+function holdLoopOver(long: boolean) {
   return (t: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
     const hair = ctx.unit * tokens.stroke.hair
@@ -220,13 +238,8 @@ function holdLoop(long: boolean) {
     const ping = w < 0.75
       ? group([disk(coreR * lerp(1, 2, k), coreColour, 0.8 * (1 - k))], { clip: { type: 'circle', r: innerPressed } })
       : null
-    const glyph = glyphShape(long, R * PRESSED * GLYPH, ctx.unit * tokens.stroke.hair * 1.6 * PRESSED, ctx.palette.ring)
-    const ripples: SceneNode[] = []
-    for (let i = 0; i < 2; i++) {
-      const v = (u + i / 2) % 1
-      ripples.push(ring(R * lerp(PROGRESS_R + 0.12, long ? 2.05 : 1.85, outCubic(v)), hair * lerp(2.4, 0.6, v), ctx.palette[300], (1 - v) ** 1.5 * 0.85))
-    }
-    return group([...ripples, ping, glyph].filter(Boolean) as SceneNode[])
+    const glyph = glyphShape(long, R * PRESSED * GLYPH, hair * 1.6 * PRESSED, ctx.palette.ring)
+    return group([ping, glyph].filter(Boolean) as SceneNode[])
   }
 }
 
@@ -259,7 +272,8 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loop: { id: 'hold-loop', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoop(long), note: 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph; two outer ripples pulse. Drawn above the head. Seamless.' },
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.' },
+      loopOver: { id: 'hold-loop-over', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopOver(long), note: 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph. Drawn above the head. Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),

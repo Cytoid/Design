@@ -89,6 +89,6 @@ export const CYLHEIM_TARGETS: CylheimTarget[] = [
 
   { pattern: 'Note-Hold-Holding-Textures-Hold_Button_in-Hold_Button_in_{frame}.png', kind: 'hold', timeline: range(41, 49), sample: spread(tokens.time.holdPress), draw: designs.hold.hold!.press.draw, note: 'Cylheim loops this sequence; our press settles on its last frame.' },
   { pattern: 'Note-LongHold-Holding-Textures-LongHold_Button_in-LongHold_Button_in_{frame}.png', kind: 'long-hold', timeline: range(41, 57), sample: spread(tokens.time.holdPress), draw: designs['long-hold'].hold!.press.draw },
-  { pattern: 'Note-Hold-Holding-Textures-Hold_Fire-Hold_Fire_{frame}.png', kind: 'hold', timeline: range(0, 30), sample: (f, tl) => (tl.indexOf(f) / tl.length) * tokens.time.holdLoop, draw: designs.hold.hold!.loop.draw, note: 'Centre-anchored; Cylheim offsets fire by 83 px and uses additive blending — needs an adapter.' },
-  { pattern: 'Note-LongHold-Holding-Textures-LongHold_Fire-LongHold_Fire_{frame}.png', kind: 'long-hold', timeline: range(0, 30), sample: (f, tl) => (tl.indexOf(f) / tl.length) * tokens.time.holdLoop, draw: designs['long-hold'].hold!.loop.draw },
+  { pattern: 'Note-Hold-Holding-Textures-Hold_Fire-Hold_Fire_{frame}.png', kind: 'hold', timeline: range(0, 30), sample: (f, tl) => (tl.indexOf(f) / tl.length) * tokens.time.holdLoop, draw: designs.hold.hold!.loopOver!.draw, note: 'Centre-anchored; Cylheim offsets fire by 83 px and uses additive blending — needs an adapter. The loopUnder ripples bake separately.' },
+  { pattern: 'Note-LongHold-Holding-Textures-LongHold_Fire-LongHold_Fire_{frame}.png', kind: 'long-hold', timeline: range(0, 30), sample: (f, tl) => (tl.indexOf(f) / tl.length) * tokens.time.holdLoop, draw: designs['long-hold'].hold!.loopOver!.draw },
 ]

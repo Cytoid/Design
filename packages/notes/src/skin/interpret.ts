@@ -800,8 +800,13 @@ function validateKind(kind: string, note: SkinNote): void {
       throw new Error(`${kind}.exit: curve must be one of the engine exit curves (tokens.time.exit)`)
   }
   if (note.hold) {
+    if (!note.hold.loopUnder && !note.hold.loopOver)
+      throw new Error(`${kind}.hold: a hold needs at least one of loopUnder / loopOver`)
     expect(note.hold.press, tokens.time.holdPress, 'hold.press')
-    expect(note.hold.loop, tokens.time.holdLoop, 'hold.loop')
+    if (note.hold.loopUnder)
+      expect(note.hold.loopUnder, tokens.time.holdLoop, 'hold.loopUnder')
+    if (note.hold.loopOver)
+      expect(note.hold.loopOver, tokens.time.holdLoop, 'hold.loopOver')
     expect(note.hold.progress, 1, 'hold.progress')
   }
 }
@@ -847,7 +852,12 @@ function compileKind(kind: NoteKind, note: SkinNote): NoteDesign {
   if (note.hold) {
     design.hold = {
       press: toClip('hold-press', buildSlot(note.hold.press, compileClip(note.hold.press), null)),
-      loop: toClip('hold-loop', buildSlot(note.hold.loop, compileClip(note.hold.loop), null)),
+      ...(note.hold.loopUnder
+        ? { loopUnder: toClip('hold-loop-under', buildSlot(note.hold.loopUnder, compileClip(note.hold.loopUnder), null)) }
+        : {}),
+      ...(note.hold.loopOver
+        ? { loopOver: toClip('hold-loop-over', buildSlot(note.hold.loopOver, compileClip(note.hold.loopOver), null)) }
+        : {}),
       progress: toClip('hold-progress', buildSlot(note.hold.progress, compileClip(note.hold.progress), null)),
     }
   }

@@ -654,8 +654,12 @@ function holdPressClip(long: boolean): SkinClip {
   }
 }
 
-/** `hold.holdLoop` — socket ping inside + two outer ripples, seamless. */
-function holdLoopClip(long: boolean): SkinClip {
+/**
+ * `hold.holdLoop` split in two so a skin can sandwich the body freely:
+ * `loopUnder` carries the outer ripples (drawn beneath the head), `loopOver`
+ * the socket ping and glyph (drawn above it).
+ */
+function holdLoopUnderClip(long: boolean, note: string): SkinClip {
   const far = long ? 2.05 : 1.85
   const tracks: Record<string, Track> = {}
   const ripples: Slice[] = [0, 1].map((i) => {
@@ -671,8 +675,14 @@ function holdLoopClip(long: boolean): SkinClip {
       opacity: T(`rip${i}o`),
     } satisfies Slice
   })
-  tracks.ping = keys([key(0, 1), key(0.75, 2, 'outCubic')], { rate: 2 })
-  tracks.pingO = keys([key(0, 0.8), key(0.75, 0, 'outCubic')], { rate: 2 })
+  return { mode: 'loop', duration: tokens.time.holdLoop, note, tracks, layers: ripples }
+}
+
+function holdLoopOverClip(long: boolean, note: string): SkinClip {
+  const tracks: Record<string, Track> = {
+    ping: keys([key(0, 1), key(0.75, 2, 'outCubic')], { rate: 2 }),
+    pingO: keys([key(0, 0.8), key(0.75, 0, 'outCubic')], { rate: 2 }),
+  }
   const glyphR = A('loopGlyphR')
   const glyph: Slice = long
     ? { type: 'rect', x: mul(glyphR, -0.82), y: mul(glyphR, -0.82), w: mul(glyphR, 1.64), h: mul(glyphR, 1.64), stroke: { ring: 1 }, strokeWidth: A('loopGlyphW'), join: 'miter', opacity: 1 }
@@ -680,9 +690,9 @@ function holdLoopClip(long: boolean): SkinClip {
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
+    note,
     tracks,
     layers: [
-      ...ripples,
       {
         type: 'group',
         clip: { type: 'circle', r: A('innerPressed') },
@@ -922,7 +932,8 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(false),
-          loop: holdLoopClip(false),
+          loopUnder: holdLoopUnderClip(false, 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.'),
+          loopOver: holdLoopOverClip(false, 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph. Drawn above the head. Seamless.'),
           progress: holdProgressClip(),
         },
       },
@@ -933,7 +944,8 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(true),
-          loop: holdLoopClip(true),
+          loopUnder: holdLoopUnderClip(true, 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.'),
+          loopOver: holdLoopOverClip(true, 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still square glyph. Drawn above the head. Seamless.'),
           progress: holdProgressClip(),
         },
       },

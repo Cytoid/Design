@@ -52,7 +52,14 @@ export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawConte
 export function clipsOf(design: NoteDesign): Clip[] {
   return [
     design.enter,
-    ...(design.hold ? [design.hold.press, design.hold.loop, design.hold.progress] : []),
+    ...(design.hold
+      ? [
+          design.hold.press,
+          ...(design.hold.loopUnder ? [design.hold.loopUnder] : []),
+          ...(design.hold.loopOver ? [design.hold.loopOver] : []),
+          design.hold.progress,
+        ]
+      : []),
     design.clear.perfect,
     design.clear.great,
     design.clear.good,
@@ -92,12 +99,14 @@ export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = 
     case 'holding': {
       if (!d.hold)
         return d.enter.draw(1, ctx)
-      // layer order: head (press) → loop (inside the head) → progress ring
+      // layer order: looping layer under the body → head (press) → looping
+      // layer over it → progress ring — a skin sandwiches the body freely
       return group([
+        d.hold.loopUnder?.draw(state.t, ctx),
         d.hold.press.draw(state.t, ctx),
-        d.hold.loop.draw(state.t, ctx),
+        d.hold.loopOver?.draw(state.t, ctx),
         d.hold.progress.draw(state.progress, ctx),
-      ])
+      ].filter(Boolean) as SceneNode[])
     }
     case 'clear': {
       const fx = d.clear[state.grade].draw(state.t, ctx)

@@ -219,10 +219,11 @@ describe('designs', () => {
     expect(withText.length).toBeGreaterThan(without.length)
   })
 
-  it('hold loop is seamless', () => {
-    const clip = designs.hold.hold!.loop
+  it('hold looping layers are seamless', () => {
     const ctx = createContext('hold')
-    expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(clip.duration, ctx)))
+    for (const clip of [designs.hold.hold!.loopUnder!, designs.hold.hold!.loopOver!]) {
+      expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(clip.duration, ctx)))
+    }
   })
 })
 
