@@ -29,11 +29,12 @@
  * sine — same midpoint as the click's WAKE, twice as gentle) — a page cue,
  * not a gauge. No arrows: arrows would suggest dragging.
  *
- * Holding is split into independent layers (frame-friendly), composed as
- * press → loop → progress (bottom to top):
+ * While held the head just stays settled (press) under the progress ring —
+ * the early design's looping socket ping + ripples were skipped in the C#
+ * port (classic holdFx particles cover the while-held motion), and the skin
+ * aligns:
  *   press    (once, 0.2 s)   head sinks to 0.86 scale; the brackets clamp
  *                            onto the ring and merge into it (the "lock")
- *   loop     (loop, 0.6 s)   dark-socket ping inside + two outer ripples (seamless)
  *   progress (progress 0–1)  Cytoid-style progress ring: 800 track, 50 lead (4/3·p) + 500 fill (p)
  * The clear effect plays where the scanline is the moment the hold **ends**:
  * the consumer anchors the origin-centred clip at the note's end
@@ -195,54 +196,6 @@ function holdPress(long: boolean) {
   }
 }
 
-/**
- * While held, the looping decorations come as two independent layers so a
- * skin can sandwich the body freely:
- *  - under (`holdLoopUnder`): two thin ripples, half a period apart, beyond
- *    the progress ring — drawn beneath the head.
- *  - over (`holdLoopOver`): the dark socket itself pings (Tailwind
- *    `animate-ping`): a copy of the core disc scales 1 → 2 and fades out over
- *    the first 75 % of each half period — the same rate as the outer ripples —
- *    ease ≈ cubic-bezier(0, 0, 0.2, 1). The glyph stays still on top. Drawn
- *    above the head.
- * Both are seamless over `holdLoop`.
- */
-function holdLoopUnder(long: boolean) {
-  return (t: number, ctx: DrawContext): SceneNode => {
-    const R = ctx.size / 2
-    const hair = ctx.unit * tokens.stroke.hair
-    const P = tokens.time.holdLoop
-    const u = (((t % P) + P) % P) / P
-    const ripples: SceneNode[] = []
-    for (let i = 0; i < 2; i++) {
-      const v = (u + i / 2) % 1
-      ripples.push(ring(R * lerp(PROGRESS_R + 0.12, long ? 2.05 : 1.85, outCubic(v)), hair * lerp(2.4, 0.6, v), ctx.palette[300], (1 - v) ** 1.5 * 0.85))
-    }
-    return group(ripples)
-  }
-}
-
-function holdLoopOver(long: boolean) {
-  return (t: number, ctx: DrawContext): SceneNode => {
-    const R = ctx.size / 2
-    const hair = ctx.unit * tokens.stroke.hair
-    const P = tokens.time.holdLoop
-    const u = (((t % P) + P) % P) / P
-    // one ping per ripple: two per period, in phase with the outer ripples
-    const w = (u * 2) % 1
-    const k = outCubic(seg(w, 0, 0.75))
-    const coreR = R * PRESSED * CORE_R
-    const coreColour = tone(ctx.palette, HOLD_CORE)
-    // clipped to the head interior so the ping never dims the white ring
-    const innerPressed = (R - ringWidth(ctx)) * PRESSED
-    const ping = w < 0.75
-      ? group([disk(coreR * lerp(1, 2, k), coreColour, 0.8 * (1 - k))], { clip: { type: 'circle', r: innerPressed } })
-      : null
-    const glyph = glyphShape(long, R * PRESSED * GLYPH, hair * 1.6 * PRESSED, ctx.palette.ring)
-    return group([ping, glyph].filter(Boolean) as SceneNode[])
-  }
-}
-
 function holdProgress(_long: boolean) {
   return (p: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
@@ -272,8 +225,8 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Two outer ripples pulse, half a period apart — drawn under the head so the body can be sandwiched between looping layers. Seamless.' },
-      loopOver: { id: 'hold-loop-over', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopOver(long), note: 'The dark socket pings (Tailwind-style scale 1→2 + fade) under the still glyph. Drawn above the head. Seamless.' },
+      // no looping layers: the engine's holdFx particles carry the while-held
+      // motion (the C# port's phase-1 scope decision)
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),

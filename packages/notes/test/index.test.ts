@@ -218,13 +218,6 @@ describe('designs', () => {
     const without = toSVG(renderNote('click', { phase: 'clear', grade: 'perfect', t: 0.2 }, undefined, { judgement: false }))
     expect(withText.length).toBeGreaterThan(without.length)
   })
-
-  it('hold looping layers are seamless', () => {
-    const ctx = createContext('hold')
-    for (const clip of [designs.hold.hold!.loopUnder!, designs.hold.hold!.loopOver!]) {
-      expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(clip.duration, ctx)))
-    }
-  })
 })
 
 describe('sampling', () => {

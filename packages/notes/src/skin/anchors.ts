@@ -48,13 +48,8 @@ export function resolveAnchors(ctx: DrawContext): AnchorTable {
       a.landP = 1 - Math.min(0.2, BRACKET_SETTLE / Math.max(1e-3, approach))
       a.glyphW = hair * 1.6
       a.coreR = R * 0.6
-      a.innerPressed = (R - W) * 0.86
       a.progressR = R * 1.34
       a.progressW = unit * 0.083
-      // pressed-scale constants used by the loop clip (ping + glyph)
-      a.pingR = R * 0.86 * 0.6
-      a.loopGlyphR = R * 0.86 * 0.2
-      a.loopGlyphW = hair * 1.6 * 0.86
       break
     }
     case 'flick': {

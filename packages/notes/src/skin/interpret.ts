@@ -800,8 +800,6 @@ function validateKind(kind: string, note: SkinNote): void {
       throw new Error(`${kind}.exit: curve must be one of the engine exit curves (tokens.time.exit)`)
   }
   if (note.hold) {
-    if (!note.hold.loopUnder && !note.hold.loopOver)
-      throw new Error(`${kind}.hold: a hold needs at least one of loopUnder / loopOver`)
     expect(note.hold.press, tokens.time.holdPress, 'hold.press')
     if (note.hold.loopUnder)
       expect(note.hold.loopUnder, tokens.time.holdLoop, 'hold.loopUnder')
