@@ -1,7 +1,7 @@
 import type { SceneNode } from '../core/scene'
 import type { Grade, NoteKind } from '../tokens'
-import type { TimedGrade, Timing } from './timing'
-import type { Clip, DrawContext, NoteDesign, NoteSkin, NoteState } from './types'
+import type { Timing } from './timing'
+import type { Clip, DrawContext, NoteDesign, NoteSkin, NoteState, RenderOptions } from './types'
 import { group } from '../core/scene'
 import { showsTiming } from './timing'
 
@@ -38,13 +38,15 @@ export function missExitTime(d: NoteDesign, state: Extract<NoteState, { phase: '
 export * from './timing'
 export type * from './types'
 
-/** Optional visual overlays; no default font or style is selected by notes. */
-export interface NoteLayers {
-  judgement?: (grade: Grade, time: number, context: DrawContext) => SceneNode
-  timing?: (timing: Timing, grade: TimedGrade, time: number, context: DrawContext) => SceneNode
+/** Select exactly one feedback animation from the user's display settings. */
+export function renderFeedback(grade: Grade, timing: Timing | undefined, t: number, ctx: DrawContext, skin: NoteSkin, options: Pick<RenderOptions, 'judgement' | 'timing'> = {}): SceneNode | null {
+  const text = options.judgement ?? true
+  if ((options.timing ?? true) && timing !== undefined && showsTiming(grade))
+    return (text ? skin.feedback.combined : skin.feedback.timing)[grade][timing].draw(t, ctx)
+  return text ? skin.feedback.judgement[grade].draw(t, ctx) : null
 }
 
-export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, skin: NoteSkin, layers: NoteLayers = {}): SceneNode {
+export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, skin: NoteSkin, options: Pick<RenderOptions, 'judgement' | 'timing'> = {}): SceneNode {
   const d = skin[kind]
   switch (state.phase) {
     case 'enter':
@@ -63,18 +65,14 @@ export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, 
     }
     case 'clear': {
       const fx = d.clear[state.grade].draw(state.t, ctx)
-      const result = [fx]
-      if (layers.judgement)
-        result.push(layers.judgement(state.grade, state.t, ctx))
-      if (state.timing && layers.timing && showsTiming(state.grade))
-        result.push(layers.timing(state.timing, state.grade, state.t, ctx))
-      return result.length > 1 ? group(result) : fx
+      const feedback = renderFeedback(state.grade, state.timing, state.t, ctx, skin, options)
+      return feedback ? group([fx, feedback]) : fx
     }
     case 'exit':
       return d.exit ? d.exit.draw(state.t, ctx) : d.enter.draw(1, ctx)
     case 'miss': {
       const fx = missBody(d, state, ctx)
-      const result = [fx, layers.judgement?.('miss', state.t, ctx)].filter(Boolean) as SceneNode[]
+      const result = [fx, renderFeedback('miss', undefined, state.t, ctx, skin, options)].filter(Boolean) as SceneNode[]
       return result.length === 1 ? result[0]! : group(result)
     }
   }

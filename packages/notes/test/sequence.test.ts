@@ -2,6 +2,7 @@ import type { DrawContext, SceneNode, Skin } from '../src'
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import { bounds, compileAnimation, compileSkin, derivePalette, drawScene, frameIndex, loadSkinResources, NOTE_KINDS, parseSkin, sampleTimes, toSVG } from '../src'
+import { feedbackBindings } from '../src/skin/slots'
 
 const colors = derivePalette(200, { chroma: 0.165 })
 const grades = { perfect: '#fff', great: '#fff', good: '#fff', bad: '#fff', miss: '#fff' }
@@ -46,6 +47,7 @@ function complete(skin: Skin): Skin {
   }
   skin.slots['hold:body'] = { animation: 'sequence' }
   skin.slots['long-hold:body'] = { animation: 'sequence' }
+  for (const binding of feedbackBindings) skin.slots[binding.name] = { animation: 'sequence' }
   return skin
 }
 
@@ -161,6 +163,7 @@ function imageSkin(src = 'assets/red.png'): Skin {
   skin.frames.a = { type: 'image', src, x: -5, y: -6, w: 10, h: 12, opacity: 0.5 }
   skin.frames.nested = { type: 'group', children: [skin.frames.a] }
   skin.animations.sequence = { type: 'sequence', fps: 10, frames: ['nested'] }
+  for (const binding of feedbackBindings) skin.slots[binding.name] = { animation: 'sequence' }
   return skin
 }
 function imageNode(node: SceneNode): Extract<SceneNode, { type: 'image' }> {

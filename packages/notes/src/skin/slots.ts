@@ -1,8 +1,9 @@
-import type { ClipMode } from '../notes/types'
-import type { NoteKind } from '../tokens'
-import { NOTE_KINDS, noteTiming } from '../tokens'
+import type { ClipMode, FeedbackView } from '../notes/types'
+import type { Grade, NoteKind } from '../tokens'
+import { TIMED_GRADES, TIMINGS } from '../notes/timing'
+import { GRADES, NOTE_KINDS, noteTiming } from '../tokens'
 
-export interface SlotContract { kind: NoteKind, path: string, id: string, mode: ClipMode, duration: number }
+export interface SlotContract { kind?: NoteKind, grade?: Grade, path: string, id: string, mode: ClipMode, duration: number }
 export const slotRegistry = new Map<string, SlotContract>()
 for (const kind of NOTE_KINDS) {
   const add = (path: string, id: string, mode: ClipMode, duration: number) => slotRegistry.set(`${kind}:${path}`, { kind, path, id, mode, duration })
@@ -21,6 +22,14 @@ for (const kind of NOTE_KINDS) {
     add('progress', 'hold-progress', 'progress', 1)
   }
 }
+export const feedbackBindings = [
+  ...GRADES.map(grade => ({ name: `feedback:judgement:${grade}`, view: 'judgement' as const, grade, timing: undefined })),
+  ...(['timing', 'combined'] as const).flatMap(view => TIMED_GRADES.flatMap(grade => TIMINGS.map(timing => ({ name: `feedback:${view}:${grade}:${timing}`, view, grade, timing })))),
+]
+for (const binding of feedbackBindings) {
+  slotRegistry.set(binding.name, { grade: binding.grade, path: binding.view satisfies FeedbackView, id: binding.name, mode: 'once', duration: noteTiming.clear[binding.grade] })
+}
+
 export function slotProgress(slot: SlotContract, x: number): number {
   switch (slot.mode) {
     case 'normalized':

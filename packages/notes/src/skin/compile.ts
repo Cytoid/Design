@@ -1,5 +1,5 @@
 import type { GroupNode, SceneNode } from '../core/scene'
-import type { Clip, DrawContext, NoteDesign } from '../notes/types'
+import type { Clip, DrawContext, FeedbackSkin, NoteSkin } from '../notes/types'
 import type { Grade, NoteKind } from '../tokens'
 import type { Primitive } from './primitive'
 import type { CompiledTrack, Env } from './runtime'
@@ -9,7 +9,7 @@ import { resolveBodyInputs, resolveInputs } from './inputs'
 import { LoadedSkin } from './resources'
 import { compileGate, compileNum, compilePrimitive, compileTrack, compileTransform, gateOpen, makeEnv } from './runtime'
 import { parseSkin } from './schema'
-import { slotProgress, slotRegistry } from './slots'
+import { feedbackBindings, slotProgress, slotRegistry } from './slots'
 import { validateSkin } from './validate'
 
 export interface AnimationClock { elapsed: number, duration: number }
@@ -199,14 +199,14 @@ function sequenceDetector(skin: Skin): (id: string) => boolean {
   return visit
 }
 
-/** Compile the skin document. With fallback, incomplete kinds inherit the entire built-in kind. */
-export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesign>): Record<NoteKind, NoteDesign> {
+/** Incomplete kinds and feedback modes inherit their entire group from the fallback. */
+export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
   const loaded = json instanceof LoadedSkin ? json : new LoadedSkin(parseSkin(json), new Map())
   const skin = loaded.document
   validateSkin(skin)
   const build = animationCompiler(skin, loaded.images)
   const hasSequence = sequenceDetector(skin)
-  const designs = {} as Record<NoteKind, NoteDesign>
+  const designs = {} as NoteSkin
   for (const kind of NOTE_KINDS) {
     const required = ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']
     if (kind === 'hold' || kind === 'long-hold')
@@ -247,7 +247,7 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
         },
       }
     }
-    const design: NoteDesign = {
+    const design: NoteSkin[NoteKind] = {
       kind,
       enter: clip('enter')!,
       clear: { perfect: clip('clear:perfect')!, great: clip('clear:great')!, good: clip('clear:good')!, bad: clip('clear:bad')! },
@@ -283,5 +283,39 @@ export function compileSkin(json: unknown, fallback?: Record<NoteKind, NoteDesig
     }
     designs[kind] = design
   }
+  const feedback = {} as FeedbackSkin
+  for (const view of ['judgement', 'timing', 'combined'] as const) {
+    const bindings = feedbackBindings.filter(binding => binding.view === view)
+    const missing = bindings.filter(binding => !Object.hasOwn(skin.slots, binding.name))
+    if (missing.length) {
+      if (!fallback)
+        throw new Error(`feedback:${view}: missing required slots: ${missing.map(binding => binding.name).join(', ')}`)
+      Object.assign(feedback, { [view]: fallback.feedback[view] })
+      continue
+    }
+    const entries: Record<string, Clip | Record<string, Clip>> = {}
+    for (const binding of bindings) {
+      const slot = skin.slots[binding.name]!
+      const contract = slotRegistry.get(binding.name)!
+      const draw = build(slot.animation)
+      const clip: Clip = {
+        id: binding.name,
+        mode: 'once',
+        duration: contract.duration,
+        ...(hasSequence(slot.animation) ? { includeStart: true } : {}),
+        ...(slot.note ? { note: slot.note } : {}),
+        draw(t, ctx) {
+          if (!Number.isFinite(t))
+            throw new Error(`${binding.name}: driver must be finite`)
+          return draw(t / contract.duration, { ...ctx, grade: binding.grade }, resolveInputs(ctx), { elapsed: t, duration: contract.duration })
+        },
+      }
+      if (binding.timing)
+        ((entries[binding.grade] ??= {}) as Record<string, Clip>)[binding.timing] = clip
+      else entries[binding.grade] = clip
+    }
+    Object.assign(feedback, { [view]: entries })
+  }
+  designs.feedback = feedback
   return designs
 }

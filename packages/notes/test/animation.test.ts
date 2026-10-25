@@ -1,6 +1,7 @@
 import type { DrawContext, SceneNode, Skin, SkinLayersAnimation } from '../src'
 import { describe, expect, it } from 'vitest'
 import { compileAnimation, compileSkin, composeNote, derivePalette, NOTE_KINDS, parseSkin } from '../src'
+import { feedbackBindings } from '../src/skin/slots'
 
 function fragment(): Skin & { animations: Record<string, SkinLayersAnimation> } {
   return {
@@ -162,12 +163,14 @@ describe('appearance-independent note composition', () => {
     }
     doc.slots['hold:body'] = { animation: 'grow' }
     doc.slots['long-hold:body'] = { animation: 'grow' }
+    for (const binding of feedbackBindings) doc.slots[binding.name] = { animation: 'grow' }
     const skin = compileSkin(doc)
     const judgement = { type: 'rect', x: 0, y: 0, w: 1, h: 1 } as const
     const timing = { type: 'line', x1: 0, y1: 0, x2: 1, y2: 0 } as const
-    const tree = composeNote('click', { phase: 'clear', grade: 'great', t: 0.2, timing: 'fast' }, ctx, skin, { judgement: () => judgement, timing: () => timing })
+    skin.feedback.combined.great.fast = { ...skin.feedback.combined.great.fast, draw: () => ({ type: 'group', children: [judgement, timing] }) }
+    const tree = composeNote('click', { phase: 'clear', grade: 'great', t: 0.2, timing: 'fast' }, ctx, skin)
     expect(tree.type).toBe('group')
-    expect(tree.type === 'group' && tree.children.slice(1)).toEqual([judgement, timing])
+    expect(tree.type === 'group' && tree.children.slice(1)).toEqual([{ type: 'group', children: [judgement, timing] }])
     expect(composeNote('click', { phase: 'enter', p: 0.5 }, ctx, skin)).toEqual(skin.click.enter.draw(0.5, ctx))
   })
 })

@@ -1,6 +1,7 @@
 import type { DrawContext, SceneNode, Skin, SkinColor, SkinLayersAnimation, SkinTrack } from '../src'
 import { describe, expect, it } from 'vitest'
 import { compileAnimation, compileSkin, derivePalette, FAMILIES, gradePalette, GRADES, mix, NOTE_KINDS, parseSkin, ringTone, SHADES } from '../src'
+import { feedbackBindings } from '../src/skin/slots'
 
 const grades = { perfect: '#00ffff', great: '#ffff00', good: '#00ff00', bad: '#ff0000', miss: '#808080' }
 const up = derivePalette('#ff0000', { chroma: 0 })
@@ -80,6 +81,7 @@ describe('string colors', () => {
     for (const slot of ['press', 'progress', 'loopUnder']) skin.slots[`hold:${slot}`] = { animation: 'nested' }
     skin.slots['hold:body'] = { animation: 'nested' }
     skin.slots['long-hold:body'] = { animation: 'nested' }
+    for (const binding of feedbackBindings) skin.slots[binding.name] = { animation: 'nested' }
     const d = compileSkin(skin)
     const context = { ...ctx, grade: 'bad' as const }
     expect(fill(d.click.clear.perfect.draw(0.1, context))).toBe(gradePalette(grades, 'perfect')[800])

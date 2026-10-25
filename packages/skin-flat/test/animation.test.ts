@@ -3,6 +3,7 @@ import { createCylheimTargets, rasterize } from '@cytoid/design-tools'
 import { compileAnimation, compileSkin, NOTE_KINDS, parseSkin, toSVG } from '@cytoid/notes'
 import { createContext, designs, flat, flatSkin, holdBodyAlpha, loadSkin, renderNote, tokens } from '@cytoid/skin-flat'
 import { describe, expect, it, vi } from 'vitest'
+import { feedbackBindings } from '../../notes/src/skin/slots'
 import { buildFlatSkin } from '../scripts/gen-skin'
 import flatDocument from '../src/flat.skin.json'
 import { designs as reference } from './golden/reference'
@@ -47,6 +48,7 @@ function complete(skin: Skin): Skin {
   }
   skin.slots['hold:body'] = { animation: 'grow' }
   skin.slots['long-hold:body'] = { animation: 'grow' }
+  for (const binding of feedbackBindings) skin.slots[binding.name] = { animation: 'grow' }
   return skin
 }
 

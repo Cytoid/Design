@@ -111,7 +111,21 @@ Body animations receive `appear`, `progress`, `elapsed`, `duration`, and `remain
 
 Hold templates extend along local +y; the engine flips their output for an upward body independently of color direction. Long Hold templates span -top..bottom. Body inputs are only available in body slots, including nested animations. Numeric tracks accept `driver` expressions to sample independent clocks. Driver dependencies must be acyclic and at most 32 tracks deep. Frames and bindings support `dash` / `dashOffset` on stroked shapes and rectangular group clips.
 
-Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly. Judgement/timing overlays remain a follow-up; Drag connections retain their existing renderer.
+Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly. Drag connections retain their existing renderer.
+
+### Judgement and FAST / SLOW feedback
+
+Three global slot groups define the display modes independently of note kind:
+
+- `feedback:judgement:<grade>`: judgement text only, for PERFECT / GREAT / GOOD / BAD / MISS.
+- `feedback:timing:<grade>:<timing>`: FAST / SLOW only, for GREAT / GOOD / BAD.
+- `feedback:combined:<grade>:<timing>`: judgement text and FAST / SLOW together, for GREAT / GOOD / BAD.
+
+Use lowercase grade and timing names in slot keys. Each binding references an ordinary layers or sequence animation; combined animations can reference shared judgement and timing animations or play a complete pre-rendered sequence. Skin authors control the full placement around the note origin. `theme` resolves to the bound judgement grade palette, including in nested animations. Durations remain the fixed engine judgement durations.
+
+`compileSkin()` returns these clips as `skin.feedback.judgement[grade]`, `skin.feedback.timing[grade][timing]`, and `skin.feedback.combined[grade][timing]`. `renderFeedback()` and note composition select exactly one mode from the judgement/timing toggles. Both disabled draws no feedback. PERFECT, MISS, or an absent timing state uses judgement-only when enabled. With a fallback skin, an incomplete mode inherits that entire mode from the fallback.
+
+Preview, player and baking use the selected skin's feedback clips. The native `cytoid-notes/frames@2` manifest stores the three groups under `feedback`, with authored placement preserved through each clip's pivot. Cylheim's PERFECT export uses the judgement-only PERFECT clip.
 
 ## Packages
 

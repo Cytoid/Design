@@ -1,11 +1,17 @@
-import type { Clip, NoteSkin } from '@cytoid/notes'
+import type { Clip, NoteDesign, NoteKind, NoteSkin } from '@cytoid/notes'
 import { GRADES, NOTE_KINDS } from '@cytoid/notes'
 import { describe, expect, it } from 'vitest'
 import { createCylheimTargets, cylheimSamples } from '../src/cylheim'
 
 const clip: Clip = { id: 'fixture', mode: 'normalized', duration: 1, draw: () => ({ type: 'circle', r: 1 }) }
-const designs = Object.fromEntries(NOTE_KINDS.map(kind => [kind, { kind, enter: clip, clear: { perfect: clip, great: clip, good: clip, bad: clip } }])) as NoteSkin
-const CYLHEIM_TARGETS = createCylheimTargets({ designs, judgementClips: Object.fromEntries(GRADES.map(grade => [grade, clip])) as Record<typeof GRADES[number], Clip> })
+const notes = Object.fromEntries(NOTE_KINDS.map(kind => [kind, { kind, enter: clip, clear: { perfect: clip, great: clip, good: clip, bad: clip } }])) as Record<NoteKind, NoteDesign>
+const feedback: NoteSkin['feedback'] = {
+  judgement: Object.fromEntries(GRADES.map(grade => [grade, clip])) as NoteSkin['feedback']['judgement'],
+  timing: Object.fromEntries(GRADES.map(grade => [grade, { fast: clip, slow: clip }])) as NoteSkin['feedback']['timing'],
+  combined: Object.fromEntries(GRADES.map(grade => [grade, { fast: clip, slow: clip }])) as NoteSkin['feedback']['combined'],
+}
+const designs: NoteSkin = { ...notes, feedback }
+const CYLHEIM_TARGETS = createCylheimTargets({ designs })
 
 describe('cylheim mapping', () => {
   it('enter timelines end on the hit pose', () => {

@@ -15,60 +15,17 @@
  *  0.55–0.85  fade out — a short hold after the enter settles, gone before
  *             the clear effect ends
  *
- * The clip is drawn around the *text centre*. Place it above the note with
- * `judgementOffset(ctx)` (renderNote does this): the text sits in the centre
- * of the clear / miss effect.
+ * Animated feedback is authored in scripts/feedback-animations.ts and
+ * compiled from the skin. These helpers expose Flat's static glyph layout.
  */
-import type { Clip, DrawContext, Grade, SceneNode } from '@cytoid/notes'
+import type { DrawContext, Grade, SceneNode } from '@cytoid/notes'
 
-import { GRADES, group, lerp, mix, outBack, outCubic, seg } from '@cytoid/notes'
-import { tokens } from './tokens'
+import { group, lerp } from '@cytoid/notes'
 
-type Stroke = [number, number][]
-interface Glyph { w: number, strokes: Stroke[], closed?: boolean[] }
+import { GLYPHS } from './glyphs'
+import { designs } from './render'
 
-const W = 0.62
-const K = 0.18 // chamfer
-const M = 0.82
-const GAP = 0.75 // resting letter gap, × cap height
-
-/** Glyphs in a 1-unit-high box, y down. */
-const GLYPHS: Record<string, Glyph> = {
-  'P': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]]] },
-  'E': { w: W, strokes: [[[W, 0], [0, 0], [0, 1], [W, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
-  'R': { w: W, strokes: [[[0, 1], [0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W * 0.2, 0.5], [W * 0.42, 0.5], [W, 0.5 + W * 0.58], [W, 1]]] }, // leg: lead-in along the bowl line, 45° run, vertical foot — bare diagonal ends poke their square caps past the bowl line / baseline
-  'F': { w: W, strokes: [[[W, 0], [0, 0], [0, 1]], [[0, 0.5], [W * 0.82, 0.5]]] },
-  'C': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 1 - K], [K, 1], [W, 1]]] },
-  'T': { w: W, strokes: [[[0, 0], [W, 0]], [[W / 2, 0], [W / 2, 1]]] },
-  'G': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 1 - K], [K, 1], [W, 1], [W, 0.55], [W * 0.48, 0.55]]] },
-  'A': { w: W, strokes: [[[0, 1], [0, K], [K, 0], [W - K, 0], [W, K], [W, 1]], [[0, 0.58], [W, 0.58]]] },
-  'O': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
-  'D': { w: W, strokes: [[[0, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [0, 1]]], closed: [true] },
-  'B': { w: W, strokes: [[[0, 0], [W - K, 0], [W, K], [W, 0.5 - K], [W - K, 0.5], [0, 0.5]], [[W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1], [0, 0]]] },
-  // chamfered top corners + a centre stem (pairs with W) — no acute V-joints
-  'M': { w: M, strokes: [[[0, 1], [0, K], [K, 0], [M - K, 0], [M, K], [M, 1]], [[M / 2, 0], [M / 2, 0.6]]] },
-  'I': { w: 0, strokes: [[[0, 0], [0, 1]]] },
-  'S': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 0.5 - K], [K, 0.5], [W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1]]] },
-  'X': { w: W * 0.9, strokes: [[[0, 0], [W * 0.9, 1]], [[W * 0.9, 0], [0, 1]]] },
-  // FAST / SLOW timing label
-  'L': { w: W * 0.9, strokes: [[[0, 0], [0, 1], [W * 0.9, 1]]] },
-  // M flipped: a V-joint would meet the stems at an acute angle and the miter
-  // join would spike past the baseline
-  'W': { w: M, strokes: [[[0, 0], [0, 1 - K], [K, 1], [M - K, 1], [M, 1 - K], [M, 0]], [[M / 2, 0.4], [M / 2, 1]]] },
-  // digits — same chamfered stroke language as the letters (combo / score UI)
-  '0': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]]], closed: [true] },
-  '1': { w: 0.34, strokes: [[[0, 0.16], [0.17, 0], [0.17, 1]]] },
-  '2': { w: W, strokes: [[[0, K], [K, 0], [W - K, 0], [W, K], [W, 0.42], [0.08, 1], [W, 1]]] },
-  '3': { w: W, strokes: [[[0, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K]], [[0, 0.5], [W * 0.75, 0.5]]] },
-  '4': { w: W, strokes: [[[W * 0.68, 0], [0, 0.62], [W, 0.62]], [[W * 0.68, 0], [W * 0.68, 1]]] },
-  '5': { w: W, strokes: [[[W, 0], [K, 0], [0, K], [0, 0.5 - K], [K, 0.5], [W - K, 0.5], [W, 0.5 + K], [W, 1 - K], [W - K, 1], [0, 1]]] },
-  '6': { w: W, strokes: [[[W, K], [W - K, 0], [K, 0], [0, K], [0, 1 - K], [K, 1], [W - K, 1], [W, 1 - K], [W, 0.5 + K], [W - K, 0.5], [0.06, 0.5]]] },
-  '7': { w: W, strokes: [[[0, 0], [W, 0], [W * 0.38, 1]]] },
-  '8': { w: W, strokes: [[[K, 0], [W - K, 0], [W, K], [W, 1 - K], [W - K, 1], [K, 1], [0, 1 - K], [0, K]], [[0, 0.5], [W, 0.5]]], closed: [true, false] },
-  '9': { w: W, strokes: [[[0, 1 - K], [K, 1], [W - K, 1], [W, 1 - K], [W, K], [W - K, 0], [K, 0], [0, K], [0, 0.5 - K], [K, 0.5], [W - 0.06, 0.5]]] },
-  '%': { w: 0.78, strokes: [[[0.72, 0], [0.06, 1]], [[0.02, 0.06], [0.3, 0.06], [0.3, 0.34], [0.02, 0.34]], [[0.48, 0.66], [0.76, 0.66], [0.76, 0.94], [0.48, 0.94]]], closed: [false, true, true] },
-  '.': { w: 0.26, strokes: [[[0.05, 0.9], [0.21, 0.9], [0.21, 1], [0.05, 1]]], closed: [true] },
-}
+const GAP = 0.75
 
 export const JUDGEMENT_TEXT: Record<Grade, string> = {
   perfect: 'PERFECT',
@@ -123,33 +80,5 @@ export function drawText(text: string, H: number, color: string, opts: { gap?: n
   return group(nodes)
 }
 
-function draw(grade: Grade) {
-  return (t: number, ctx: DrawContext): SceneNode => {
-    const u = t / tokens.time.clear[grade]
-    const H = judgementCapHeight(ctx)
-    // MISS grey is lifted so it stays readable over the dim ghost note
-    const color = grade === 'miss' ? mix(ctx.grades.miss, '#FFFFFF', 0.35) : ctx.grades[grade]
-    const miss = grade === 'miss'
-    const text = JUDGEMENT_TEXT[grade]
-    const gap = lerp(H, H * GAP, outCubic(seg(u, 0, 0.4)))
-    const pop = (i: number) => outBack(seg(u, 0.02 + i * 0.035, 0.2 + i * 0.035), 2)
-    const body = drawText(text, H, color, { gap, pop })
-    // underline: full final text width, grows from the centre
-    const finalW = [...text].reduce((a, ch) => a + (GLYPHS[ch]?.w ?? 0) * H, 0) + H * GAP * (text.length - 1)
-    const lk = outCubic(seg(u, 0.05, 0.4))
-    const line: SceneNode | null = !miss && lk > 0
-      ? { type: 'rect', x: (-finalW / 2 - H * 0.3) * lk, y: H * 0.8, w: (finalW + H * 0.6) * lk, h: H * 0.08, fill: color, opacity: 0.7 }
-      : null
-    const dy = (miss ? 1 : -1) * H * 0.12 * outCubic(u)
-    return group([body, line].filter(Boolean) as SceneNode[], { opacity: 1 - seg(u, 0.55, 0.85), transform: { y: dy } })
-  }
-}
-
-/** One clip per grade; shared by every note kind. Duration = that grade's clear duration. */
-export const judgementClips: Record<Grade, Clip> = Object.fromEntries(GRADES.map(g => [g, {
-  id: `judgement-${g}`,
-  mode: 'once',
-  duration: tokens.time.clear[g],
-  draw: draw(g),
-  note: `“${JUDGEMENT_TEXT[g]}” — chamfered monoline caps, letters pop in while the tracking closes; drawn around the text centre.`,
-} satisfies Clip])) as Record<Grade, Clip>
+/** Compiled global judgement-only slots; no imperative animation fallback. */
+export const judgementClips = designs.feedback.judgement

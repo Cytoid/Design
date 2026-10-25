@@ -63,8 +63,8 @@ function spread(duration: number) {
   }
 }
 
-export function createCylheimTargets(appearance: Pick<BakeAppearance, 'designs' | 'judgementClips'>): CylheimTarget[] {
-  const { designs, judgementClips } = appearance
+export function createCylheimTargets(appearance: Pick<BakeAppearance, 'designs'>): CylheimTarget[] {
+  const { designs } = appearance
   const enter = (kind: NoteKind) => designs[kind].enter.draw
 
   return [
@@ -86,7 +86,7 @@ export function createCylheimTargets(appearance: Pick<BakeAppearance, 'designs' 
     { pattern: 'Note-LongHold-Bloom-Textures-LongHold_Boom_{frame}.png', kind: 'long-hold', timeline: hitTiming(58, 75, 3), sample: spread(noteTiming.clear.perfect), draw: designs['long-hold'].clear.perfect.draw },
 
     // hit text (pixi-runtime-judgment-effect-provider: 13 frames, 30 fps), centred on the text
-    { pattern: 'PERFECT_Gold_top_{frame}.png', kind: 'click', timeline: range(146, 158), sample: spread(noteTiming.clear.perfect), draw: judgementClips.perfect.draw, note: 'Our text is centred; Cylheim positions its own hit text.' },
+    { pattern: 'PERFECT_Gold_top_{frame}.png', kind: 'click', timeline: range(146, 158), sample: spread(noteTiming.clear.perfect), draw: designs.feedback.judgement.perfect.draw, note: 'Our text is centred; Cylheim positions its own hit text.' },
 
     { pattern: 'Note-Hold-Holding-Textures-Hold_Button_in-Hold_Button_in_{frame}.png', kind: 'hold', timeline: range(41, 49), sample: spread(noteTiming.holdPress), draw: designs.hold.hold?.press.draw ?? ((_x, ctx) => designs.hold.enter.draw(1, ctx)), note: 'Cylheim loops this sequence; our press settles on its last frame.' },
     { pattern: 'Note-LongHold-Holding-Textures-LongHold_Button_in-LongHold_Button_in_{frame}.png', kind: 'long-hold', timeline: range(41, 57), sample: spread(noteTiming.holdPress), draw: designs['long-hold'].hold?.press.draw ?? ((_x, ctx) => designs['long-hold'].enter.draw(1, ctx)) },

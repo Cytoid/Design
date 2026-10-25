@@ -8,6 +8,7 @@ import { SkinBuilder } from '@cytoid/design-tools/authoring'
 import { compileSkin, rng, SHADES } from '@cytoid/notes'
 import { tokens } from '../src/tokens'
 import { holdBodyAnimation, longHoldBodyAnimation } from './body-animations'
+import { bindFeedback } from './feedback-animations'
 
 /* ------------------------------------------------------------------ */
 /* authoring helpers                                                   */
@@ -938,6 +939,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
     skin.bind('drop-drag:enter', dropEnterClip(DROP_DRAG_SPEC, 'Static image: shorter classic capsule, ring body + fill, no core.'))
     for (const [grade, animation] of Object.entries(clearAll(DROP_DRAG_CLEAR))) skin.bind(`drop-drag:clear:${grade}`, animation)
     skin.bind('drop-drag:miss', missClip('capsule', DROP_DRAG_SPEC.cap))
+    bindFeedback(skin)
     return skin.build()
   }
   finally { EDGE = previousEdge }

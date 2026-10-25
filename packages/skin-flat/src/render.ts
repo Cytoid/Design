@@ -1,10 +1,8 @@
-import type { ContextOptions, DrawContext, Grade, NoteDesign, NoteKind, NoteSkin, NoteState, RenderOptions, SceneNode } from '@cytoid/notes'
-import { composeNote, group, missExitTime } from '@cytoid/notes'
-import { judgementClips, judgementOffset } from './judgement'
+import type { ContextOptions, DrawContext, Grade, NoteKind, NoteSkin, NoteState, RenderOptions, SceneNode } from '@cytoid/notes'
+import { composeNote, missExitTime } from '@cytoid/notes'
 import { defaultPalette } from './palette'
 import { exitAlpha } from './shared'
 import { loadFlatSkin } from './skin'
-import { renderTiming } from './timing'
 import { tokens } from './tokens'
 
 /**
@@ -13,7 +11,7 @@ import { tokens } from './tokens'
  * imperative draw code this table used to hold lives on as the golden oracle
  * in `test/golden/reference`, which pins the interpreter to byte-identical trees.
  */
-export const designs: Record<NoteKind, NoteDesign> = loadFlatSkin()
+export const designs: NoteSkin = loadFlatSkin()
 
 export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawContext {
   const palette = o.palette ?? defaultPalette
@@ -35,24 +33,12 @@ export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawConte
   }
 }
 
-/** Judgement text placed above the note (t = seconds since judgement). */
-export function renderJudgement(grade: Grade, t: number, ctx: DrawContext): SceneNode {
-  const o = judgementOffset(ctx)
-  return group([judgementClips[grade].draw(t, ctx)], { transform: o })
+export function renderJudgement(grade: Grade, t: number, ctx: DrawContext, skin: NoteSkin = designs): SceneNode {
+  return skin.feedback.judgement[grade].draw(t, ctx)
 }
 
-/**
- * Composed vector renderer: one call per note per frame.
- * (Bodies / drag lines are separate — see `bodies.ts`.)
- */
 export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = createContext(kind), options: RenderOptions = {}): SceneNode {
-  const text = options.judgement ?? true
-  return composeNote(kind, state, ctx, options.skin ?? designs, {
-    judgement: text ? renderJudgement : undefined,
-    timing: (options.timing ?? true)
-      ? (timing, grade, t, context) => renderTiming(timing, grade, t, context, text ? 'stacked' : 'centre')
-      : undefined,
-  })
+  return composeNote(kind, state, ctx, options.skin ?? designs, options)
 }
 
 /**

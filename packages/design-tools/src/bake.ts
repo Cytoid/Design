@@ -2,7 +2,7 @@
  * Frame-animation baker (Node only). Rasterises the vector designs with
  * resvg into PNG sequences + per-clip sprite sheets + a JSON manifest.
  */
-import type { Clip, Direction, DrawContext, Grade, NoteKind, NoteSkin, Palette, PaletteOptions, SceneNode } from '@cytoid/notes'
+import type { Clip, Direction, DrawContext, Grade, NoteKind, NoteSkin, Palette, PaletteOptions, SceneNode, TimedGrade, Timing } from '@cytoid/notes'
 
 import type { Buffer } from 'node:buffer'
 import type { BakeAppearance } from './types'
@@ -48,7 +48,7 @@ export interface ClipManifest {
 }
 
 export interface FrameManifest {
-  format: 'cytoid-notes/frames@1'
+  format: 'cytoid-notes/frames@2'
   fps: number
   scale: number
   unit: number
@@ -56,19 +56,12 @@ export interface FrameManifest {
   pxPerUnit: number
   palette: ReturnType<typeof exportPalette>
   notes: Partial<Record<NoteKind, Partial<Record<Direction, Record<string, ClipManifest>>>>>
-  /**
-   * Judgement text per grade, shared by all kinds. Textures are centred on the
-   * text; place the text centre on the note centre (it sits inside the effect).
-   */
-  judgement: Partial<Record<Grade, ClipManifest>> & { capHeight?: number, placement?: string }
-  /**
-   * FAST / SLOW timing label per timed grade (GREAT / GOOD / BAD), centred on
-   * the label. Textures are baked at the centre-slot size (the judgement's
-   * cap height); `scale` shrinks them per slot — `stacked` 0.6 when the
-   * judgement text is shown, `centre` 1 when not. `offset` = label centre
-   * relative to the note centre (px) per slot.
-   */
-  timing: Partial<Record<Grade, Record<string, ClipManifest>>> & { capHeight?: number, scale?: Record<string, number>, offset?: Record<string, [number, number]>, placement?: string }
+  /** Already composed around the note origin, including each mode's authored layout. */
+  feedback: {
+    judgement: Partial<Record<Grade, ClipManifest>>
+    timing: Partial<Record<TimedGrade, Record<Timing, ClipManifest>>>
+    combined: Partial<Record<TimedGrade, Record<Timing, ClipManifest>>>
+  }
   bodies: Partial<Record<Direction, Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }>>>
 }
 
@@ -153,7 +146,7 @@ async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (nam
 
 export async function bake(options: BakeOptions): Promise<FrameManifest> {
   const appearance = options.appearance
-  const { designs, createPalette, createContext, metrics: tokens, judgementClips, judgementCapHeight, timingClips, timingCapHeight, timingOffset } = appearance
+  const { designs, createPalette, createContext, metrics: tokens } = appearance
   const skin = options.skin ?? designs
   const fps = options.fps ?? 30
   const scale = options.scale ?? 1
@@ -163,15 +156,14 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
   const log = options.onProgress ?? (() => {})
   const o = { fps, progressFrames: options.progressFrames ?? 61, frames: options.frames ?? true }
   const manifest: FrameManifest = {
-    format: 'cytoid-notes/frames@1',
+    format: 'cytoid-notes/frames@2',
     fps,
     scale,
     unit: tokens.unit,
     pxPerUnit: tokens.unit * scale,
     palette: exportPalette(palette),
     notes: {},
-    judgement: {},
-    timing: {},
+    feedback: { judgement: {}, timing: {}, combined: {} },
     bodies: {},
   }
   await mkdir(options.outDir, { recursive: true })
@@ -189,21 +181,16 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
   {
     const ctx = createContext('click', { palette, scale })
     for (const grade of GRADES)
-      manifest.judgement[grade] = await bakeClip(judgementClips[grade], ctx, options.outDir, `judgement/${grade}`, o)
-    manifest.judgement.capHeight = judgementCapHeight(ctx)
-    manifest.judgement.placement = 'text centre on the note centre (inside the clear / miss effect)'
-    log('judgement')
-    for (const grade of TIMED_GRADES) {
-      manifest.timing[grade] = {}
-      for (const [timing, clip] of Object.entries(timingClips[grade]))
-        manifest.timing[grade]![timing] = await bakeClip(clip, ctx, options.outDir, `timing/${grade}-${timing}`, o)
+      manifest.feedback.judgement[grade] = await bakeClip(skin.feedback.judgement[grade], ctx, options.outDir, `feedback/judgement/${grade}`, o)
+    for (const view of ['timing', 'combined'] as const) {
+      for (const grade of TIMED_GRADES) {
+        const entries = {} as Record<Timing, ClipManifest>
+        for (const value of ['fast', 'slow'] as const)
+          entries[value] = await bakeClip(skin.feedback[view][grade][value], ctx, options.outDir, `feedback/${view}/${grade}-${value}`, o)
+        manifest.feedback[view][grade] = entries
+      }
     }
-    const stacked = timingOffset(ctx, 'stacked')
-    manifest.timing.capHeight = timingCapHeight(ctx, 'centre')
-    manifest.timing.scale = { stacked: 0.6, centre: 1 }
-    manifest.timing.offset = { stacked: [stacked.x, stacked.y], centre: [0, 0] }
-    manifest.timing.placement = 'GREAT / GOOD / BAD only; scale the texture by timing.scale[slot] around the anchor; label centre at note centre + offset[slot]'
-    log('timing')
+    log('feedback')
   }
   for (const direction of directions) {
     manifest.bodies[direction] = {}

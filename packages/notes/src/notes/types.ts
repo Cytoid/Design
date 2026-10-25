@@ -1,7 +1,7 @@
 import type { SceneNode } from '../core/scene'
 import type { NotePalette, Palette } from '../palette'
 import type { Direction, Grade, NoteKind } from '../tokens'
-import type { Timing } from './timing'
+import type { TimedGrade, Timing } from './timing'
 
 /** Everything a clip needs to draw one frame. */
 export interface DrawContext {
@@ -88,7 +88,13 @@ export interface NoteDesign {
 }
 
 /** A compiled skin, suitable for renderers, players and baking. */
-export type NoteSkin = Record<NoteKind, NoteDesign>
+export interface FeedbackSkin {
+  judgement: Record<Grade, Clip>
+  timing: Record<TimedGrade, Record<Timing, Clip>>
+  combined: Record<TimedGrade, Record<Timing, Clip>>
+}
+export type FeedbackView = keyof FeedbackSkin
+export type NoteSkin = Record<NoteKind, NoteDesign> & { feedback: FeedbackSkin }
 
 /** Live state of a note for the composed vector renderer. */
 export type NoteState
@@ -115,14 +121,14 @@ export interface ContextOptions {
 }
 
 export interface RenderOptions {
-  /** Override the selected appearance's note clips. */
+  /** Override the selected appearance's note, body and feedback clips. */
   skin?: NoteSkin
   /** draw the judgement text (PERFECT / GREAT / …) with clear & miss effects. Default true. */
   judgement?: boolean
   /**
    * draw the FAST / SLOW timing label when the clear state carries a `timing`
-   * (GREAT / GOOD / BAD only). Independent of `judgement`: stacked under the
-   * judgement text when both are on, alone in the centre otherwise. Default true.
+   * (GREAT / GOOD / BAD only). Selects the combined or timing-only skin mode
+   * according to `judgement`; each mode owns its layout. Default true.
    */
   timing?: boolean
 }

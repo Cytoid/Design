@@ -1,4 +1,4 @@
-import type { Clip, DrawContext, SceneNode, TimedGrade, Timing, TimingSlot } from '@cytoid/notes'
+import type { DrawContext, NoteSkin, SceneNode, TimedGrade, Timing, TimingSlot } from '@cytoid/notes'
 /**
  * Timing label — FAST / SLOW (Cytoid "Early / Late indicators").
  *
@@ -41,8 +41,9 @@ import type { Clip, DrawContext, SceneNode, TimedGrade, Timing, TimingSlot } fro
  *             layers leave together
  */
 
-import { group, lerp, outBack, outCubic, seg, TIMED_GRADES, TIMING_TEXT } from '@cytoid/notes'
+import { group, TIMING_TEXT } from '@cytoid/notes'
 import { drawText, judgementCapHeight, measureText } from './judgement'
+import { designs } from './render'
 import { tokens } from './tokens'
 
 const CAP = 0.10 // cap height, × unit — the judgement text's original 0.12, shrunk
@@ -97,40 +98,9 @@ export const TIMING_COLOR: Record<Timing, string> = {
   slow: tokens.grade.good,
 }
 
-/** One animated frame around the label centre (t = seconds since judgement). */
-export function drawTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
-  const u = t / tokens.time.clear[grade]
-  const H = timingCapHeight(ctx, slot)
-  const dir = timing === 'fast' ? -1 : 1
-  const k = outCubic(seg(u, 0.06, 0.4))
-  const pop = (i: number) => outBack(seg(u, 0.06 + i * 0.03, 0.24 + i * 0.03), 1.6)
-  const dx = dir * H * 0.5 * (k - 1)
-  const dy = -judgementCapHeight(ctx) * 0.12 * outCubic(u)
-  const body = drawTimingLabel(timing, H, TIMING_COLOR[timing], pop)
-  return group([body], { opacity: lerp(0, 1, seg(u, 0.06, 0.2)) * (1 - seg(u, 0.55, 0.85)), transform: { x: dx, y: dy } })
-}
+/** Compiled timing-only slots. Combined layout is authored in feedback:combined. */
+export const timingClips = designs.feedback.timing
 
-/** Placed label (t = seconds since judgement). */
-export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, slot: TimingSlot): SceneNode {
-  return group([drawTiming(timing, grade, t, ctx, slot)], { transform: timingOffset(ctx, slot) })
-}
-
-/**
- * One clip per timed grade × timing, drawn around the label centre. Baked at
- * the centre (full) size — the larger of the two slots — so consumers shrink
- * it to 0.6 for the stacked slot (see the bake manifest's `timing.scale`).
- */
-export const timingClips: Record<TimedGrade, Record<Timing, Clip>> = Object.fromEntries(TIMED_GRADES.map(g => [g, {
-  fast: clip(g, 'fast'),
-  slow: clip(g, 'slow'),
-}])) as Record<TimedGrade, Record<Timing, Clip>>
-
-function clip(grade: TimedGrade, timing: Timing): Clip {
-  return {
-    id: `timing-${grade}-${timing}`,
-    mode: 'once',
-    duration: tokens.time.clear[grade],
-    draw: (t, ctx) => drawTiming(timing, grade, t, ctx, 'centre'),
-    note: `“${TIMING_TEXT[timing]}” under ${grade.toUpperCase()} — chevron points along the time axis; drawn around the label centre.`,
-  }
+export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, skin: NoteSkin = designs): SceneNode {
+  return skin.feedback.timing[grade][timing].draw(t, ctx)
 }

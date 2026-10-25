@@ -89,6 +89,14 @@ export class SkinBuilder {
     this.document.frames[id] = frame
   }
 
+  animation(id: string, draft: AnimationDraft): string {
+    if (Object.hasOwn(this.document.animations, id))
+      throw new Error(`duplicate animation ${id}`)
+    const { note: _note, layers, ...fields } = draft
+    this.document.animations[id] = { type: 'layers', layers: layers.map(shape => this.layer(shape)), ...fields }
+    return id
+  }
+
   sequence(id: string, animation: Omit<SequenceAnimation, 'type'>): string {
     if (Object.hasOwn(this.document.animations, id))
       throw new Error(`duplicate animation ${id}`)

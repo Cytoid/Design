@@ -1,6 +1,5 @@
-import type { TimingSlot } from '@cytoid/notes'
 import { bounds, showsTiming, TIMED_GRADES, timingOf, toSVG } from '@cytoid/notes'
-import { createContext, drawText, renderNote, renderTiming, TIMING_COLOR, timingCapHeight, timingClips, timingOffset } from '@cytoid/skin-flat'
+import { createContext, drawText, renderNote, TIMING_COLOR, timingCapHeight, timingClips, timingOffset } from '@cytoid/skin-flat'
 import { describe, expect, it } from 'vitest'
 
 describe('timing label (FAST / SLOW)', () => {
@@ -81,10 +80,5 @@ describe('timing label (FAST / SLOW)', () => {
     const ctx = createContext('click')
     expect(timingCapHeight(ctx, 'centre')).toBe(ctx.unit * 0.10)
     expect(timingCapHeight(ctx, 'stacked')).toBeCloseTo(ctx.unit * 0.10 * 0.6)
-    const width = (slot: TimingSlot) => {
-      const b = bounds(renderTiming('fast', 'great', 0.25, ctx, slot))!
-      return b[2] - b[0]
-    }
-    expect(width('centre')).toBeGreaterThan(width('stacked'))
   })
 })
