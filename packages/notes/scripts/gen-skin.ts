@@ -654,6 +654,36 @@ function holdPressClip(long: boolean): SkinClip {
   }
 }
 
+/**
+ * `hold.loopUnder` — the while-held pulse, synced from the shipped holdFx
+ * particles: three translucent fill-coloured discs phase-offset by a third of
+ * the period, growing outward under the head. The particle system spawns the
+ * note-fill sprite at 8/s with a 0.5 s life, alpha 0.39 → 0.196 at a third → 0
+ * (linear), tinted `BaseFillColor` (shade 400) — the same ramp and colour here,
+ * stretched to the loop period so the layers stay phase-locked and seamless.
+ */
+function holdPulseClip(_long: boolean): SkinClip {
+  const tracks: Record<string, Track> = {}
+  const layers: Slice[] = [0, 1, 2].map((i) => {
+    const p = i === 0 ? {} : { offset: i / 3 }
+    tracks[`pulse${i}`] = keys([key(0, 1), key(1, 2.2)], p)
+    tracks[`pulseO${i}`] = keys([key(0, 0.39), key(1 / 3, 0.196), key(1, 0)], p)
+    return {
+      type: 'circle',
+      r: mul(R, T(`pulse${i}`)),
+      fill: { shade: 400 },
+      opacity: T(`pulseO${i}`),
+    } satisfies Slice
+  })
+  return {
+    mode: 'loop',
+    duration: tokens.time.holdLoop,
+    note: 'The shipped holdFx pulse, as slices: three translucent fill-coloured discs phase-offset by a third of the period grow outward under the head, alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.',
+    tracks,
+    layers,
+  }
+}
+
 /** `hold.holdProgress` — 800 track, 50 lead at 4/3·p, 500 fill at p. */
 function holdProgressClip(): SkinClip {
   return {
@@ -882,9 +912,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(false),
-          // no looping layers: the engine's holdFx particles carry the while-held
-          // motion (the C# port's phase-1 scope decision), so the skin keeps only
-          // the press and the progress ring
+          loopUnder: holdPulseClip(false),
           progress: holdProgressClip(),
         },
       },
@@ -895,6 +923,7 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
         miss: missClip('circle'),
         hold: {
           press: holdPressClip(true),
+          loopUnder: holdPulseClip(true),
           progress: holdProgressClip(),
         },
       },

@@ -196,6 +196,29 @@ function holdPress(long: boolean) {
   }
 }
 
+/**
+ * While held, the shipped holdFx pulse: three translucent fill-coloured discs
+ * phase-offset by a third of the period, growing outward under the head — the
+ * particle system's look (note-fill sprite, 8/s, 0.5 s life, alpha
+ * 0.39 → 0.196 at a third → 0, tinted BaseFillColor) as phase-locked slices.
+ */
+function holdLoopUnder(_long: boolean) {
+  return (t: number, ctx: DrawContext): SceneNode => {
+    const R = ctx.size / 2
+    const P = tokens.time.holdLoop
+    const u = (((t % P) + P) % P) / P
+    const discs: SceneNode[] = []
+    for (let i = 0; i < 3; i++) {
+      const v = (u + i / 3) % 1
+      const opacity = v < 1 / 3
+        ? lerp(0.39, 0.196, v * 3)
+        : lerp(0.196, 0, (v - 1 / 3) * (3 / 2))
+      discs.push(disk(R * lerp(1, 2.2, v), tone(ctx.palette, 400), opacity))
+    }
+    return group(discs)
+  }
+}
+
 function holdProgress(_long: boolean) {
   return (p: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
@@ -225,8 +248,7 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      // no looping layers: the engine's holdFx particles carry the while-held
-      // motion (the C# port's phase-1 scope decision)
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'The shipped holdFx pulse, as slices: three translucent fill-coloured discs phase-offset by a third of the period grow outward under the head, alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),
