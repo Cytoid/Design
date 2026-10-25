@@ -197,13 +197,14 @@ function holdPress(long: boolean) {
 }
 
 /**
- * While held, the shipped holdFx pulse: four fill-coloured ring bands
- * phase-offset by a quarter of the period, sweeping outward — the particle
- * system (note-fill discs, 8/s, 0.5 s life, constant radial speed) projected
- * orthographically: each spawn wave reads as a band of width ⅓ R (the disc's
- * diameter — a third of the head) whose radius sweeps the travel distance
- * ≈ 1.7 R. Alpha is the particle's colour-over-lifetime ramp
- * (0.39 → 0.196 at a third → 0), tinted BaseFillColor.
+ * Retained capture-calibrated holdFx band contract: four shade-400 rings,
+ * offsets i/4, radius 0→1.7 R, width R/3, alpha 0.39→0.196@1/3→0,
+ * stretched from 0.5 s particle life to tokens.time.holdLoop (0.6 s).
+ * This is a design approximation, not Unity's exact orthographic projection:
+ * ShapeModule is disabled (+Z point emission), scalingMode=1 is Local,
+ * SizeModule shrinks particles, and ClampVelocityModule damps Z velocity.
+ * Full source mapping: scripts/gen-skin.ts:holdPulseClip and hold-fx-sync.md
+ * (both relative to packages/notes). Keep oracle and skin synchronized.
  */
 function holdLoopUnder(_long: boolean) {
   return (t: number, ctx: DrawContext): SceneNode => {
@@ -251,7 +252,7 @@ function makeHold(long: boolean): NoteDesign {
     },
     hold: {
       press: { id: 'hold-press', mode: 'once', duration: tokens.time.holdPress, draw: holdPress(long), note: 'Head sinks to 0.86; the lock brackets clamp onto the ring and merge into it.' },
-      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'The shipped holdFx pulse, as slices: three translucent fill-coloured discs phase-offset by a third of the period grow outward under the head, alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.' },
+      loopUnder: { id: 'hold-loop-under', mode: 'loop', duration: tokens.time.holdLoop, draw: holdLoopUnder(long), note: 'Capture-calibrated holdFx approximation: four shade-400 ring bands, quarter-period offsets, radius 0→1.7 R, width R/3, alpha 0.39 → 0.196@1/3 → 0. Seamless.' },
       progress: { id: 'hold-progress', mode: 'progress', duration: 1, draw: holdProgress(long), note: 'Cytoid-style progress ring: 800 track, 50 lead at 4/3·p, 500 fill at p.' },
     },
     clear: makeClearClips({ shape: 'circle', reach: long ? 1.6 : 1.5, sectors: 24, extra: long ? 'beam' : 'double', flash: 'tail', seed: long ? 4 : 3 }),

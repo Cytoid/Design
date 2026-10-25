@@ -655,16 +655,45 @@ function holdPressClip(long: boolean): SkinClip {
 }
 
 /**
- * `hold.loopUnder` — the while-held pulse, synced from the shipped holdFx
- * particles against a gameplay capture: the system spawns note-fill discs at
- * 8/s with a 0.5 s life, flying outward at constant speed; orthographically
- * each spawn wave reads as a ring band of the disc's diameter (⅓ R — the disc
- * is a third of the head) sweeping the travel distance (2.5 world units ≈
- * 1.7 R). Four waves are alive at once (8/s × 0.5 s), phase-offset by a
- * quarter period; the alpha ramp is the particle's own colour-over-lifetime
- * (0.39 → 0.196 at a third → 0, linear), tinted `BaseFillColor` (shade 400).
- * Time is stretched ×1.2 to the loop period so the waves stay phase-locked
- * and seamless.
+ * `hold.loopUnder` — retained capture-calibrated band contract, NOT an exact
+ * orthographic projection of the current Unity HoldFx. Full audit, formulas,
+ * uncertainty and Unity references: packages/notes/hold-fx-sync.md.
+ * Game paths below are relative to Assets/; R = unpressed design head radius.
+ *
+ * Skin constant | Unity source | Mapping status
+ * 4 circles, offsets i/4 | StaticResources/Prefabs/Game/HoldFx.prefab:
+ *   InitialModule.startLifetime=0.5, EmissionModule.rateOverTime=8 |
+ *   8 × 0.5 = 4 live PARTICLES; replacing them with full bands is a design choice.
+ * r keys 0→1.7 R | InitialModule.startSpeed=5, lifetime=0.5 |
+ *   2.5 is nominal unscaled 3D travel, NOT projected radial travel;
+ *   1.7 is a historical screenshot calibration, not code-derived.
+ * strokeWidth R/3 | InitialModule.startSize=1; NoteFillMat/NoteFill.png |
+ *   historical screenshot calibration; startSize is billboard extent, not radius.
+ *   Local scaling and enabled SizeModule (1→0.5988693) prevent a fixed-width mapping.
+ * alpha 0.39→0.196@1/3→0 | ColorModule.maxGradient |
+ *   rounded from 0.39215687→0.19607843@21781/65535→0, linear;
+ *   minMaxState=1 means Gradient, so minGradient is unused (not randomized).
+ * stroke shade 400, no fill | Scripts/Game/Notes/Flat/FlatHoldNoteRenderer.cs:
+ *   OnNoteLoaded.startColor=BaseFillColor, sortingOrder=SortingOrder-2 |
+ *   palette translation and under-head placement, not identical material blending.
+ * loop, duration tokens.time.holdLoop=0.6 | prefab lifetime=0.5;
+ *   Scripts/Game/Notes/Flat/Palette/FlatTokens.cs:Time.HoldLoop=0.6 |
+ *   deliberate ×1.2 time stretch; skin emission equivalent is 4/0.6, not 8/s.
+ *
+ * Semantic corrections: ShapeModule is DISABLED (stored Cone/type=4, radius=1,
+ * angle=25 are inactive); default point emission travels along local +Z, not
+ * radially in XY. Orthographic depth travel cannot create expanding rings.
+ * scalingMode=1 is Local (Hierarchy=0); own transform scale affects particle
+ * size/movement, parent scale is ignored. Both Flat and Classic set own scale
+ * to 5 × (1 + ClearEffectsSize) × fxScale in UpdateTransformScale.
+ * SizeModule is enabled; ClampVelocityModule is enabled with separate axes,
+ * z limit 0 and dampen 0.75, so speed × lifetime is not even actual Z travel.
+ *
+ * Camera source is Scenes/Game.unity:12421 (ortho=5), wired at :2490.
+ * GameConfig.cs:67-74 + FlatNoteRendererBase.cs:63,89-95 give default unpressed
+ * head diameter ≈2.234555 world units, not 3; see the audit for settings/overrides.
+ * No numeric skin/oracle changes here: tests freeze the calibrated design until
+ * a separately reviewed visual revision replaces it with faithful particle discs.
  */
 function holdPulseClip(_long: boolean): SkinClip {
   const tracks: Record<string, Track> = {}
@@ -683,7 +712,7 @@ function holdPulseClip(_long: boolean): SkinClip {
   return {
     mode: 'loop',
     duration: tokens.time.holdLoop,
-    note: 'The shipped holdFx pulse, as slices: four fill-coloured ring bands phase-offset by a quarter of the period, radius sweeping outward to 1.7 R at the particle speed, width ⅓ R (the particle disc\'s diameter), alpha 0.39 → 0.196 → 0 (the particle gradient, tinted BaseFillColor). Seamless.',
+    note: 'Capture-calibrated holdFx approximation: four shade-400 ring bands, quarter-period offsets, radius 0→1.7 R, width R/3, alpha 0.39 → 0.196@1/3 → 0. Seamless.',
     tracks,
     layers,
   }
