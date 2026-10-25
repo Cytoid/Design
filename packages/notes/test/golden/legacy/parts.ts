@@ -2,10 +2,10 @@
  * Reusable flat building blocks. Each returns plain scene nodes; nothing
  * here knows about note kinds.
  */
-import type { SceneNode } from '../core/scene'
-import { lerp, outCubic, outQuart, rng, seg, TAU } from '../core/ease'
-import { group, polar, regularPolygon } from '../core/scene'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import { lerp, outCubic, outQuart, rng, seg, TAU } from '../../../src/core/ease'
+import { group, polar, regularPolygon } from '../../../src/core/scene'
+import { tokens } from '../../../src/tokens'
 
 export function disk(r: number, fill: string, opacity = 1): SceneNode {
   return { type: 'circle', r: Math.max(0, r), fill, opacity }

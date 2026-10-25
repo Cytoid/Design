@@ -32,12 +32,12 @@
  *             build-only motion, settling exactly at p = 1
  *             (the hit pose is calm and full)
  */
-import type { SceneNode } from '../core/scene'
-import type { DrawContext, NoteDesign } from './types'
-import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, outQuart, riseSettleCurve, seg, TAU } from '../core/ease'
-import { group } from '../core/scene'
-import { ringTone, tone } from '../palette'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import type { DrawContext, NoteDesign } from '../../../src/notes/types'
+import { bump, inOutQuad, inQuad, lerp, outCubic, outQuad, outQuart, riseSettleCurve, seg, TAU } from '../../../src/core/ease'
+import { group } from '../../../src/core/scene'
+import { ringTone, tone } from '../../../src/palette'
+import { tokens } from '../../../src/tokens'
 import { makeClearClips, makeExitClip } from './effects'
 import { arrowHead, assemblingRing, disk, ring, ringEdge } from './parts'
 

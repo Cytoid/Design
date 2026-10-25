@@ -16,13 +16,13 @@
  *             final inner edge — core and frame coincide exactly at p = 1
  *  0.00–1.00  the diamond body plays Click's fitted S-curve (`tokens.sizeCurve.click`)
  */
-import type { SceneNode } from '../core/scene'
+import type { SceneNode } from '../../../src/core/scene'
+import type { DrawContext, NoteDesign } from '../../../src/notes/types'
 import type { EdgeSpec } from './parts'
-import type { DrawContext, NoteDesign } from './types'
-import { cubicBezier, lerp, outCubic, outQuart, seg } from '../core/ease'
-import { group, regularPolygon } from '../core/scene'
-import { ringTone } from '../palette'
-import { tokens } from '../tokens'
+import { cubicBezier, lerp, outCubic, outQuart, seg } from '../../../src/core/ease'
+import { group, regularPolygon } from '../../../src/core/scene'
+import { ringTone } from '../../../src/palette'
+import { tokens } from '../../../src/tokens'
 import { BLINK_PEAK, blinkAmount, CLICK_TIMING, clickSize, coreGrowth, frameThickening, splitShades } from './click'
 import { makeClearClips, makeExitClip } from './effects'
 import { diamond, edgeBands, flickChevron, ringEdge } from './parts'

@@ -14,12 +14,12 @@
  * Click drag head: identical to Click (experiment — no arrow, see click.ts).
  * Click drag child: identical to drag child, click colours.
  */
-import type { SceneNode } from '../core/scene'
-import type { DrawContext, NoteDesign } from './types'
-import { lerp, outCubic, riseSettleCurve, seg, TAU } from '../core/ease'
-import { group } from '../core/scene'
-import { ringTone, tone } from '../palette'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import type { DrawContext, NoteDesign } from '../../../src/notes/types'
+import { lerp, outCubic, riseSettleCurve, seg, TAU } from '../../../src/core/ease'
+import { group } from '../../../src/core/scene'
+import { ringTone, tone } from '../../../src/palette'
+import { tokens } from '../../../src/tokens'
 import { dragArrow, ringWidth, wakeAmount, wakeShade } from './click'
 import { makeClearClips, makeExitClip } from './effects'
 import { assemblingRing, disk, edgeBands, ring, ringEdge } from './parts'

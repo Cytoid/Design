@@ -12,10 +12,10 @@
  *   carry no drag marker (the 0.8 kind size is the only cue). Drop drags are
  *   never connected.
  */
-import type { SceneNode } from '../core/scene'
-import type { DrawContext, NoteDesign } from './types'
-import { group } from '../core/scene'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import type { DrawContext, NoteDesign } from '../../../src/notes/types'
+import { group } from '../../../src/core/scene'
+import { tokens } from '../../../src/tokens'
 import { ringWidth } from './click'
 import { makeClearClips, makeMissClip } from './effects'
 import { capsule, edgeBands, ringEdge } from './parts'

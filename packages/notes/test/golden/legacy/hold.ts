@@ -43,12 +43,12 @@
  * phantom note.
  * Bodies (see ./bodies.ts) are stretched elements, not frame clips.
  */
-import type { SceneNode } from '../core/scene'
-import type { DrawContext, NoteDesign } from './types'
-import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, seg, TAU } from '../core/ease'
-import { group } from '../core/scene'
-import { ringTone, tone } from '../palette'
-import { tokens } from '../tokens'
+import type { SceneNode } from '../../../src/core/scene'
+import type { DrawContext, NoteDesign } from '../../../src/notes/types'
+import { cubicBezier, inOutQuad, inOutSine, lerp, outBack, outCubic, outQuart, seg, TAU } from '../../../src/core/ease'
+import { group } from '../../../src/core/scene'
+import { ringTone, tone } from '../../../src/palette'
+import { tokens } from '../../../src/tokens'
 import { ringWidth, wakeShade } from './click'
 import { makeClearClips, makeExitClip, makeMissClip } from './effects'
 import { arc, assemblingRing, disk, ring, ringEdge } from './parts'
