@@ -193,6 +193,8 @@ pnpm --filter @cytoid/notes typecheck
 
 全部 kind / slot 的场景树测试覆盖方向、调色板、heading、缩放及 approach=0.01 / 0.6 / 1.2 / 2.4。`packages/skin-flat/test/golden/reference` 是仅供测试使用的独立绘制参考，不参与加载或生成；所有 kind 的入场与判定 PNG 均与参考逐字节相同。另有裁切、嵌套、倒放、定格、随机 seek、实例隔离、fallback、五种 slot 时钟和无效文档测试。
 
+生成结果对照先通过严格 schema，再对数值使用 12 位小数容差，以容纳不同平台数学函数的浮点尾差；字段、引用、字符串和数组顺序仍严格匹配。PNG 对照继续逐字节比较。
+
 载入有文档深度 / 节点数、资产数、引用深度、展开图元数和关键帧数预算；静态与间接循环引用都拒绝。
 
 本次完成仓库内现有 note skin 系统的三层格式。hold body、drag 连接线、judgement / timing 字形仍沿用既有独立绘制接口；Unity / C# 消费端不在此仓库，尚未移植。没有新增可视化皮肤编辑器或自定义游戏时长。
