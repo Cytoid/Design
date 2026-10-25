@@ -197,25 +197,28 @@ function holdPress(long: boolean) {
 }
 
 /**
- * While held, the shipped holdFx pulse: three translucent fill-coloured discs
- * phase-offset by a third of the period, growing outward under the head — the
- * particle system's look (note-fill sprite, 8/s, 0.5 s life, alpha
- * 0.39 → 0.196 at a third → 0, tinted BaseFillColor) as phase-locked slices.
+ * While held, the shipped holdFx pulse: four fill-coloured ring bands
+ * phase-offset by a quarter of the period, sweeping outward — the particle
+ * system (note-fill discs, 8/s, 0.5 s life, constant radial speed) projected
+ * orthographically: each spawn wave reads as a band of width ⅔ R (the disc's
+ * diameter) whose radius sweeps speed × life ≈ 3.34 R. Alpha is the
+ * particle's colour-over-lifetime ramp (0.39 → 0.196 at a third → 0), tinted
+ * BaseFillColor.
  */
 function holdLoopUnder(_long: boolean) {
   return (t: number, ctx: DrawContext): SceneNode => {
     const R = ctx.size / 2
     const P = tokens.time.holdLoop
     const u = (((t % P) + P) % P) / P
-    const discs: SceneNode[] = []
-    for (let i = 0; i < 3; i++) {
-      const v = (u + i / 3) % 1
+    const bands: SceneNode[] = []
+    for (let i = 0; i < 4; i++) {
+      const v = (u + i / 4) % 1
       const opacity = v < 1 / 3
         ? lerp(0.39, 0.196, v * 3)
         : lerp(0.196, 0, (v - 1 / 3) * (3 / 2))
-      discs.push(disk(R * lerp(1, 2.2, v), tone(ctx.palette, 400), opacity))
+      bands.push(ring(R * lerp(0, 3.34, v), R * 2 / 3, tone(ctx.palette, 400), opacity))
     }
-    return group(discs)
+    return group(bands)
   }
 }
 
