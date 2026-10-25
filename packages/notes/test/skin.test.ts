@@ -16,10 +16,10 @@ import {
   NOTE_KINDS,
 } from '../src'
 import { createPalette } from '../src/palette'
-import { designs as imperative } from './golden/legacy'
 import flatSkinJson from '../src/skin/flat.skin.json'
 import { compileSkin } from '../src/skin/interpret'
 import { parseSkin } from '../src/skin/schema'
+import { designs as imperative } from './golden/legacy'
 
 const compiled = compileSkin(parseSkin(flatSkinJson))
 
