@@ -2,7 +2,7 @@ import type { Clip, SceneNode } from '@cytoid/notes'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { bake, createCylheimTargets, rasterize } from '@cytoid/design-tools'
+import { bake, rasterize } from '@cytoid/design-tools'
 import { compileSkin, GRADES, loadSkinResources, parseSkin, renderFeedback, TIMED_GRADES, TIMINGS } from '@cytoid/notes'
 import { createContext, createPalette, designs, flat, flatSkin, renderNote } from '@cytoid/skin-flat'
 import { describe, expect, it } from 'vitest'
@@ -71,8 +71,6 @@ describe('three skin feedback modes', () => {
     try {
       const actual = renderFeedback('great', 'fast', 0.2, ctx, selected)!
       expect(png(actual)).toEqual(png({ type: 'rect', x: -3, y: -2, w: 6, h: 4, fill: '#ff0000' }))
-      const target = createCylheimTargets({ ...flat, designs: selected }).find(target => target.pattern.startsWith('PERFECT_'))!
-      expect(png(target.draw(0.2, ctx))).toEqual(png(actual))
       const manifest = await bake({ appearance: flat, skin: selected, outDir: root, kinds: [], directions: [], fps: 1, frames: false, progressFrames: 2 })
       expect(manifest.format).toBe('cytoid-notes/frames@2')
       const entry = manifest.feedback.combined.great!.fast

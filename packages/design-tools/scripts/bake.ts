@@ -2,7 +2,7 @@
  * Bake frame animations.
  *
  *   pnpm bake                         # → playground/public/frames (30 fps, 1x)
- *   pnpm bake --out out/frames --fps 60 --scale 2 --cylheim
+ *   pnpm bake --out out/frames --fps 60 --scale 2
  *   pnpm bake --kinds click,flick --dirs up --hue-shift 40
  *   pnpm bake --palette my-palette.json   # PaletteOptions JSON (exported from the playground)
  */
@@ -29,7 +29,6 @@ const { values } = parseArgs({
     'palette': { type: 'string' },
     'skin': { type: 'string' },
     'no-frames': { type: 'boolean', default: false },
-    'cylheim': { type: 'boolean', default: false },
     'clean': { type: 'boolean', default: true },
   },
 })
@@ -66,7 +65,6 @@ try {
     palette,
     skin,
     frames: !values['no-frames'],
-    cylheim: values.cylheim,
     onProgress: (m) => {
       count++
       process.stdout.write(`\r\x1B[2K${count} ${m}`)

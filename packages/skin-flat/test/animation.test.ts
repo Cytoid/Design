@@ -1,7 +1,7 @@
 import type { SceneNode, Skin, SkinLayersAnimation } from '@cytoid/notes'
-import { createCylheimTargets, rasterize } from '@cytoid/design-tools'
+import { rasterize } from '@cytoid/design-tools'
 import { compileAnimation, compileSkin, NOTE_KINDS, parseSkin, toSVG } from '@cytoid/notes'
-import { createContext, designs, flat, flatSkin, holdBodyAlpha, loadSkin, renderNote, tokens } from '@cytoid/skin-flat'
+import { createContext, designs, flatSkin, holdBodyAlpha, loadSkin, renderNote, tokens } from '@cytoid/skin-flat'
 import { describe, expect, it, vi } from 'vitest'
 import { feedbackBindings } from '../../notes/src/skin/slots'
 import { buildFlatSkin } from '../scripts/gen-skin'
@@ -124,8 +124,6 @@ describe('skin loader and engine clocks', () => {
     expect(loaded.hold).toBe(designs.hold)
     expect(toSVG(loaded.click.enter.draw(1, ctx))).toContain('<circle')
     expect(renderNote('click', { phase: 'enter', p: 0.5 }, ctx, { skin: loaded })).toEqual(loaded.click.enter.draw(0.5, ctx))
-    const target = createCylheimTargets({ ...flat, designs: loaded }).find(target => target.pattern.startsWith('Note-Click-Enter'))!
-    expect(target.draw(0.5, ctx)).toEqual(loaded.click.enter.draw(0.5, ctx))
   })
 
   it('bakes pixel-identical PNGs for every kind at entrance and judgement poses', () => {

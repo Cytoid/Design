@@ -9,15 +9,14 @@ import type { BakeAppearance } from './types'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { bounds, clipsOf, exportPalette, GRADES, group, NOTE_KINDS, sampleTimes, TIMED_GRADES, toSVGMarkup } from '@cytoid/notes'
-import { createCylheimTargets, CYLHEIM_PX_PER_UNIT, cylheimSamples } from './cylheim'
 import { rasterizeSvg } from './render'
 
 export interface BakeOptions {
   appearance: BakeAppearance
-  /** Compiled skin for both native sheets and Cylheim output. */
+  /** Compiled skin for the native sheets. */
   skin?: NoteSkin
   outDir: string
-  /** frames per second (Cylheim plays 30) */
+  /** frames per second */
   fps?: number
   /** px per design px. 1 → click note = 128 px */
   scale?: number
@@ -28,8 +27,6 @@ export interface BakeOptions {
   progressFrames?: number
   /** write individual PNG frames (sheets are always written) */
   frames?: boolean
-  /** also write a Cylheim-named compat folder */
-  cylheim?: boolean
   onProgress?: (msg: string) => void
 }
 
@@ -204,27 +201,8 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     }
     log(`bodies/${direction}`)
   }
-  if (options.cylheim) {
-    await bakeCylheim(options.outDir, palette, scale, log, { ...appearance, designs: skin })
-  }
   await writeFile(join(options.outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
 }
 
-/** Cylheim-named compat export (`src/images/designer` drop-in names). */
-async function bakeCylheim(outDir: string, palette: Palette, scale: number, log: (m: string) => void, appearance: BakeAppearance) {
-  const { createContext } = appearance
-  const dir = join(outDir, 'cylheim')
-  await mkdir(dir, { recursive: true })
-  for (const t of createCylheimTargets(appearance)) {
-    const ctx = createContext(t.kind, { palette, direction: t.direction ?? 'up', scale: scale * CYLHEIM_PX_PER_UNIT / (t.displayScale ?? 1) })
-    const samples = cylheimSamples(t)
-    const nodes = samples.map(s => t.draw(s.x, ctx))
-    const { w, h } = canvasFor(nodes)
-    await Promise.all(samples.map((s, i) => writeFile(join(dir, t.pattern.replace('{frame}', pad(s.f))), rasterize(nodes[i]!, w, h, w / 2, h / 2))))
-    log(`cylheim/${t.pattern}`)
-  }
-}
-
-export { createCylheimTargets, CYLHEIM_PX_PER_UNIT, cylheimSamples } from './cylheim'
 export { frameIndex, sampleTimes } from '@cytoid/notes'

@@ -125,13 +125,13 @@ Use lowercase grade and timing names in slot keys. Each binding references an or
 
 `compileSkin()` returns these clips as `skin.feedback.judgement[grade]`, `skin.feedback.timing[grade][timing]`, and `skin.feedback.combined[grade][timing]`. `renderFeedback()` and note composition select exactly one mode from the judgement/timing toggles. Both disabled draws no feedback. PERFECT, MISS, or an absent timing state uses judgement-only when enabled. With a fallback skin, an incomplete mode inherits that entire mode from the fallback.
 
-Preview, player and baking use the selected skin's feedback clips. The native `cytoid-notes/frames@2` manifest stores the three groups under `feedback`, with authored placement preserved through each clip's pivot. Cylheim's PERFECT export uses the judgement-only PERFECT clip.
+Preview, player and baking use the selected skin's feedback clips. The native `cytoid-notes/frames@2` manifest stores the three groups under `feedback`, with authored placement preserved through each clip's pivot.
 
 ## Packages
 
 - `@cytoid/notes`: note contracts, scene graph/renderers, palette math and skin runtime. No default skin data or Node rasterizer.
 - `@cytoid/skin-flat`: Flat assets, visual tokens, palette defaults, body/text rendering, and design-specific generators.
-- `@cytoid/design-tools`: design-independent authoring (`/authoring`), raster baking and Cylheim export.
+- `@cytoid/design-tools`: design-independent authoring (`/authoring`) and raster baking.
 - `@cytoid/player`: chart playback and Pixi integration; receives an appearance from its caller.
 
 The app selects `flat` from `@cytoid/skin-flat` and passes it as `appearance` to the player. Bake with `bake({ appearance: flat, outDir })` from `@cytoid/design-tools`. Build libraries with `pnpm -r --if-present build`.
