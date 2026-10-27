@@ -23,7 +23,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepack": "pnpm build",
-    "bake": "node --import tsx scripts/bake.ts"
+    "bake": "node --import tsx scripts/bake.ts",
+    "bake-image-skin": "node --import tsx scripts/bake-image-skin.ts"
   },
   "dependencies": {
     "@cytoid/notes": "workspace:*",

@@ -4,6 +4,7 @@ import { compileSkin } from './compile'
 export { compileAnimation, compileSkin } from './compile'
 export type { AnimationClock } from './compile'
 export { resolveInputs } from './inputs'
+export { validateSkin } from './validate'
 export { LoadedSkin, loadSkinResources, SkinImage } from './resources'
 export type { SkinResourceOptions } from './resources'
 
