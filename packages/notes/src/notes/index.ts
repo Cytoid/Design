@@ -50,7 +50,11 @@ export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, 
   const d = skin[kind]
   switch (state.phase) {
     case 'enter':
-      return d.enter.draw(state.p, ctx)
+      // loop enters (drop notes) run on real elapsed seconds — the clamped
+      // approach progress would freeze them once the intro window ends
+      return d.enter.mode === 'loop'
+        ? d.enter.draw(state.t ?? state.p * ctx.approach, ctx)
+        : d.enter.draw(state.p, ctx)
     case 'holding': {
       if (!d.hold)
         return d.enter.draw(1, ctx)

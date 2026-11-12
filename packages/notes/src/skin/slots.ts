@@ -7,7 +7,7 @@ export interface SlotContract { kind?: NoteKind, grade?: Grade, path: string, id
 export const slotRegistry = new Map<string, SlotContract>()
 for (const kind of NOTE_KINDS) {
   const add = (path: string, id: string, mode: ClipMode, duration: number) => slotRegistry.set(`${kind}:${path}`, { kind, path, id, mode, duration })
-  add('enter', 'enter', kind.startsWith('drop-') ? 'static' : 'normalized', noteTiming.enter)
+  add('enter', 'enter', kind.startsWith('drop-') ? 'loop' : 'normalized', noteTiming.enter)
   for (const grade of ['perfect', 'great', 'good', 'bad'] as const) add(`clear:${grade}`, `clear-${grade}`, 'once', noteTiming.clear[grade])
   add('miss', 'miss', 'once', noteTiming.clear.miss)
   if (!kind.startsWith('drop-')) {
@@ -37,6 +37,5 @@ export function slotProgress(slot: SlotContract, x: number, period = slot.durati
     case 'progress': return x
     case 'once': return x / slot.duration
     case 'loop': return period <= 0 ? 0 : (((x % period) + period) % period) / period
-    case 'static': return 0
   }
 }

@@ -75,7 +75,7 @@ describe('skin loader and engine clocks', () => {
     expect(() => loadSkin({ ...fragment(), schemaVersion: 99 })).toThrow()
   })
 
-  it('adapts once, normalized, progress, static and loop clocks', () => {
+  it('adapts once, normalized, progress and loop clocks', () => {
     const skin = complete(fragment())
     skin.slots['hold:press'] = { animation: 'grow' }
     skin.slots['hold:progress'] = { animation: 'grow' }
@@ -91,6 +91,16 @@ describe('skin loader and engine clocks', () => {
     expect(circle(d.hold.hold!.loopUnder!.draw(1, hold)).r).toBe(1)
     expect(circle(d.hold.hold!.loopUnder!.draw(1.5, hold)).r).toBe(5)
     expect(circle(d.hold.hold!.loopUnder!.draw(-0.5, hold)).r).toBe(5)
+    // drop enters loop on the contract period (1.2 s): x and x + period agree
+    const dropR = (x: number) => circle(d['drop-click'].enter.draw(x, createContext('drop-click'))).r
+    expect(dropR(1.8)).toBeCloseTo(dropR(0.6))
+  })
+
+  it('period 0 freezes a loop on its first frame', () => {
+    const skin = complete(fragment())
+    skin.slots['drop-click:enter'] = { animation: 'grow', period: 0 }
+    const d = compileSkin(skin)
+    expect(d['drop-click'].enter.duration).toBe(0)
     expect(circle(d['drop-click'].enter.draw(100, createContext('drop-click'))).r).toBe(1)
   })
 

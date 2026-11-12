@@ -34,11 +34,11 @@ export interface DrawContext {
  *  - `normalized`: x ∈ [0, 1] over a window whose real length varies
  *    (enter: from note intro to hit time). Stretch to fit.
  *  - `once`: x = seconds since the clip started, plays `duration` once.
- *  - `loop`: x = seconds, seamless with period `duration`.
+ *  - `loop`: x = seconds, seamless with period `duration`; `0` freezes on
+ *    the first frame.
  *  - `progress`: x ∈ [0, 1] driven by gameplay (hold progress), not time.
- *  - `static`: a single still image (drop notes). x is ignored.
  */
-export type ClipMode = 'normalized' | 'once' | 'loop' | 'progress' | 'static'
+export type ClipMode = 'normalized' | 'once' | 'loop' | 'progress'
 
 export interface Clip {
   /** Include the exact zero-time pose when baking normalized clips containing sequences. */
@@ -102,7 +102,7 @@ export type NoteSkin = Record<NoteKind, NoteDesign> & { feedback: FeedbackSkin }
 
 /** Live state of a note for the composed vector renderer. */
 export type NoteState
-  = | { phase: 'enter', p: number }
+  = | { phase: 'enter', p: number, /** seconds since the note appeared (loop enters run on it; fallback p × approach) */ t?: number }
     | { phase: 'holding', t: number, progress: number }
     /** `timing`: FAST / SLOW of the hit (shown for GREAT / GOOD / BAD only) */
     | { phase: 'clear', grade: ClearGrade, t: number, timing?: Timing }

@@ -89,11 +89,11 @@ export function clearDuration(grade: Grade): number {
 export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anchor: number | null = null, timing: Timing | null = null): NoteState | null {
   if (t < note.timein)
     return null
-  const enter = (): NoteState => ({ phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1 })
+  const enter = (): NoteState => ({ phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1, t: t - note.timein })
   if (t < note.time && anchor == null)
     return enter()
   if (grade === 'pending') // waiting at the scanline for input: the exit fade keys off the chart hit time
-    return t < note.time ? { phase: 'enter', p: 1 } : { phase: 'exit', t: t - note.time }
+    return t < note.time ? { phase: 'enter', p: 1, t: t - note.timein } : { phase: 'exit', t: t - note.time }
   // past the hit time: effects key off the actual press when one happened
   const hit = anchor ?? note.time
   if (grade === 'miss') {

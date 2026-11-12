@@ -111,7 +111,6 @@ async function bakeClip(clip: Clip, ctx: DrawContext, dir: string, rel: string, 
       once: 'i = min(N-1, round(t*fps)), t = seconds since judgement',
       loop: 'i = duration > 0 ? floor((t/duration mod 1)*N) : 0 — duration 0 freezes on the first frame',
       progress: 'i = round(progress*(N-1))',
-      static: 'single still image',
     }[clip.mode],
   }
 }

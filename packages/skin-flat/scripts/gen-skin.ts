@@ -835,7 +835,7 @@ function flickEnterClip(note: string): AnimationDraft {
   return { note, tracks, properties: { opacity: T('fade') }, layers: [approach, arrows, body] }
 }
 
-/** `drop.dropStatic` — the classic capsule, a still image. */
+/** `drop.dropStatic` — the classic capsule: a still pose played as a frozen loop (period 0). */
 function dropEnterClip(spec: { cap: { w: number, h: number }, fill: { w: number, h: number }, core?: { w: number, h: number } }, note: string): AnimationDraft {
   const w = mul(SIZE, spec.cap.w)
   const h = mul(SIZE, spec.cap.h)
@@ -933,10 +933,10 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
     skin.bind('long-hold:loopUnder', holdPulseClip(true))
     skin.bind('long-hold:progress', holdProgressClip())
     skin.bind('long-hold:body', longHoldBodyAnimation())
-    skin.bind('drop-click:enter', dropEnterClip(DROP_CLICK_SPEC, 'Static image: classic capsule — ring body, fill, white core. Only its position moves (fall).'))
+    skin.bind('drop-click:enter', dropEnterClip(DROP_CLICK_SPEC, 'Classic capsule as a frozen loop (period 0) — ring body, fill, white core. Only its position moves (fall).'), { period: 0 })
     for (const [grade, animation] of Object.entries(clearAll(DROP_CLICK_CLEAR))) skin.bind(`drop-click:clear:${grade}`, animation)
     skin.bind('drop-click:miss', missClip('capsule', DROP_CLICK_SPEC.cap))
-    skin.bind('drop-drag:enter', dropEnterClip(DROP_DRAG_SPEC, 'Static image: shorter classic capsule, ring body + fill, no core.'))
+    skin.bind('drop-drag:enter', dropEnterClip(DROP_DRAG_SPEC, 'Shorter classic capsule as a frozen loop (period 0) — ring body + fill, no core.'), { period: 0 })
     for (const [grade, animation] of Object.entries(clearAll(DROP_DRAG_CLEAR))) skin.bind(`drop-drag:clear:${grade}`, animation)
     skin.bind('drop-drag:miss', missClip('capsule', DROP_DRAG_SPEC.cap))
     bindFeedback(skin)

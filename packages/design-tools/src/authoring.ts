@@ -64,7 +64,7 @@ export class SkinBuilder {
     }
   }
 
-  bind(slot: string, draft: AnimationDraft): string {
+  bind(slot: string, draft: AnimationDraft, options: { period?: number } = {}): string {
     if (Object.hasOwn(this.document.slots, slot))
       throw new Error(`duplicate slot ${slot}`)
     const { note, layers, ...fields } = draft
@@ -79,7 +79,11 @@ export class SkinBuilder {
       this.animations.set(serialized, id)
       this.document.animations[id] = animation
     }
-    this.document.slots[slot] = { animation: id, ...(note ? { note } : {}) }
+    this.document.slots[slot] = {
+      animation: id,
+      ...(options.period !== undefined ? { period: options.period } : {}),
+      ...(note ? { note } : {}),
+    }
     return id
   }
 

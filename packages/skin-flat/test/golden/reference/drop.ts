@@ -4,8 +4,8 @@
  * capsule stacked on top, plus the click's white core bar, at the sprites'
  * measured proportions. The one kept flat device is the dark keyline on the
  * capsule's outer edge (the flat overlap separator). The fall offset is
- * applied by the consumer (position); the note itself is a static image
- * (no enter animation), as in Cytoid.
+ * applied by the consumer (position); the note itself is a frozen loop
+ * (period 0, no enter animation), as in Cytoid.
  *
  * Drop click: ring-colour capsule + fill capsule + white core bar.
  * Drop drag: same build, shorter and squatter, no core — the classic sprites
@@ -15,7 +15,6 @@
 import type { DrawContext, NoteDesign, SceneNode } from '@cytoid/notes'
 
 import { group } from '@cytoid/notes'
-import { tokens } from '@cytoid/skin-flat'
 import { ringWidth } from './click'
 import { makeClearClips, makeMissClip } from './effects'
 import { capsule, edgeBands, ringEdge } from './parts'
@@ -73,14 +72,14 @@ function dropStatic(spec: ClassicSpec) {
 
 export const dropClick: NoteDesign = {
   kind: 'drop-click',
-  enter: { id: 'enter', mode: 'static', duration: tokens.time.enter, draw: dropStatic(CLICK), note: 'Static image: classic capsule — ring body, fill, white core. Only its position moves (fall).' },
+  enter: { id: 'enter', mode: 'loop', duration: 0, draw: dropStatic(CLICK), note: 'Classic capsule as a frozen loop (period 0) — ring body, fill, white core. Only its position moves (fall).' },
   clear: makeClearClips({ shape: 'capsule', capsule: DROP_CLICK_CAPSULE, reach: 1.3, sectors: 24, seed: 8 }),
   miss: makeMissClip('capsule', DROP_CLICK_CAPSULE),
 }
 
 export const dropDrag: NoteDesign = {
   kind: 'drop-drag',
-  enter: { id: 'enter', mode: 'static', duration: tokens.time.enter, draw: dropStatic(DRAG), note: 'Static image: shorter classic capsule, ring body + fill, no core.' },
+  enter: { id: 'enter', mode: 'loop', duration: 0, draw: dropStatic(DRAG), note: 'Shorter classic capsule as a frozen loop (period 0) — ring body + fill, no core.' },
   clear: makeClearClips({ shape: 'capsule', capsule: DROP_DRAG_CAPSULE, reach: 1.3, sectors: 24, seed: 9 }),
   miss: makeMissClip('capsule', DROP_DRAG_CAPSULE),
 }

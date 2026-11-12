@@ -37,8 +37,8 @@ describe('noteStateAt', () => {
 
   it('covers the enter window', () => {
     expect(noteStateAt(note, 0.1, 'perfect')).toBeNull()
-    expect(noteStateAt(note, 0.134, 'perfect')).toEqual({ phase: 'enter', p: expect.closeTo(0.001, 2) })
-    expect(noteStateAt(note, 1.0, 'perfect')).toEqual({ phase: 'enter', p: expect.closeTo(0.634, 2) })
+    expect(noteStateAt(note, 0.134, 'perfect')).toEqual({ phase: 'enter', p: expect.closeTo(0.001, 2), t: expect.closeTo(0.001, 2) })
+    expect(noteStateAt(note, 1.0, 'perfect')).toEqual({ phase: 'enter', p: expect.closeTo(0.634, 2), t: expect.closeTo(0.867, 3) })
     expect(noteStateAt(note, 1.49, 'perfect')!.phase).toBe('enter')
   })
 
@@ -70,7 +70,7 @@ describe('noteStateAt', () => {
   })
 
   it('exits from the hit time while still pending', () => {
-    expect(noteStateAt(note, 1.49, 'pending')).toEqual({ phase: 'enter', p: expect.closeTo(0.993, 2) })
+    expect(noteStateAt(note, 1.49, 'pending')).toEqual({ phase: 'enter', p: expect.closeTo(0.993, 2), t: expect.closeTo(1.357, 3) })
     expect(noteStateAt(note, 1.6, 'pending')).toEqual({ phase: 'exit', t: expect.closeTo(0.1, 3) })
   })
 })

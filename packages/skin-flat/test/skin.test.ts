@@ -5,7 +5,7 @@
  * This is the acceptance contract the C# interpreter will be held to as well
  * (it loads this same JSON and must match the same trees).
  */
-import type { Clip, DrawContext, NoteDesign, NoteKind, SceneNode } from '@cytoid/notes'
+import type { Clip, DrawContext, NoteDesign, NoteKind, SceneNode, Skin } from '@cytoid/notes'
 
 import { compileSkin, hexToOklch, NOTE_KINDS, parseSkin } from '@cytoid/notes'
 import { createContext, createPalette, tokens } from '@cytoid/skin-flat'
@@ -150,12 +150,12 @@ function samplesFor(clip: Clip): number[] {
     }
     case 'loop': {
       const d = clip.duration
+      if (d <= 0)
+        return [0]
       const out: number[] = [0, 1e-6]
       for (let i = 1; i <= 60; i++) out.push((d * i) / 20)
       return out
     }
-    case 'static':
-      return [0, 0.5, 3]
   }
 }
 
@@ -260,7 +260,7 @@ describe('skin golden: compiled skin matches the drawing reference', () => {
 
 describe('slot period', () => {
   const withSlot = (key: string, period: number) => {
-    const document = structuredClone(flatSkinDocument)
+    const document = structuredClone(flatSkinDocument) as Skin
     document.slots[key] = { ...document.slots[key]!, period }
     return compileSkin(parseSkin(document))
   }
@@ -285,7 +285,7 @@ describe('slot period', () => {
   })
 
   it('is rejected on non-loop slots', () => {
-    const document = structuredClone(flatSkinDocument)
+    const document = structuredClone(flatSkinDocument) as Skin
     document.slots['click:clear:perfect'] = { ...document.slots['click:clear:perfect']!, period: 0.5 }
     expect(() => compileSkin(parseSkin(document))).toThrow(/period is only valid on loop slots/)
   })

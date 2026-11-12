@@ -68,11 +68,12 @@ describe('designs', () => {
     }
   })
 
-  it('drop notes are static images', () => {
+  it('drop enters are frozen loops (period 0)', () => {
     for (const kind of ['drop-click', 'drop-drag'] as const) {
       const clip = designs[kind].enter
       const ctx = createContext(kind)
-      expect(clip.mode).toBe('static')
+      expect(clip.mode).toBe('loop')
+      expect(clip.duration).toBe(0)
       expect(sampleTimes(clip, 30)).toHaveLength(1)
       expect(toSVG(clip.draw(0, ctx))).toBe(toSVG(clip.draw(1, ctx)))
     }
