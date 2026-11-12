@@ -71,6 +71,12 @@ export interface NoteDesign {
    */
   miss?: Clip
   /**
+   * Triggered drag head while it slides along its chain (drag-head and
+   * click-drag-head only; x = seconds since the trigger). Absent on designs
+   * without a bound slot: the head then holds its enter pose at p = 1.
+   */
+  active?: Clip
+  /**
    * Exit after the hit time while unjudged (x = seconds since the chart hit
    * time, absolute — not scaled with the approach). Keeps running through a
    * miss judgement, so a late miss never restarts the note at full opacity.
@@ -103,6 +109,7 @@ export type NoteSkin = Record<NoteKind, NoteDesign> & { feedback: FeedbackSkin }
 /** Live state of a note for the composed vector renderer. */
 export type NoteState
   = | { phase: 'enter', p: number, /** seconds since the note appeared (loop enters run on it; fallback p × approach) */ t?: number }
+    | { phase: 'active', /** seconds since the head triggered and started following its chain */ t: number }
     | { phase: 'holding', t: number, progress: number }
     /** `timing`: FAST / SLOW of the hit (shown for GREAT / GOOD / BAD only) */
     | { phase: 'clear', grade: ClearGrade, t: number, timing?: Timing }

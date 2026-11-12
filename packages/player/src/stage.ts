@@ -283,7 +283,7 @@ export class PlayStage {
 
     // the note sprite (steady pose while a triggered head follows the chain)
     if (d.follow) {
-      parts.push(renderNote(d.kind, { phase: 'enter', p: 1 }, ctx, { judgement: false, skin: text.skin }))
+      parts.push(renderNote(d.kind, { phase: 'active', t: d.followT }, ctx, { judgement: false, skin: text.skin }))
       // the clear/miss burst stays at the trigger point, on top — only while
       // the effect is actually playing (not after it faded)
       if (d.state) {

@@ -173,6 +173,22 @@ describe('appearance-independent note composition', () => {
     expect(tree.type === 'group' && tree.children.slice(1)).toEqual([{ type: 'group', children: [judgement, timing] }])
     expect(composeNote('click', { phase: 'enter', p: 0.5 }, ctx, skin)).toEqual(skin.click.enter.draw(0.5, ctx))
   })
+
+  it('active phase: uses the active slot when bound, else holds the enter hit pose', () => {
+    const doc = fragment()
+    for (const kind of NOTE_KINDS) {
+      for (const slot of ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']) doc.slots[`${kind}:${slot}`] = { animation: 'grow' }
+    }
+    doc.slots['hold:body'] = { animation: 'grow' }
+    doc.slots['long-hold:body'] = { animation: 'grow' }
+    for (const binding of feedbackBindings) doc.slots[binding.name] = { animation: 'grow' }
+    doc.slots['drag-head:active'] = { animation: 'grow', period: 0 }
+    const skin = compileSkin(doc)
+    expect(composeNote('drag-head', { phase: 'active', t: 5 }, ctx, skin)).toEqual(skin['drag-head'].active!.draw(5, ctx))
+    delete doc.slots['drag-head:active']
+    const without = compileSkin(doc)
+    expect(composeNote('drag-head', { phase: 'active', t: 5 }, ctx, without)).toEqual(without['drag-head'].enter.draw(1, ctx))
+  })
 })
 
 describe('driven numeric tracks and body drawing primitives', () => {

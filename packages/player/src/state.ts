@@ -23,7 +23,7 @@ export interface Position { x: number, y: number }
 export interface DerivedNote {
   note: ParsedNote
   kind: NoteKind
-  /** phase for `renderNote` (enter / holding / clear / miss); null = clear effect already finished (a following chain head) */
+  /** phase for `renderNote` (enter / active / holding / clear / miss); null = clear effect already finished (a following chain head) */
   state: NoteState | null
   /** actual press time when judged (play mode); null = chart-timed */
   anchor: number | null
@@ -31,6 +31,8 @@ export interface DerivedNote {
   pos: Position
   /** while a triggered drag head follows the scan line: live centre */
   follow: Position | null
+  /** seconds since the trigger, when the head follows its chain (drives the active slot) */
+  followT: number
   /** chain heading (radians, 0 = up) when the head points at a next node */
   heading: number
 }
@@ -202,6 +204,7 @@ export function deriveFrame(parsed: ParsedChart, t: number, opts: DeriveOptions)
       anchor,
       pos,
       follow,
+      followT: follow ? t - note.time : 0,
       heading,
     })
     if (next) {

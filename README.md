@@ -115,6 +115,10 @@ Hold templates extend along local +y; the engine flips their output for an upwar
 
 Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly. Drag connections retain their existing renderer.
 
+### Active drag heads
+
+`drag-head:active` and `click-drag-head:active` are optional loop slots for a triggered head while it slides along its chain (x = seconds since the trigger). The shipped skin pins them to the enter animation's hit pose with `sample: { from: 1, to: 1 }` and `period: 0` — visually the previous behaviour, where the head held its enter pose at p = 1. Skins can animate the travelling head with any loop animation instead. Unbound designs fall back to the enter pose; click-drag heads in the native renderer keep their pinned-anchor lifecycle (the separate chain indicator owns the chain window).
+
 ### Judgement and FAST / SLOW feedback
 
 Three global slot groups define the display modes independently of note kind:

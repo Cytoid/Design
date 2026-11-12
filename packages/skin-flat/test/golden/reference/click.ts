@@ -248,4 +248,12 @@ export const clickDragHead: NoteDesign = {
     ...click.enter,
     note: 'Experiment: identical to click, no arrow — the chain alone marks the drag start.',
   },
+  active: {
+    id: 'active',
+    mode: 'loop',
+    duration: 0,
+    note: 'Triggered click-drag head: the enter animation held at its hit pose (sampled at p 1, period 0).',
+    // the nested animation instance draws inside a bare group wrapper
+    draw: (_x, ctx) => ({ type: 'group', children: [click.enter.draw(1, ctx)] }),
+  },
 }

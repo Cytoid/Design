@@ -118,6 +118,13 @@ describe('chainFollow', () => {
     expect(atHead.x).toBeLessThan(mid.x)
   })
 
+  it('deriveFrame carries followT (seconds since the trigger) for the following head', () => {
+    const frame = deriveFrame(parsed, 1.5, { board })
+    const derived = frame.notes.find(d => d.note.id === head.id)!
+    expect(derived.follow).not.toBeNull()
+    expect(derived.followT).toBeCloseTo(0.25)
+  })
+
   it('does not apply to children', () => {
     expect(chainFollow(child, nextOf, 1.5, board)).toBeNull()
   })

@@ -9,6 +9,7 @@ import { showsTiming } from './timing'
 export function clipsOf(design: NoteDesign): Clip[] {
   return [
     design.enter,
+    ...(design.active ? [design.active] : []),
     ...(design.hold
       ? [
           design.hold.press,
@@ -49,6 +50,10 @@ export function renderFeedback(grade: Grade, timing: Timing | undefined, t: numb
 export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, skin: NoteSkin, options: Pick<RenderOptions, 'judgement' | 'timing'> = {}): SceneNode {
   const d = skin[kind]
   switch (state.phase) {
+    case 'active':
+      // a triggered head following its chain; designs without the slot hold
+      // the enter pose they froze at the trigger
+      return d.active ? d.active.draw(state.t, ctx) : d.enter.draw(1, ctx)
     case 'enter':
       // loop enters (drop notes) run on real elapsed seconds — the clamped
       // approach progress would freeze them once the intro window ends

@@ -86,6 +86,8 @@ function slotsOf(d: NoteDesign): [string, Clip][] {
     out.push(['exit', d.exit])
   if (d.miss)
     out.push(['miss', d.miss])
+  if (d.active)
+    out.push(['active', d.active])
   return out
 }
 

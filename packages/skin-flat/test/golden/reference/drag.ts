@@ -56,6 +56,14 @@ export const dragHead: NoteDesign = {
   },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }),
   exit: makeExitClip(headDraw),
+  active: {
+    id: 'active',
+    mode: 'loop',
+    duration: 0,
+    note: 'Triggered head sliding along its chain: the enter animation held at its hit pose (sampled at p 1, period 0).',
+    // the nested animation instance draws inside a bare group wrapper
+    draw: (_x, ctx) => ({ type: 'group', children: [headDraw(1, ctx)] }),
+  },
 }
 
 /**

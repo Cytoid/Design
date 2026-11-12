@@ -275,6 +275,9 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
       design.exit = exit
     if (miss)
       design.miss = miss
+    const active = clip('active')
+    if (active)
+      design.active = active
     if (hasHold) {
       design.hold = { press: clip('press')!, progress: clip('progress')! }
       const under = clip('loopUnder')
