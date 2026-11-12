@@ -1,9 +1,8 @@
-import type { Grade, Palette, Timing } from '@cytoid/notes'
+import type { Grade, NoteAppearance, NoteSkin, Palette, Timing } from '@cytoid/notes'
 import type { ParsedChart } from './chart'
 import type { Clock } from './clock'
 import type { JudgeMode } from './judgement'
 import type { StageOptions } from './stage'
-import { tokens } from '@cytoid/notes'
 /**
  * Player controller: owns the Pixi application, the playback clock and the
  * parsed chart. Framework-agnostic — the Vue view only calls its API.
@@ -19,6 +18,9 @@ import { layoutBoard, layoutPlayer, NOTE_HEIGHT_RATIO } from './layout'
 import { PlayStage } from './stage'
 
 export interface PlayerOptions {
+  appearance: NoteAppearance
+  /** Compiled custom skin, also replaceable through updateOptions. */
+  skin?: NoteSkin
   palette: Palette
   scale: number
   judgement: boolean
@@ -55,7 +57,9 @@ export class Player {
 
   private get stageOptions(): StageOptions {
     return {
+      appearance: this.options.appearance,
       palette: this.options.palette,
+      skin: this.options.skin,
       scale: this.options.scale,
       judgement: this.options.judgement,
       timing: this.options.timing,
@@ -123,7 +127,7 @@ export class Player {
     this.lastBoard = layoutBoard(w, h)
     // note size derives from the play area height (core behaviour), the
     // slider is a multiplier on top — never a fixed pixel size
-    const scalePx = (this.lastBoard.height * NOTE_HEIGHT_RATIO * this.options.scale) / tokens.unit
+    const scalePx = (this.lastBoard.height * NOTE_HEIGHT_RATIO * this.options.scale) / this.options.appearance.metrics.unit
     this.judge?.setRadius((this.lastBoard.height * NOTE_HEIGHT_RATIO * this.options.scale) / 2)
     const stageOptions = { ...this.stageOptions, scale: scalePx }
     this.stage.setOptions(stageOptions)
@@ -170,7 +174,7 @@ export class Player {
 
   private makeJudge(): JudgeEngine {
     return new JudgeEngine(this.parsed!, {
-      radiusPx: (tokens.unit / 2) * this.options.scale,
+      radiusPx: (this.options.appearance.metrics.unit / 2) * this.options.scale,
       board: { width: this.lastBoard.width, height: this.lastBoard.height },
       mode: this.options.judgeMode,
     })
@@ -200,7 +204,7 @@ export class Player {
     if (o.judgeMode !== undefined)
       this.judge?.setMode(o.judgeMode)
     if (o.scale !== undefined && this.judge)
-      this.judge.setRadius((tokens.unit / 2) * this.options.scale)
+      this.judge.setRadius((this.options.appearance.metrics.unit / 2) * this.options.scale)
     this.stage.setOptions(this.stageOptions)
     if (this.audio && o.deviceOffset !== undefined)
       this.reseedAudio()

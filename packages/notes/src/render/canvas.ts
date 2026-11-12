@@ -98,13 +98,22 @@ function drawIsolated(ctx: Ctx2D, node: Extract<SceneNode, { type: 'group' }>, a
 }
 
 /** Draw a scene node. The caller sets up the origin (note centre). */
-export function drawScene(ctx: Ctx2D, node: SceneNode, parentAlpha = 1): void {
+export function drawScene(ctx: Ctx2D, node: SceneNode, parentAlpha = 1, parentBlend: 'normal' | 'add' = 'normal'): void {
   const alpha = parentAlpha * (node.opacity ?? 1)
   if (alpha <= 0.001)
     return
   ctx.globalAlpha = alpha
-  ctx.globalCompositeOperation = node.blend === 'add' ? 'lighter' : 'source-over'
+  const blend = node.blend ?? parentBlend
+  ctx.globalCompositeOperation = blend === 'add' ? 'lighter' : 'source-over'
   switch (node.type) {
+    case 'image':
+      if (node.image.disposed)
+        throw new Error('skin image has been disposed')
+      if (!node.image.source)
+        throw new Error('Canvas image is not decoded; provide a decoder to loadSkinResources')
+      if (node.w > 0 && node.h > 0)
+        ctx.drawImage(node.image.source, node.x, node.y, node.w, node.h)
+      break
     case 'circle':
       ctx.beginPath()
       ctx.arc(node.cx ?? 0, node.cy ?? 0, Math.max(0, node.r), 0, TAU)
@@ -150,14 +159,14 @@ export function drawScene(ctx: Ctx2D, node: SceneNode, parentAlpha = 1): void {
       break
     case 'group':
       if (node.isolate && alpha < 0.999) {
-        drawIsolated(ctx, node, alpha)
+        drawIsolated(ctx, { ...node, blend }, alpha)
         break
       }
       ctx.save()
       applyTransform(ctx, node.transform)
       if (node.clip)
         clipPath(ctx, node.clip)
-      for (const c of node.children) drawScene(ctx, c, alpha)
+      for (const c of node.children) drawScene(ctx, c, alpha, blend)
       ctx.restore()
       break
   }

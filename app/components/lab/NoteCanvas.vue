@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Clip, Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { CanvasFrame } from './StageCanvas.vue'
-import { bounds, createContext, drawScene, group, renderJudgement, renderNote, renderTiming, showsTiming } from '@cytoid/notes'
+import { bounds, drawScene, group, renderFeedback } from '@cytoid/notes'
+import { createContext, designs, renderNote } from '@cytoid/skin-flat'
 import { clipMax } from '../../composables/clips'
 import { palette } from '../../composables/usePalette'
 import StageCanvas from './StageCanvas.vue'
@@ -36,10 +37,11 @@ function paint({ ctx, width, height }: CanvasFrame) {
   let node = props.clip ? props.clip.draw(props.x, dc) : props.state ? renderNote(props.kind, props.state, dc, { judgement: props.judgement ?? true }) : null
   // clear / miss clips: optionally overlay the matching judgement text
   const grade = props.clip?.id.startsWith('clear-') ? props.clip.id.slice(6) as Grade : props.clip?.id === 'miss' ? 'miss' : null
-  if (node && grade && props.judgement)
-    node = group([node, renderJudgement(grade, props.x, dc)])
-  if (node && grade && props.timing && showsTiming(grade))
-    node = group([node, renderTiming(props.timing, grade, props.x, dc, props.judgement ? 'stacked' : 'centre')])
+  if (node && grade) {
+    const feedback = renderFeedback(grade, props.timing ?? undefined, props.x, dc, designs, { judgement: props.judgement ?? false, timing: !!props.timing })
+    if (feedback)
+      node = group([node, feedback])
+  }
   if (!node)
     return
   drawScene(ctx, node)

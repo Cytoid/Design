@@ -7,7 +7,7 @@
 import type { Direction, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
 import type { ParsedChart, ParsedNote } from './chart'
 import type { JudgeGrade } from './judgement'
-import { clamp01, tokens } from '@cytoid/notes'
+import { clamp01, noteTiming } from '@cytoid/notes'
 import { HOLD_TYPES, KIND_OF, pageAtTime, scanlineRatio } from './chart'
 
 export interface BoardTransform {
@@ -23,7 +23,7 @@ export interface Position { x: number, y: number }
 export interface DerivedNote {
   note: ParsedNote
   kind: NoteKind
-  /** phase for `renderNote` (enter / holding / clear / miss); null = clear effect already finished (a following chain head) */
+  /** phase for `renderNote` (enter / active / holding / clear / miss); null = clear effect already finished (a following chain head) */
   state: NoteState | null
   /** actual press time when judged (play mode); null = chart-timed */
   anchor: number | null
@@ -31,6 +31,8 @@ export interface DerivedNote {
   pos: Position
   /** while a triggered drag head follows the scan line: live centre */
   follow: Position | null
+  /** seconds since the trigger, when the head follows its chain (drives the active slot) */
+  followT: number
   /** chain heading (radians, 0 = up) when the head points at a next node */
   heading: number
 }
@@ -75,7 +77,7 @@ export function notePos(note: ParsedNote, ratioY: number, board: BoardTransform)
 const CHILD_TYPES = new Set(['drag_child', 'cdrag_child'])
 
 /** Longest exit fade — a miss stays derived at least this long past the chart time. */
-const EXIT_MAX = Math.max(...Object.values(tokens.time.exit).map(c => (typeof c === 'number' ? 0 : c.duration)))
+const EXIT_MAX = Math.max(...Object.values(noteTiming.exit).map(c => (typeof c === 'number' ? 0 : c.duration)))
 
 /** Cytoid clear-effect window per grade (seconds). */
 export function clearDuration(grade: Grade): number {
@@ -89,11 +91,11 @@ export function clearDuration(grade: Grade): number {
 export function noteStateAt(note: ParsedNote, t: number, grade: JudgeGrade, anchor: number | null = null, timing: Timing | null = null): NoteState | null {
   if (t < note.timein)
     return null
-  const enter = (): NoteState => ({ phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1 })
+  const enter = (): NoteState => ({ phase: 'enter', p: note.duration.fadein > 0 ? clamp01((t - note.timein) / note.duration.fadein) : 1, t: t - note.timein })
   if (t < note.time && anchor == null)
     return enter()
   if (grade === 'pending') // waiting at the scanline for input: the exit fade keys off the chart hit time
-    return t < note.time ? { phase: 'enter', p: 1 } : { phase: 'exit', t: t - note.time }
+    return t < note.time ? { phase: 'enter', p: 1, t: t - note.timein } : { phase: 'exit', t: t - note.time }
   // past the hit time: effects key off the actual press when one happened
   const hit = anchor ?? note.time
   if (grade === 'miss') {
@@ -202,6 +204,7 @@ export function deriveFrame(parsed: ParsedChart, t: number, opts: DeriveOptions)
       anchor,
       pos,
       follow,
+      followT: follow ? t - note.time : 0,
       heading,
     })
     if (next) {

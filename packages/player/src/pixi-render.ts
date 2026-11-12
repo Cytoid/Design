@@ -1,4 +1,4 @@
-import type { ClipShape, SceneNode, StrokeStyle, Transform } from '@cytoid/notes'
+import type { ClipShape, SceneNode, SkinImage, StrokeStyle, Transform } from '@cytoid/notes'
 /**
  * PixiJS renderer for the scene graph — the live counterpart of
  * `render/canvas.ts`. Used by the playground player to draw clip output
@@ -10,24 +10,59 @@ import type { ClipShape, SceneNode, StrokeStyle, Transform } from '@cytoid/notes
  * geometry/style signature changes. This keeps steady poses cheap and makes
  * animated arcs/dashes the only per-frame tessellation.
  */
-import { AlphaFilter, Color, Container, Graphics } from 'pixi.js'
+import { parseHexAlpha } from '@cytoid/notes'
+import { AlphaFilter, Color, Container, Graphics, Sprite, Texture } from 'pixi.js'
 
-const colorCache = new Map<string, number>()
+const colorCache = new Map<string, { color: number, alpha: number }>()
 
-/** css color string → pixi number (memoised). */
-export function pixiColor(css: string): number {
-  let n = colorCache.get(css)
-  if (n === undefined) {
-    n = new Color(css).toNumber()
-    colorCache.set(css, n)
+/** Preserve embedded alpha for both fill and stroke paints. */
+export function pixiPaint(css: string): { color: number, alpha: number } {
+  let paint = colorCache.get(css)
+  if (!paint) {
+    const parsed = new Color(css)
+    paint = { color: parsed.toNumber(), alpha: css.startsWith('#') ? parseHexAlpha(css) : parsed.alpha }
+    // Animated gradients can produce many distinct colors over a session.
+    if (colorCache.size >= 4096)
+      colorCache.clear()
+    colorCache.set(css, paint)
   }
-  return n
+  return paint
+}
+
+export function pixiColor(css: string): number {
+  return pixiPaint(css).color
+}
+
+const imageTextures = new WeakMap<SkinImage, Texture>()
+function imageTexture(image: SkinImage): Texture {
+  if (image.disposed)
+    throw new Error('skin image has been disposed')
+  let texture = imageTextures.get(image)
+  if (!texture) {
+    if (!image.source)
+      throw new Error('Pixi image is not decoded; provide a decoder to loadSkinResources')
+    texture = Texture.from(image.source as Parameters<typeof Texture.from>[0], true)
+    imageTextures.set(image, texture)
+    const owned = texture
+    image.onDispose(() => {
+      imageTextures.delete(image)
+      owned.destroy(true)
+    })
+  }
+  return texture
+}
+
+function displayKind(node: SceneNode): 'group' | 'gfx' | 'image' {
+  return node.type === 'group' ? 'group' : node.type === 'image' ? 'image' : 'gfx'
+}
+function displayObject(node: SceneNode): Container {
+  return node.type === 'group' ? new Container() : node.type === 'image' ? new Sprite(imageTexture(node.image)) : new Graphics()
 }
 
 interface Entry {
   container: Container
   /** which display class `container` was created for */
-  kind: 'group' | 'gfx'
+  kind: 'group' | 'gfx' | 'image'
   /** primitive signature at last rebuild (primitives only) */
   sig?: string
   /** mask graphics for groups with a clip */
@@ -50,7 +85,7 @@ function groupTransform(t?: Transform) {
 }
 
 /** Geometry + style fingerprint (opacity/blend are synced as properties). */
-function signature(n: Exclude<SceneNode, { type: 'group' }>): string {
+function signature(n: Exclude<SceneNode, { type: 'group' | 'image' }>): string {
   const s = 'strokeWidth' in n ? n : null
   const st = s && s.stroke
     ? `${s.stroke},${s.strokeWidth ?? 1},${s.cap ?? ''},${s.join ?? ''},${s.dash ? s.dash.join('+') : ''},${s.dashOffset ?? 0}`
@@ -151,7 +186,7 @@ function dashedPath(g: Graphics, pts: [number, number][], closed: boolean, s: St
 function applyStroke(g: Graphics, s: StrokeStyle) {
   g.setStrokeStyle({
     width: s.strokeWidth ?? 1,
-    color: pixiColor(s.stroke!),
+    ...pixiPaint(s.stroke!),
     cap: s.cap ?? 'butt',
     join: s.join ?? 'miter',
   })
@@ -171,7 +206,7 @@ function arcPoints(n: Extract<SceneNode, { type: 'arc' }>): [number, number][] {
   return pts
 }
 
-function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
+function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' | 'image' }>) {
   g.clear()
   const doStroke = (s: StrokeStyle) => {
     if (s.stroke && (s.strokeWidth ?? 1) > 0) {
@@ -183,7 +218,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
     case 'circle':
       g.circle(n.cx ?? 0, n.cy ?? 0, Math.max(0, n.r))
       if (n.fill)
-        g.fill(pixiColor(n.fill))
+        g.fill(pixiPaint(n.fill))
       doStroke(n)
       break
     case 'arc': {
@@ -202,7 +237,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
       if (n.w > 0 && n.h > 0) {
         g.roundRect(n.x, n.y, n.w, n.h, Math.min(n.rx ?? 0, n.w / 2, n.h / 2))
         if (n.fill)
-          g.fill(pixiColor(n.fill))
+          g.fill(pixiPaint(n.fill))
         doStroke(n)
       }
       break
@@ -215,7 +250,7 @@ function drawPrimitive(g: Graphics, n: Exclude<SceneNode, { type: 'group' }>) {
       else {
         g.poly(n.points.flat(), n.closed ?? false)
         if (n.fill)
-          g.fill(pixiColor(n.fill))
+          g.fill(pixiPaint(n.fill))
         doStroke(n)
       }
       break
@@ -251,15 +286,15 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
     const n = nodes[i]!
     let e = entries[i]
     if (!e) {
-      e = { kind: n.type === 'group' ? 'group' : 'gfx', container: n.type === 'group' ? new Container() : new Graphics() }
+      e = { kind: displayKind(n), container: displayObject(n) }
       entries.push(e)
       parent.addChild(e.container)
     }
     // swap display class if the node kind changed (rare)
     // (instanceof is useless here: pixi v8 Graphics extends Container)
-    const wantKind = n.type === 'group' ? 'group' : 'gfx'
+    const wantKind = displayKind(n)
     if (e.kind !== wantKind) {
-      const fresh = wantKind === 'group' ? new Container() : new Graphics()
+      const fresh = displayObject(n)
       const idx = parent.children.indexOf(e.container)
       e.mask?.destroy()
       e.isolate?.destroy()
@@ -288,7 +323,7 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
       }
       e.container.alpha = alpha
     }
-    e.container.blendMode = n.blend === 'add' ? 'add' : 'normal'
+    e.container.blendMode = n.blend === 'add' ? 'add' : n.blend === 'normal' ? 'normal' : 'inherit'
     if (n.type === 'group') {
       const t = groupTransform(n.transform)
       e.container.position.set(t.x, t.y)
@@ -314,6 +349,13 @@ function syncChildren(parent: Container, nodes: SceneNode[]) {
         e.mask = undefined
       }
       syncChildren(e.container, n.children)
+    }
+    else if (n.type === 'image') {
+      const sprite = e.container as Sprite
+      sprite.texture = imageTexture(n.image)
+      sprite.position.set(n.x, n.y)
+      sprite.width = n.w
+      sprite.height = n.h
     }
     else {
       const g = e.container as Graphics

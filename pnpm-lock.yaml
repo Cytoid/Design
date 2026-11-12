@@ -172,6 +172,9 @@ importers:
       '@cytoid/player':
         specifier: workspace:*
         version: link:packages/player
+      '@cytoid/skin-flat':
+        specifier: workspace:*
+        version: link:packages/skin-flat
       '@iconify-json/lucide':
         specifier: ^1.2.139
         version: 1.2.139
@@ -225,11 +228,33 @@ importers:
         specifier: ^3.3.12
         version: 3.3.12(typescript@6.0.3)
 
-  packages/notes:
+  packages/design-tools:
     dependencies:
+      '@cytoid/notes':
+        specifier: workspace:*
+        version: link:../notes
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
+    devDependencies:
+      '@types/node':
+        specifier: ^24.12.4
+        version: 24.19.2
+      obuild:
+        specifier: ^0.4.35
+        version: 0.4.44(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.5)(typescript@6.0.3)(vue-tsc@3.3.12(typescript@6.0.3))
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.11(@types/node@24.19.2)(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.0))
+
+  packages/notes:
+    dependencies:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -268,6 +293,31 @@ importers:
       '@types/node':
         specifier: ^24.12.4
         version: 24.19.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.11(@types/node@24.19.2)(vite@8.3.2(@types/node@24.19.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.23.15)(yaml@2.9.0))
+
+  packages/skin-flat:
+    dependencies:
+      '@cytoid/notes':
+        specifier: workspace:*
+        version: link:../notes
+    devDependencies:
+      '@cytoid/design-tools':
+        specifier: workspace:*
+        version: link:../design-tools
+      '@types/node':
+        specifier: ^24.12.4
+        version: 24.19.2
+      obuild:
+        specifier: ^0.4.35
+        version: 0.4.44(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.5)(typescript@6.0.3)(vue-tsc@3.3.12(typescript@6.0.3))
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

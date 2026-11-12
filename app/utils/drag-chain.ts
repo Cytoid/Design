@@ -1,5 +1,6 @@
 import type { Direction, Grade, NoteKind, NoteState, Palette, Timing } from '@cytoid/notes'
-import { clamp01, createContext, dragLine, drawScene, renderNote, tokens } from '@cytoid/notes'
+import { clamp01, drawScene } from '@cytoid/notes'
+import { createContext, dragLine, renderNote, tokens } from '@cytoid/skin-flat'
 import { MISS_DEADLINE } from '~/composables/clips'
 
 /**
