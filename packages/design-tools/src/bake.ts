@@ -109,7 +109,7 @@ async function bakeClip(clip: Clip, ctx: DrawContext, dir: string, rel: string, 
     sampling: {
       normalized: clip.includeStart ? 'i = min(N-1, floor(p*(N-1))), including the exact zero-time pose' : 'i = min(N-1, floor(p*N)), p = normalised approach progress (window ends at hit time)',
       once: 'i = min(N-1, round(t*fps)), t = seconds since judgement',
-      loop: 'i = floor((t/duration mod 1)*N)',
+      loop: 'i = duration > 0 ? floor((t/duration mod 1)*N) : 0 — duration 0 freezes on the first frame',
       progress: 'i = round(progress*(N-1))',
       static: 'single still image',
     }[clip.mode],

@@ -262,7 +262,15 @@ export interface SequenceAnimation extends AnimationBase {
   frames: string[]
 }
 export type Animation = LayersAnimation | SequenceAnimation
-export interface Slot { animation: string, note?: string }
+export interface Slot {
+  animation: string
+  /**
+   * Loop period override in seconds (loop slots only). Omit to use the engine's
+   * contract duration; `0` freezes the loop on its first frame.
+   */
+  period?: number
+  note?: string
+}
 export interface SkinMeta {
   palette?: {
     chroma?: number
@@ -312,7 +320,7 @@ export const skinSchema: z.ZodType<Skin> = object({
     object({ type: schema.literal('layers'), tracks: schema.record(name, track).optional(), properties: object({ opacity: value.optional(), transform: transform.optional() }).optional(), isolate: schema.boolean().optional(), layers: schema.array(layer).max(4096) }),
     object({ type: schema.literal('sequence'), tracks: schema.record(name, track).optional(), properties: object({ opacity: value.optional(), transform: transform.optional() }).optional(), isolate: schema.boolean().optional(), fps: finite.positive().optional(), frames: schema.array(name).min(1).max(4096) }),
   ])),
-  slots: schema.record(name, object({ animation: name, note: schema.string().max(4096).optional() })),
+  slots: schema.record(name, object({ animation: name, period: finite.min(0).optional(), note: schema.string().max(4096).optional() })),
 })
 
 /** Bound unknown JSON before recursive schema validation (including cyclic JS objects). */

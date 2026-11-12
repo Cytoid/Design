@@ -30,12 +30,13 @@ for (const binding of feedbackBindings) {
   slotRegistry.set(binding.name, { grade: binding.grade, path: binding.view satisfies FeedbackView, id: binding.name, mode: 'once', duration: noteTiming.clear[binding.grade] })
 }
 
-export function slotProgress(slot: SlotContract, x: number): number {
+/** How a clip's driver value maps to animation progress. `period` overrides a loop slot's contract duration; `<= 0` freezes on the first frame. */
+export function slotProgress(slot: SlotContract, x: number, period = slot.duration): number {
   switch (slot.mode) {
     case 'normalized':
     case 'progress': return x
     case 'once': return x / slot.duration
-    case 'loop': return (((x % slot.duration) + slot.duration) % slot.duration) / slot.duration
+    case 'loop': return period <= 0 ? 0 : (((x % period) + period) % period) / period
     case 'static': return 0
   }
 }

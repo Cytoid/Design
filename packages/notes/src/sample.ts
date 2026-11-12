@@ -7,8 +7,9 @@ import type { Clip } from './notes/types'
  *              → player: i = min(N−1, floor(p·N))   (Cylheim-compatible)
  *              The last frame is the exact hit-time pose.
  *  once:       N = ceil(duration·fps)+1; frame i shows t = i/fps (clamped)
- *  loop:       N = round(duration·fps); frame i shows t = i/N·duration
- *              → player: i = floor(t/duration·N) mod N
+ *  loop:       period = duration (0 = frozen on the first frame)
+ *              N = max(1, round(duration·fps)); frame i shows t = i/N·duration
+ *              → player: duration > 0 ? floor(t/duration·N) mod N : 0
  *  progress:   N = progressFrames; frame i shows p = i/(N−1)
  *  static:     N = 1
  *              → player: i = round(p·(N−1))
@@ -44,6 +45,8 @@ export function frameIndex(clip: Pick<Clip, 'mode' | 'duration' | 'includeStart'
     case 'once':
       return Math.max(0, Math.min(frames - 1, Math.round(x * fps)))
     case 'loop': {
+      if (clip.duration <= 0)
+        return 0
       const u = ((x / clip.duration) % 1 + 1) % 1
       return Math.floor(u * frames) % frames
     }

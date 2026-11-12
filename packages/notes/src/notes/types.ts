@@ -45,7 +45,11 @@ export interface Clip {
   includeStart?: boolean
   id: string
   mode: ClipMode
-  /** nominal duration in seconds (for `progress`: suggested seconds to sample at bake fps) */
+  /**
+   * Nominal duration in seconds (for `progress`: suggested seconds to sample at
+   * bake fps). For `loop` this is the wrap period — the skin may override it per
+   * slot binding; `0` freezes the loop on its first frame.
+   */
   duration: number
   draw: (x: number, ctx: DrawContext) => SceneNode
   /** short human description, shown in the playground / docs */

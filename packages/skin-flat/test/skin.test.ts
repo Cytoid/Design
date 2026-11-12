@@ -256,4 +256,37 @@ describe('skin golden: compiled skin matches the drawing reference', () => {
 })
 
 /* ------------------------------------------------------------------ */
-/* schema / loader behaviour                                           */
+/* slot period overrides                                               */
+
+describe('slot period', () => {
+  const withSlot = (key: string, period: number) => {
+    const document = structuredClone(flatSkinDocument)
+    document.slots[key] = { ...document.slots[key]!, period }
+    return compileSkin(parseSkin(document))
+  }
+
+  it('overrides the loop wrap period', () => {
+    const skin = withSlot('hold:loopUnder', 0.5)
+    const clip = skin.hold.hold!.loopUnder!
+    expect(clip.duration).toBe(0.5)
+    const ctx = createContext('hold')
+    // different phases within the 0.5 s period must draw differently
+    expect(compareTrees(clip.draw(0.2, ctx), clip.draw(0.3, ctx), 'loop phase')).not.toBeNull()
+    // and 0.5 s apart wraps back onto the same pose
+    expect(compareTrees(clip.draw(0.2, ctx), clip.draw(0.7, ctx), 'loop wrap')).toBeNull()
+  })
+
+  it('period 0 freezes on the first frame', () => {
+    const skin = withSlot('hold:loopUnder', 0)
+    const clip = skin.hold.hold!.loopUnder!
+    expect(clip.duration).toBe(0)
+    const ctx = createContext('hold')
+    expect(compareTrees(clip.draw(0.3, ctx), clip.draw(0.9, ctx), 'frozen')).toBeNull()
+  })
+
+  it('is rejected on non-loop slots', () => {
+    const document = structuredClone(flatSkinDocument)
+    document.slots['click:clear:perfect'] = { ...document.slots['click:clear:perfect']!, period: 0.5 }
+    expect(() => compileSkin(parseSkin(document))).toThrow(/period is only valid on loop slots/)
+  })
+})

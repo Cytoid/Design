@@ -228,12 +228,15 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
       if (!binding)
         return undefined
       const contract = slotRegistry.get(name)!
+      if (binding.period !== undefined && contract.mode !== 'loop')
+        throw new Error(`${name}: period is only valid on loop slots`)
+      const period = binding.period ?? contract.duration
       const draw = build(binding.animation)
       return {
         ...(hasSequence(binding.animation) ? { includeStart: true } : {}),
         id: contract.id,
         mode: contract.mode,
-        duration: contract.duration,
+        duration: contract.mode === 'loop' ? period : contract.duration,
         ...(binding.note ? { note: binding.note } : {}),
         draw(x, ctx) {
           if (!Number.isFinite(x))
@@ -241,8 +244,8 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
           const inputs = resolveInputs(ctx)
           inputs.exitRewindEnd = 1 - contract.duration * noteTiming.exit.rewind / Math.max(1e-6, ctx.approach)
           const grade = path.startsWith('clear:') ? path.slice(6) as Grade : path === 'miss' ? 'miss' : undefined
-          const p = slotProgress(contract, x)
-          const duration = contract.mode === 'normalized' ? ctx.approach : contract.duration
+          const p = slotProgress(contract, x, period)
+          const duration = contract.mode === 'normalized' ? ctx.approach : period
           return draw(p, { ...ctx, grade }, inputs, { elapsed: p * duration, duration })
         },
       }
