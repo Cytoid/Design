@@ -4,16 +4,15 @@ import { compileSkin } from './compile'
 export { compileAnimation, compileSkin } from './compile'
 export type { AnimationClock } from './compile'
 export { resolveInputs } from './inputs'
-export { validateSkin } from './validate'
 export { LoadedSkin, loadSkinResources, SkinImage } from './resources'
 export type { SkinResourceOptions } from './resources'
+export { INPUTS, parseSkin, skinSchema } from './schema'
 
 /** Incomplete kinds may inherit an explicitly supplied fallback. */
 export function loadSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
   return compileSkin(json, fallback)
 }
 
-export { INPUTS, parseSkin, skinSchema } from './schema'
 export type {
   Skin,
   Animation as SkinAnimation,
@@ -33,3 +32,4 @@ export type {
   Track as SkinTrack,
   Value as SkinValue,
 } from './schema'
+export { validateSkin } from './validate'

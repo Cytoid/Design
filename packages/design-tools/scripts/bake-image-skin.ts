@@ -1,3 +1,4 @@
+import type { Clip, Direction, DrawContext, Grade, NoteKind, Palette, SceneNode, Skin, TimedGrade, Timing } from '@cytoid/notes'
 /**
  * Baked-image skin variant of the flat skin for C# image/sequence validation.
  *
@@ -25,7 +26,6 @@
  * rasterizeSvg() (../src/render.ts). No raster math is reimplemented here.
  */
 import type { Buffer } from 'node:buffer'
-import type { Clip, Direction, DrawContext, Grade, NoteKind, Palette, SceneNode, Skin, TimedGrade, Timing } from '@cytoid/notes'
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -94,7 +94,7 @@ for (const [grade, clip] of Object.entries(designs.feedback.judgement)) {
     throw new Error(`feedback:judgement:${grade} did not compile`)
   FEEDBACK_SLOTS[`feedback:judgement:${grade}`] = clip
 }
-for (const grade of ['great', 'good', 'bad'] as const)
+for (const grade of ['great', 'good', 'bad'] as const) {
   for (const timing of ['fast', 'slow'] as const) {
     const t = (designs.feedback.timing as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
     const c = (designs.feedback.combined as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
@@ -103,6 +103,7 @@ for (const grade of ['great', 'good', 'bad'] as const)
     FEEDBACK_SLOTS[`feedback:timing:${grade}:${timing}`] = t
     FEEDBACK_SLOTS[`feedback:combined:${grade}:${timing}`] = c
   }
+}
 FEEDBACK_SLOTS['click:clear:perfect'] = designs.click.clear.perfect!
 if (Object.keys(FEEDBACK_SLOTS).length !== 18)
   throw new Error(`expected 18 slots, resolved ${Object.keys(FEEDBACK_SLOTS).length}`)
@@ -178,7 +179,7 @@ for (let i = 1; i < VARIANTS.length && result.totalBytes > BUDGET_BYTES; i++) {
   chosen = VARIANTS[i]!
   result = bakeAll(chosen.fps, chosen.canvas)
 }
-const { slots: bakedSlots, totalBytes, totalFrames, durations } = result
+const { slots: bakedSlots, totalFrames, durations } = result
 
 // ------------------------------------------------------------ document ----
 // Copy of the flat document; the 18 slot bindings are repointed at new
@@ -229,11 +230,12 @@ writeFileSync(outPath, `${JSON.stringify(bakedDocument)}\n`)
 // Actual on-disk corpus (sanity: every PNG non-empty).
 let diskFiles = 0
 let diskBytes = 0
-const walk = (dir: string) => {
+function walk(dir: string) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, entry.name)
-    if (entry.isDirectory())
+    if (entry.isDirectory()) {
       walk(p)
+    }
     else {
       const size = statSync(p).size
       if (size === 0)
