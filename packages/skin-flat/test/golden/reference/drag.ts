@@ -45,7 +45,7 @@ function headDraw(p: number, ctx: DrawContext): SceneNode {
   ].filter(Boolean) as SceneNode[], { opacity: seg(p, 0, 0.06), transform: { scale: dragHeadSize(p) } })
 }
 
-export const dragHead: NoteDesign = {
+export const dragHead: Omit<NoteDesign, 'feedback'> = {
   kind: 'drag-head',
   enter: {
     id: 'enter',
@@ -85,14 +85,14 @@ function childDraw(p: number, ctx: DrawContext): SceneNode {
   ], { opacity: seg(p, 0, 0.06), transform: { scale: dragChildSize(p) } })
 }
 
-export const dragChild: NoteDesign = {
+export const dragChild: Omit<NoteDesign, 'feedback'> = {
   kind: 'drag-child',
   enter: { id: 'enter', mode: 'normalized', duration: tokens.time.enter, draw: childDraw, note: 'Solid bead (Cytoid), faint 600 hairline ring, fitted S-curve.' },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 6 }),
   exit: makeExitClip(childDraw, tokens.time.exit.dragChild),
 }
 
-export const clickDragChild: NoteDesign = {
+export const clickDragChild: Omit<NoteDesign, 'feedback'> = {
   kind: 'click-drag-child',
   enter: { id: 'enter', mode: 'normalized', duration: tokens.time.enter, draw: childDraw, note: 'Same as drag child, click colours.' },
   clear: makeClearClips({ shape: 'circle', reach: 1.4, sectors: 24, seed: 7 }),

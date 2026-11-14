@@ -98,9 +98,9 @@ export const TIMING_COLOR: Record<Timing, string> = {
   slow: tokens.grade.good,
 }
 
-/** Compiled timing-only slots. Combined layout is authored in feedback:combined. */
-export const timingClips = designs.feedback.timing
+/** Compiled timing-only slots; click is the shared preview default. Combined layout is authored in `<kind>:feedback:combined`. */
+export const timingClips = designs.click.feedback.timing
 
 export function renderTiming(timing: Timing, grade: TimedGrade, t: number, ctx: DrawContext, skin: NoteSkin = designs): SceneNode {
-  return skin.feedback.timing[grade][timing].draw(t, ctx)
+  return skin[ctx.kind].feedback.timing[grade][timing].draw(t, ctx)
 }

@@ -86,22 +86,22 @@ const clickContext: DrawContext = {
 }
 
 // -------------------------------------------------------------- the slots --
-// The 17 feedback clips (same resolution as golden-skin.ts's feedback grid)
-// plus the one clear slot. slot key → compiled clip.
+// The 17 click feedback clips (same resolution as golden-skin.ts's feedback
+// grid) plus the one clear slot. slot key → compiled clip.
 const FEEDBACK_SLOTS: Record<string, Clip> = {}
-for (const [grade, clip] of Object.entries(designs.feedback.judgement)) {
+for (const [grade, clip] of Object.entries(designs.click.feedback.judgement)) {
   if (!clip)
-    throw new Error(`feedback:judgement:${grade} did not compile`)
-  FEEDBACK_SLOTS[`feedback:judgement:${grade}`] = clip
+    throw new Error(`click:feedback:judgement:${grade} did not compile`)
+  FEEDBACK_SLOTS[`click:feedback:judgement:${grade}`] = clip
 }
 for (const grade of ['great', 'good', 'bad'] as const) {
   for (const timing of ['fast', 'slow'] as const) {
-    const t = (designs.feedback.timing as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
-    const c = (designs.feedback.combined as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
+    const t = (designs.click.feedback.timing as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
+    const c = (designs.click.feedback.combined as Record<TimedGrade, Partial<Record<Timing, Clip>>>)[grade]?.[timing]
     if (!t || !c)
-      throw new Error(`feedback timing:${grade}:${timing} did not compile`)
-    FEEDBACK_SLOTS[`feedback:timing:${grade}:${timing}`] = t
-    FEEDBACK_SLOTS[`feedback:combined:${grade}:${timing}`] = c
+      throw new Error(`click:feedback timing:${grade}:${timing} did not compile`)
+    FEEDBACK_SLOTS[`click:feedback:timing:${grade}:${timing}`] = t
+    FEEDBACK_SLOTS[`click:feedback:combined:${grade}:${timing}`] = c
   }
 }
 FEEDBACK_SLOTS['click:clear:perfect'] = designs.click.clear.perfect!
@@ -109,6 +109,12 @@ if (Object.keys(FEEDBACK_SLOTS).length !== 18)
   throw new Error(`expected 18 slots, resolved ${Object.keys(FEEDBACK_SLOTS).length}`)
 
 const dash = (slot: string) => slot.replaceAll(':', '-')
+/**
+ * Only the click variants are baked here, so drop the kind prefix from the
+ * artifact key: the PNG corpus keeps its kind-free `feedback-*` names and the
+ * generated files stay stable while the slot itself is per-kind.
+ */
+const artifactKey = (slot: string) => dash(slot.replace(/^click:feedback:/, 'feedback:'))
 const pad = (i: number) => String(i).padStart(3, '0')
 const FPS = 30
 const BUDGET_BYTES = 15 * 1024 * 1024
@@ -144,7 +150,7 @@ function bakeAll(fps: number, canvas: number): { slots: BakedSlot[], totalBytes:
     const xs = fps === FPS
       ? sampleClip(clip, slot)
       : sampleTimes(clip, fps)
-    const key = dash(slot)
+    const key = artifactKey(slot)
     const dir = join(flatSrc, assetsRel, key)
     mkdirSync(dir, { recursive: true })
     const frames: string[] = []

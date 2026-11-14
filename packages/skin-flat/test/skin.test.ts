@@ -57,7 +57,7 @@ export function compareTrees(a: unknown, b: unknown, path: string): string | nul
   return null
 }
 
-function assertSameSlot(design: NoteDesign, skin: NoteDesign, kind: string, slot: (d: NoteDesign) => Clip | undefined, label: string): void {
+function assertSameSlot(design: Omit<NoteDesign, 'feedback'>, skin: Omit<NoteDesign, 'feedback'>, kind: string, slot: (d: Omit<NoteDesign, 'feedback'>) => Clip | undefined, label: string): void {
   const a = slot(design)
   const b = slot(skin)
   expect(a, `${kind}.${label} existence`).toBeDefined()
@@ -70,7 +70,7 @@ function assertSameSlot(design: NoteDesign, skin: NoteDesign, kind: string, slot
 /* ------------------------------------------------------------------ */
 /* sampling                                                            */
 
-function slotsOf(d: NoteDesign): [string, Clip][] {
+function slotsOf(d: Omit<NoteDesign, 'feedback'>): [string, Clip][] {
   const out: [string, Clip][] = [['enter', d.enter]]
   if (d.hold) {
     out.push(

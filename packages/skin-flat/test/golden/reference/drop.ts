@@ -70,14 +70,14 @@ function dropStatic(spec: ClassicSpec) {
   }
 }
 
-export const dropClick: NoteDesign = {
+export const dropClick: Omit<NoteDesign, 'feedback'> = {
   kind: 'drop-click',
   enter: { id: 'enter', mode: 'loop', duration: 0, draw: dropStatic(CLICK), note: 'Classic capsule as a frozen loop (period 0) — ring body, fill, white core. Only its position moves (fall).' },
   clear: makeClearClips({ shape: 'capsule', capsule: DROP_CLICK_CAPSULE, reach: 1.3, sectors: 24, seed: 8 }),
   miss: makeMissClip('capsule', DROP_CLICK_CAPSULE),
 }
 
-export const dropDrag: NoteDesign = {
+export const dropDrag: Omit<NoteDesign, 'feedback'> = {
   kind: 'drop-drag',
   enter: { id: 'enter', mode: 'loop', duration: 0, draw: dropStatic(DRAG), note: 'Shorter classic capsule as a frozen loop (period 0) — ring body + fill, no core.' },
   clear: makeClearClips({ shape: 'capsule', capsule: DROP_DRAG_CAPSULE, reach: 1.3, sectors: 24, seed: 9 }),

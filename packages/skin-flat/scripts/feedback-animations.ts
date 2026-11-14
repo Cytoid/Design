@@ -1,7 +1,7 @@
 /** Flat feedback is expanded to ordinary skin primitives during authoring. */
 import type { AnimationDraft, Shape, SkinBuilder } from '@cytoid/design-tools/authoring'
 import type { SkinColorBinding as Color, Grade, Timing, SkinTrack as Track, SkinValue as Value } from '@cytoid/notes'
-import { GRADES, TIMED_GRADES, TIMING_TEXT, TIMINGS } from '@cytoid/notes'
+import { GRADES, NOTE_KINDS, TIMED_GRADES, TIMING_TEXT, TIMINGS } from '@cytoid/notes'
 import { GLYPHS } from '../src/glyphs'
 import { tokens } from '../src/tokens'
 
@@ -90,15 +90,19 @@ function timing(timing: Timing, stacked: boolean): AnimationDraft {
 }
 
 export function bindFeedback(builder: SkinBuilder): void {
-  const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`feedback:judgement:${grade}`, judgement(grade))]))
   const stacked = Object.fromEntries(TIMINGS.map((value) => {
     const body = builder.animation(`timing-stacked-body-${value}`, timing(value, true))
     return [value, builder.animation(`timing-stacked-${value}`, { layers: [{ source: { animation: body }, properties: { transform: { y: mul(unit, 0.09 * 1.18 + 0.06 / 2) } } }] })]
   }))
-  for (const grade of TIMED_GRADES) {
-    for (const value of TIMINGS) {
-      builder.bind(`feedback:timing:${grade}:${value}`, timing(value, false))
-      builder.bind(`feedback:combined:${grade}:${value}`, { layers: [{ source: { animation: judgements[grade]! } }, { source: { animation: stacked[value]! } }] })
+  // Every kind owns its feedback slots; the drafts are identical, so the
+  // builder dedupes them to one animation and the slots share the reference.
+  for (const kind of NOTE_KINDS) {
+    const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`${kind}:feedback:judgement:${grade}`, judgement(grade))]))
+    for (const grade of TIMED_GRADES) {
+      for (const value of TIMINGS) {
+        builder.bind(`${kind}:feedback:timing:${grade}:${value}`, timing(value, false))
+        builder.bind(`${kind}:feedback:combined:${grade}:${value}`, { layers: [{ source: { animation: judgements[grade]! } }, { source: { animation: stacked[value]! } }] })
+      }
     }
   }
 }

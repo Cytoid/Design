@@ -53,12 +53,16 @@ export interface FrameManifest {
   pxPerUnit: number
   palette: ReturnType<typeof exportPalette>
   notes: Partial<Record<NoteKind, Partial<Record<Direction, Record<string, ClipManifest>>>>>
-  /** Already composed around the note origin, including each mode's authored layout. */
-  feedback: {
+  /**
+   * Per-kind feedback clips, already composed around the note origin. Kinds
+   * usually share animations, but each is baked separately so a skin can lay
+   * out judgement text differently per note.
+   */
+  feedback: Partial<Record<NoteKind, {
     judgement: Partial<Record<Grade, ClipManifest>>
     timing: Partial<Record<TimedGrade, Record<Timing, ClipManifest>>>
     combined: Partial<Record<TimedGrade, Record<Timing, ClipManifest>>>
-  }
+  }>>
   bodies: Partial<Record<Direction, Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }>>>
 }
 
@@ -159,7 +163,7 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
     pxPerUnit: tokens.unit * scale,
     palette: exportPalette(palette),
     notes: {},
-    feedback: { judgement: {}, timing: {}, combined: {} },
+    feedback: {},
     bodies: {},
   }
   await mkdir(options.outDir, { recursive: true })
@@ -173,20 +177,21 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
       }
       ;(manifest.notes[kind] ??= {})[direction] = entry
     }
-  }
-  {
-    const ctx = createContext('click', { palette, scale })
+    // Feedback is kind-scoped but direction-independent (`createContext` defaults to up).
+    const ctx = createContext(kind, { palette, scale })
+    const feedback: NonNullable<FrameManifest['feedback'][NoteKind]> = { judgement: {}, timing: {}, combined: {} }
     for (const grade of GRADES)
-      manifest.feedback.judgement[grade] = await bakeClip(skin.feedback.judgement[grade], ctx, options.outDir, `feedback/judgement/${grade}`, o)
+      feedback.judgement[grade] = await bakeClip(skin[kind].feedback.judgement[grade], ctx, options.outDir, `${kind}/feedback/judgement/${grade}`, o)
     for (const view of ['timing', 'combined'] as const) {
       for (const grade of TIMED_GRADES) {
         const entries = {} as Record<Timing, ClipManifest>
         for (const value of ['fast', 'slow'] as const)
-          entries[value] = await bakeClip(skin.feedback[view][grade][value], ctx, options.outDir, `feedback/${view}/${grade}-${value}`, o)
-        manifest.feedback[view][grade] = entries
+          entries[value] = await bakeClip(skin[kind].feedback[view][grade][value], ctx, options.outDir, `${kind}/feedback/${view}/${grade}-${value}`, o)
+        feedback[view][grade] = entries
       }
     }
-    log('feedback')
+    manifest.feedback[kind] = feedback
+    log(`${kind}/feedback`)
   }
   for (const direction of directions) {
     manifest.bodies[direction] = {}

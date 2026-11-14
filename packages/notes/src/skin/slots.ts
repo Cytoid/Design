@@ -1,3 +1,4 @@
+import type { Timing } from '../notes/timing'
 import type { ClipMode, FeedbackView } from '../notes/types'
 import type { Grade, NoteKind } from '../tokens'
 import { TIMED_GRADES, TIMINGS } from '../notes/timing'
@@ -24,12 +25,38 @@ for (const kind of NOTE_KINDS) {
     add('progress', 'hold-progress', 'progress', 1)
   }
 }
-export const feedbackBindings = [
-  ...GRADES.map(grade => ({ name: `feedback:judgement:${grade}`, view: 'judgement' as const, grade, timing: undefined })),
-  ...(['timing', 'combined'] as const).flatMap(view => TIMED_GRADES.flatMap(grade => TIMINGS.map(timing => ({ name: `feedback:${view}:${grade}:${timing}`, view, grade, timing })))),
-]
-for (const binding of feedbackBindings) {
-  slotRegistry.set(binding.name, { grade: binding.grade, path: binding.view satisfies FeedbackView, id: binding.name, mode: 'once', duration: noteTiming.clear[binding.grade] })
+
+/** One feedback slot of one note kind. */
+export interface FeedbackBinding {
+  kind: NoteKind
+  name: string
+  view: FeedbackView
+  grade: Grade
+  /** absent for judgement-only slots */
+  timing?: Timing
+}
+
+/** Feedback slots of a kind: judgement-only, FAST / SLOW only, or both. */
+export function feedbackBindings(kind: NoteKind): FeedbackBinding[] {
+  return [
+    ...GRADES.map((grade): FeedbackBinding => ({ kind, name: `${kind}:feedback:judgement:${grade}`, view: 'judgement', grade })),
+    ...(['timing', 'combined'] as const).flatMap(view => TIMED_GRADES.flatMap((grade): FeedbackBinding[] =>
+      TIMINGS.map(timing => ({ kind, name: `${kind}:feedback:${view}:${grade}:${timing}`, view, grade, timing })))),
+  ]
+}
+
+/** Every feedback slot of every kind, for skins and tooling that fill or inspect them all. */
+export const allFeedbackBindings = NOTE_KINDS.flatMap(kind => feedbackBindings(kind))
+
+for (const binding of allFeedbackBindings) {
+  const timing = binding.timing ? `:${binding.timing}` : ''
+  slotRegistry.set(binding.name, {
+    kind: binding.kind,
+    path: `feedback:${binding.view}`,
+    id: `feedback:${binding.view}:${binding.grade}${timing}`,
+    mode: 'once',
+    duration: noteTiming.clear[binding.grade],
+  })
 }
 
 /** How a clip's driver value maps to animation progress. `period` overrides a loop slot's contract duration; `<= 0` freezes on the first frame. */

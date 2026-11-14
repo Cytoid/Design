@@ -199,7 +199,7 @@ function sequenceDetector(skin: Skin): (id: string) => boolean {
   return visit
 }
 
-/** Incomplete kinds and feedback modes inherit their entire group from the fallback. */
+/** Incomplete kinds inherit their note design and each feedback mode from the fallback. */
 export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
   const loaded = json instanceof LoadedSkin ? json : new LoadedSkin(parseSkin(json), new Map())
   const skin = loaded.document
@@ -207,6 +207,45 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
   const build = animationCompiler(skin, loaded.images)
   const hasSequence = sequenceDetector(skin)
   const designs = {} as NoteSkin
+
+  const feedbackOf = (kind: NoteKind): FeedbackSkin => {
+    const feedback = {} as FeedbackSkin
+    const bindings = feedbackBindings(kind)
+    for (const view of ['judgement', 'timing', 'combined'] as const) {
+      const slots = bindings.filter(binding => binding.view === view)
+      const missing = slots.filter(binding => !Object.hasOwn(skin.slots, binding.name))
+      if (missing.length) {
+        if (!fallback)
+          throw new Error(`${kind}: feedback:${view}: missing required slots: ${missing.map(binding => binding.name).join(', ')}`)
+        Object.assign(feedback, { [view]: fallback[kind].feedback[view] })
+        continue
+      }
+      const entries: Record<string, Clip | Record<string, Clip>> = {}
+      for (const binding of slots) {
+        const slot = skin.slots[binding.name]!
+        const contract = slotRegistry.get(binding.name)!
+        const draw = build(slot.animation)
+        const clip: Clip = {
+          id: contract.id,
+          mode: 'once',
+          duration: contract.duration,
+          ...(hasSequence(slot.animation) ? { includeStart: true } : {}),
+          ...(slot.note ? { note: slot.note } : {}),
+          draw(t, ctx) {
+            if (!Number.isFinite(t))
+              throw new Error(`${binding.name}: driver must be finite`)
+            return draw(t / contract.duration, { ...ctx, grade: binding.grade }, resolveInputs(ctx), { elapsed: t, duration: contract.duration })
+          },
+        }
+        if (binding.timing)
+          ((entries[binding.grade] ??= {}) as Record<string, Clip>)[binding.timing] = clip
+        else entries[binding.grade] = clip
+      }
+      Object.assign(feedback, { [view]: entries })
+    }
+    return feedback
+  }
+
   for (const kind of NOTE_KINDS) {
     const required = ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']
     if (kind === 'hold' || kind === 'long-hold')
@@ -252,6 +291,7 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
     }
     const design: NoteSkin[NoteKind] = {
       kind,
+      feedback: feedbackOf(kind),
       enter: clip('enter')!,
       clear: { perfect: clip('clear:perfect')!, great: clip('clear:great')!, good: clip('clear:good')!, bad: clip('clear:bad')! },
     }
@@ -289,39 +329,5 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
     }
     designs[kind] = design
   }
-  const feedback = {} as FeedbackSkin
-  for (const view of ['judgement', 'timing', 'combined'] as const) {
-    const bindings = feedbackBindings.filter(binding => binding.view === view)
-    const missing = bindings.filter(binding => !Object.hasOwn(skin.slots, binding.name))
-    if (missing.length) {
-      if (!fallback)
-        throw new Error(`feedback:${view}: missing required slots: ${missing.map(binding => binding.name).join(', ')}`)
-      Object.assign(feedback, { [view]: fallback.feedback[view] })
-      continue
-    }
-    const entries: Record<string, Clip | Record<string, Clip>> = {}
-    for (const binding of bindings) {
-      const slot = skin.slots[binding.name]!
-      const contract = slotRegistry.get(binding.name)!
-      const draw = build(slot.animation)
-      const clip: Clip = {
-        id: binding.name,
-        mode: 'once',
-        duration: contract.duration,
-        ...(hasSequence(slot.animation) ? { includeStart: true } : {}),
-        ...(slot.note ? { note: slot.note } : {}),
-        draw(t, ctx) {
-          if (!Number.isFinite(t))
-            throw new Error(`${binding.name}: driver must be finite`)
-          return draw(t / contract.duration, { ...ctx, grade: binding.grade }, resolveInputs(ctx), { elapsed: t, duration: contract.duration })
-        },
-      }
-      if (binding.timing)
-        ((entries[binding.grade] ??= {}) as Record<string, Clip>)[binding.timing] = clip
-      else entries[binding.grade] = clip
-    }
-    Object.assign(feedback, { [view]: entries })
-  }
-  designs.feedback = feedback
   return designs
 }

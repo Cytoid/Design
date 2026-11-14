@@ -224,7 +224,7 @@ export function dragArrow(ctx: DrawContext, inner: number, show: number, ringSte
   })
 }
 
-export const click: NoteDesign = {
+export const click: Omit<NoteDesign, 'feedback'> = {
   kind: 'click',
   enter: {
     id: 'enter',
@@ -241,7 +241,7 @@ export const click: NoteDesign = {
  * Experiment: no arrow. The head is drawn exactly like a click — only the
  * chain (child beads + path) says it is a drag start.
  */
-export const clickDragHead: NoteDesign = {
+export const clickDragHead: Omit<NoteDesign, 'feedback'> = {
   ...click,
   kind: 'click-drag-head',
   enter: {

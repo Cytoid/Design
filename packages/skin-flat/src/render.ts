@@ -34,7 +34,7 @@ export function createContext(kind: NoteKind, o: ContextOptions = {}): DrawConte
 }
 
 export function renderJudgement(grade: Grade, t: number, ctx: DrawContext, skin: NoteSkin = designs): SceneNode {
-  return skin.feedback.judgement[grade].draw(t, ctx)
+  return skin[ctx.kind].feedback.judgement[grade].draw(t, ctx)
 }
 
 export function renderNote(kind: NoteKind, state: NoteState, ctx: DrawContext = createContext(kind), options: RenderOptions = {}): SceneNode {

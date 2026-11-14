@@ -84,6 +84,12 @@ export interface NoteDesign {
   exit?: Clip
   /** Parametric stretched body, present on Hold and Long Hold designs. */
   body?: BodyClip
+  /**
+   * Judgement text and FAST / SLOW for hits on this kind. Every kind carries
+   * its own clips so a skin can lay out feedback per note; most kinds point
+   * their slots at the same animations.
+   */
+  feedback: FeedbackSkin
   /** hold-only layers, composed under → press → over → progress while holding */
   hold?: {
     /** head press-in when the hold starts */
@@ -104,7 +110,7 @@ export interface FeedbackSkin {
   combined: Record<TimedGrade, Record<Timing, Clip>>
 }
 export type FeedbackView = keyof FeedbackSkin
-export type NoteSkin = Record<NoteKind, NoteDesign> & { feedback: FeedbackSkin }
+export type NoteSkin = Record<NoteKind, NoteDesign>
 
 /** Live state of a note for the composed vector renderer. */
 export type NoteState

@@ -7,7 +7,7 @@ import { dropClick, dropDrag } from './drop'
 import { flick } from './flick'
 import { hold, longHold } from './hold'
 
-export const designs: Record<NoteKind, NoteDesign> = {
+export const designs: Record<NoteKind, Omit<NoteDesign, 'feedback'>> = {
   'click': click,
   'hold': hold,
   'long-hold': longHold,

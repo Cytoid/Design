@@ -80,5 +80,5 @@ export function drawText(text: string, H: number, color: string, opts: { gap?: n
   return group(nodes)
 }
 
-/** Compiled global judgement-only slots; no imperative animation fallback. */
-export const judgementClips = designs.feedback.judgement
+/** Compiled judgement-only slots; click is the shared preview default. */
+export const judgementClips = designs.click.feedback.judgement

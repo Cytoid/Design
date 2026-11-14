@@ -125,7 +125,7 @@ function flickEnter(p: number, ctx: DrawContext): SceneNode {
   return group([approach, arrows, body].filter(Boolean) as SceneNode[], { opacity: a })
 }
 
-export const flick: NoteDesign = {
+export const flick: Omit<NoteDesign, 'feedback'> = {
   kind: 'flick',
   enter: {
     id: 'enter',

@@ -41,10 +41,11 @@ export type * from './types'
 
 /** Select exactly one feedback animation from the user's display settings. */
 export function renderFeedback(grade: Grade, timing: Timing | undefined, t: number, ctx: DrawContext, skin: NoteSkin, options: Pick<RenderOptions, 'judgement' | 'timing'> = {}): SceneNode | null {
+  const feedback = skin[ctx.kind].feedback
   const text = options.judgement ?? true
   if ((options.timing ?? true) && timing !== undefined && showsTiming(grade))
-    return (text ? skin.feedback.combined : skin.feedback.timing)[grade][timing].draw(t, ctx)
-  return text ? skin.feedback.judgement[grade].draw(t, ctx) : null
+    return (text ? feedback.combined : feedback.timing)[grade][timing].draw(t, ctx)
+  return text ? feedback.judgement[grade].draw(t, ctx) : null
 }
 
 export function composeNote(kind: NoteKind, state: NoteState, ctx: DrawContext, skin: NoteSkin, options: Pick<RenderOptions, 'judgement' | 'timing'> = {}): SceneNode {

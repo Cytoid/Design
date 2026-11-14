@@ -228,7 +228,7 @@ function holdProgress(_long: boolean) {
   }
 }
 
-function makeHold(long: boolean): NoteDesign {
+function makeHold(long: boolean): Omit<NoteDesign, 'feedback'> {
   return {
     kind: long ? 'long-hold' : 'hold',
     enter: {

@@ -121,17 +121,17 @@ Dimensions, animation durations and palette design remain fixed contracts. Body 
 
 ### Judgement and FAST / SLOW feedback
 
-Three global slot groups define the display modes independently of note kind:
+Every note kind owns three feedback slot groups, named `<kind>:feedback:…`:
 
-- `feedback:judgement:<grade>`: judgement text only, for PERFECT / GREAT / GOOD / BAD / MISS.
-- `feedback:timing:<grade>:<timing>`: FAST / SLOW only, for GREAT / GOOD / BAD.
-- `feedback:combined:<grade>:<timing>`: judgement text and FAST / SLOW together, for GREAT / GOOD / BAD.
+- `<kind>:feedback:judgement:<grade>`: judgement text only, for PERFECT / GREAT / GOOD / BAD / MISS.
+- `<kind>:feedback:timing:<grade>:<timing>`: FAST / SLOW only, for GREAT / GOOD / BAD.
+- `<kind>:feedback:combined:<grade>:<timing>`: judgement text and FAST / SLOW together, for GREAT / GOOD / BAD.
 
-Use lowercase grade and timing names in slot keys. Each binding references an ordinary layers or sequence animation; combined animations can reference shared judgement and timing animations or play a complete pre-rendered sequence. Skin authors control the full placement around the note origin. `theme` resolves to the bound judgement grade palette, including in nested animations. Durations remain the fixed engine judgement durations.
+Use lowercase grade and timing names in slot keys. Each binding references an ordinary layers or sequence animation; most kinds can point at the same animation, and the reference is simply repeated per kind. A skin may lay out feedback differently for any note kind — placement is authored around the note origin. `theme` resolves to the bound judgement grade palette, including in nested animations. Durations remain the fixed engine judgement durations.
 
-`compileSkin()` returns these clips as `skin.feedback.judgement[grade]`, `skin.feedback.timing[grade][timing]`, and `skin.feedback.combined[grade][timing]`. `renderFeedback()` and note composition select exactly one mode from the judgement/timing toggles. Both disabled draws no feedback. PERFECT, MISS, or an absent timing state uses judgement-only when enabled. With a fallback skin, an incomplete mode inherits that entire mode from the fallback.
+`compileSkin()` returns these clips on each note design as `skin[kind].feedback.judgement[grade]`, `skin[kind].feedback.timing[grade][timing]`, and `skin[kind].feedback.combined[grade][timing]`. `renderFeedback()` selects the variant by `ctx.kind` and picks exactly one mode from the judgement/timing toggles. Both disabled draws no feedback. PERFECT, MISS, or an absent timing state uses judgement-only when enabled. With a fallback skin, an incomplete `(kind, mode)` group inherits that group from the fallback.
 
-Preview, player and baking use the selected skin's feedback clips. The native `cytoid-notes/frames@2` manifest stores the three groups under `feedback`, with authored placement preserved through each clip's pivot.
+Preview, player and baking use the selected skin's feedback clips. The native `cytoid-notes/frames@2` manifest stores the three groups per note kind under `feedback`, with authored placement preserved through each clip's pivot.
 
 ## Packages
 
