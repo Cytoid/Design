@@ -25,7 +25,8 @@ const props = withDefaults(defineProps<{
 function paint({ ctx, width, height }: CanvasFrame) {
   const dc = createContext(props.kind, { palette: palette.value, direction: props.direction, scale: props.scale })
   ctx.translate(width / 2, height / 2)
-  if (props.clip && props.onion) {
+  // Frozen loops (`period: 0`) have no frame step to sample — never divide by zero.
+  if (props.clip && props.onion && props.clip.duration > 0 && props.fps > 0) {
     const clip = props.clip
     const step = clipMax(clip) / (clip.duration * props.fps)
     for (const offset of [-2, -1, 1, 2]) {
