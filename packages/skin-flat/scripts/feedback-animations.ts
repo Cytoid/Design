@@ -6,6 +6,15 @@ import { GLYPHS } from '../src/glyphs'
 import { tokens } from '../src/tokens'
 
 const unit: Value = { input: 'unit' }
+/**
+ * Drop capsules are thin horizontal bars (~±0.10 unit with the keyline) that
+ * sit exactly where the judgement text centre lands; the drop-click core is
+ * white, so the mid-grey text has almost no contrast there. Lift the drop
+ * judgement and a standalone FAST / SLOW just above the capsule's white core
+ * (the stacked label in combined stays below the capsule). Negative: y grows
+ * down.
+ */
+const DROP_LIFT = -0.10
 const T = (track: string): Value => ({ track })
 const mul = (...multiply: Value[]): Value => ({ multiply })
 const add = (...add: Value[]): Value => ({ add })
@@ -43,7 +52,7 @@ function textShape(text: string, H: Value, gap: Value, stroke: Value, color: Col
   return { type: 'group', children }
 }
 
-function judgement(grade: Grade): AnimationDraft {
+function judgement(grade: Grade, lift?: Value): AnimationDraft {
   const text = grade.toUpperCase()
   const H = mul(unit, 0.09)
   const miss = grade === 'miss'
@@ -57,14 +66,15 @@ function judgement(grade: Grade): AnimationDraft {
   const body = textShape(text, H, gap, mul(H, 0.18), color, tracks, 0.02, 0.035, 0.2, 2)
   const finalWidth = mul(H, [...text].reduce((sum, ch) => sum + GLYPHS[ch]!.w, 0) + 0.75 * (text.length - 1))
   const line: Shape = { type: 'rect', x: mul(add(mul(finalWidth, -0.5), mul(H, -0.3)), T('line')), y: mul(H, 0.8), w: mul(add(finalWidth, mul(H, 0.6)), T('line')), h: mul(H, 0.08), fill: color, opacity: 0.7, when: { track: 'line', from: 0 } }
+  const rise = mul(miss ? 1 : -1, H, 0.12, T('rise'))
   return {
     tracks,
-    properties: { opacity: lerp(1, 0, T('fade')), transform: { y: mul(miss ? 1 : -1, H, 0.12, T('rise')) } },
+    properties: { opacity: lerp(1, 0, T('fade')), transform: { y: lift ? add(rise, lift) : rise } },
     layers: [body, ...(miss ? [] : [line])],
   }
 }
 
-function timing(timing: Timing, stacked: boolean): AnimationDraft {
+function timing(timing: Timing, stacked: boolean, lift?: Value): AnimationDraft {
   const text = TIMING_TEXT[timing]
   const H = mul(unit, 0.10 * (stacked ? 0.6 : 1))
   const color = tokens.grade[timing === 'fast' ? 'bad' : 'good'] as `#${string}`
@@ -76,11 +86,12 @@ function timing(timing: Timing, stacked: boolean): AnimationDraft {
   const tip = (fast ? -1 : 1) * 0.34 / 2
   const tracks: Record<string, Track> = { slide: curve(0.06, 0.4, 'outCubic'), rise: { ease: { type: 'outCubic' } }, enter: curve(0.06, 0.2), fade: curve(0.55, 0.85) }
   const body = textShape(text, H, mul(H, 0.32), mul(H, 0.22), color, tracks, 0.06, 0.03, 0.24, 1.6)
+  const rise = mul(unit, -0.09 * 0.12, T('rise'))
   return {
     tracks,
     properties: {
       opacity: mul(T('enter'), lerp(1, 0, T('fade'))),
-      transform: { x: mul(fast ? -1 : 1, H, 0.5, add(T('slide'), -1)), y: mul(unit, -0.09 * 0.12, T('rise')) },
+      transform: { x: mul(fast ? -1 : 1, H, 0.5, add(T('slide'), -1)), y: lift ? add(rise, lift) : rise },
     },
     layers: [
       { type: 'poly', points: [{ x: mul(cx - tip, H), y: mul(H, -0.4) }, { x: mul(cx + tip, H), y: 0 }, { x: mul(cx - tip, H), y: mul(H, 0.4) }], stroke: color, strokeWidth: mul(H, 0.22), join: 'miter', cap: 'square' },
@@ -97,10 +108,14 @@ export function bindFeedback(builder: SkinBuilder): void {
   // Every kind owns its feedback slots; the drafts are identical, so the
   // builder dedupes them to one animation and the slots share the reference.
   for (const kind of NOTE_KINDS) {
-    const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`${kind}:feedback:judgement:${grade}`, judgement(grade))]))
+    // Drops lift both their judgement text and the standalone FAST / SLOW
+    // label so the two layouts share one vertical anchor; stacked labels in
+    // combined stay below the capsule.
+    const lift = kind.startsWith('drop-') ? mul(unit, DROP_LIFT) : undefined
+    const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`${kind}:feedback:judgement:${grade}`, judgement(grade, lift))]))
     for (const grade of TIMED_GRADES) {
       for (const value of TIMINGS) {
-        builder.bind(`${kind}:feedback:timing:${grade}:${value}`, timing(value, false))
+        builder.bind(`${kind}:feedback:timing:${grade}:${value}`, timing(value, false, lift))
         builder.bind(`${kind}:feedback:combined:${grade}:${value}`, { layers: [{ source: { animation: judgements[grade]! } }, { source: { animation: stacked[value]! } }] })
       }
     }

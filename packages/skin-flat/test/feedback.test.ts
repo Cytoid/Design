@@ -77,6 +77,37 @@ describe('three skin feedback modes', () => {
     expect(bounds(drop)![3]).toBeLessThan(bounds(click)![3] - 20)
   })
 
+  it('lifts drop judgements and a standalone FAST / SLOW above the capsule', () => {
+    const ctx = createContext('drop-click')
+    const clickCtx = createContext('click')
+    const lift = 0.10 * ctx.unit
+    const u = 0.45
+    const click = designs.click.feedback.judgement.perfect
+    const clickBounds = bounds(click.draw(u * click.duration, clickCtx))!
+    for (const kind of ['drop-click', 'drop-drag'] as const) {
+      const drop = designs[kind].feedback.judgement.perfect
+      const dropBounds = bounds(drop.draw(u * drop.duration, ctx))!
+      expect(dropBounds[1]).toBeCloseTo(clickBounds[1] - lift, 3)
+      expect(dropBounds[3]).toBeCloseTo(clickBounds[3] - lift, 3)
+    }
+    // Combined keeps the label where it was: text above the capsule, label below.
+    const dropCombined = designs['drop-click'].feedback.combined.great.fast
+    const clickCombined = designs.click.feedback.combined.great.fast
+    const dropCombinedBounds = bounds(dropCombined.draw(u * dropCombined.duration, ctx))!
+    const clickCombinedBounds = bounds(clickCombined.draw(u * clickCombined.duration, clickCtx))!
+    expect(dropCombinedBounds[1]).toBeCloseTo(clickCombinedBounds[1] - lift, 3)
+    expect(dropCombinedBounds[3]).toBeCloseTo(clickCombinedBounds[3], 3)
+    // A standalone FAST / SLOW takes the same lift on drops.
+    const clickTiming = designs.click.feedback.timing.great.fast
+    const clickTimingBounds = bounds(clickTiming.draw(u * clickTiming.duration, clickCtx))!
+    for (const kind of ['drop-click', 'drop-drag'] as const) {
+      const dropTiming = designs[kind].feedback.timing.great.fast
+      const dropTimingBounds = bounds(dropTiming.draw(u * dropTiming.duration, ctx))!
+      expect(dropTimingBounds[1]).toBeCloseTo(clickTimingBounds[1] - lift, 3)
+      expect(dropTimingBounds[3]).toBeCloseTo(clickTimingBounds[3] - lift, 3)
+    }
+  })
+
   it('renders image sequences in a combined slot and bakes the selected feedback modes', async () => {
     const document = parseSkin(flatSkin)
     const src = `data:image/png;base64,${(await readFile(new URL('../../notes/test/fixtures/red.png', import.meta.url))).toString('base64')}`
