@@ -13,8 +13,9 @@ import type { Clip, Direction, DrawContext, Grade, NoteKind, Palette, SceneNode,
  * animations whose frames are `image` leaves referencing the baked PNGs.
  * Every other slot, animation and frame is untouched; schemaVersion stays 2.
  *
- * flat-baked.skin.json + assets-baked/ are validation assets only — nothing in
- * @cytoid/skin-flat exports them.
+ * flat-baked.skin.json + assets-baked/ are local validation artifacts: nothing
+ * in @cytoid/skin-flat exports them and .gitignore keeps them out of the repo.
+ * Run the script whenever the image/sequence path needs testing.
  *
  * Timing: fps 30, frame i at t = i/30 s (the `once` clip driver: seconds
  * since judgement), frame count ceil(duration·30)+1 — sampled with the
