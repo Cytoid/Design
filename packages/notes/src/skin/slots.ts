@@ -15,8 +15,10 @@ for (const kind of NOTE_KINDS) {
     const curve = kind === 'hold' || kind === 'long-hold' ? noteTiming.exit.holdHead : kind.endsWith('child') ? noteTiming.exit.dragChild : noteTiming.exit.tap
     add('exit', 'exit', 'once', curve.duration)
   }
-  if (kind === 'drag-head' || kind === 'click-drag-head')
+  if (kind === 'drag-head' || kind === 'click-drag-head') {
     add('active', 'active', 'loop', noteTiming.activeLoop)
+    add('chainLink', 'chain-link', 'loop', noteTiming.chainLinkLoop)
+  }
   if (kind === 'hold' || kind === 'long-hold') {
     add('body', 'hold-body', 'progress', 1)
     add('press', 'hold-press', 'once', noteTiming.holdPress)

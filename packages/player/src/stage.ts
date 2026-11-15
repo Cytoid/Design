@@ -175,6 +175,7 @@ export class PlayStage {
   }
 
   private syncSegments(frame: DerivedFrame, palette: Palette, scale: number, board: BoardRect) {
+    const { chainLink, createContext } = this.options.appearance
     const seen = new Set<string>()
     for (const seg of frame.segments) {
       seen.add(seg.key)
@@ -184,18 +185,27 @@ export class PlayStage {
         this.segmentViews.set(seg.key, view)
         this.layers.lines.addChild(view)
       }
-      const ctx = this.options.appearance.createContext('drag-child', { palette, direction: seg.direction, scale })
-      view.setScene(this.options.appearance.dragLine(
-        {
-          x1: seg.from.x - board.x,
-          y1: seg.from.y - board.y,
-          x2: seg.to.x - board.x,
-          y2: seg.to.y - board.y,
-          lead: seg.lead,
-          trail: seg.trail,
+      const length = Math.hypot(seg.to.x - seg.from.x, seg.to.y - seg.from.y)
+      const ctx = createContext(seg.kind, { palette, direction: seg.direction, scale })
+      // The skin authors the full 0..length template; growth and retraction
+      // are gameplay timing — the engine rotates it onto the link (template
+      // +y toward the destination) and clips it to the lead/trail window.
+      const template = chainLink({ length, t: seg.elapsed }, ctx)
+      if (!template) {
+        view.setScene(null)
+        continue
+      }
+      const width = ctx.unit * 16
+      view.setScene({
+        type: 'group',
+        transform: {
+          x: seg.from.x - board.x,
+          y: seg.from.y - board.y,
+          rotate: Math.atan2(-(seg.to.x - seg.from.x), seg.to.y - seg.from.y),
         },
-        ctx,
-      ))
+        clip: { type: 'rect', x: -width, y: seg.trail * length, w: width * 2, h: (seg.lead - seg.trail) * length },
+        children: [template],
+      })
     }
     for (const [key, view] of this.segmentViews) {
       if (!seen.has(key))

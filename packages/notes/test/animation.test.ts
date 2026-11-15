@@ -163,6 +163,8 @@ describe('appearance-independent note composition', () => {
     }
     doc.slots['hold:body'] = { animation: 'grow' }
     doc.slots['long-hold:body'] = { animation: 'grow' }
+    doc.slots['drag-head:chainLink'] = { animation: 'grow' }
+    doc.slots['click-drag-head:chainLink'] = { animation: 'grow' }
     for (const binding of allFeedbackBindings) doc.slots[binding.name] = { animation: 'grow' }
     const skin = compileSkin(doc)
     const judgement = { type: 'rect', x: 0, y: 0, w: 1, h: 1 } as const
@@ -181,6 +183,8 @@ describe('appearance-independent note composition', () => {
     }
     doc.slots['hold:body'] = { animation: 'grow' }
     doc.slots['long-hold:body'] = { animation: 'grow' }
+    doc.slots['drag-head:chainLink'] = { animation: 'grow' }
+    doc.slots['click-drag-head:chainLink'] = { animation: 'grow' }
     for (const binding of allFeedbackBindings) doc.slots[binding.name] = { animation: 'grow' }
     doc.slots['drag-head:active'] = { animation: 'grow', period: 0 }
     const skin = compileSkin(doc)

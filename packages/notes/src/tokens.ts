@@ -70,6 +70,8 @@ export const noteTiming = {
   holdLoop: 1,
   /** triggered drag-head loop period (the head following its chain) */
   activeLoop: 1,
+  /** chain-link loop period (marching chains); the flat chain is a frozen pose */
+  chainLinkLoop: 1,
   /** clear effects per grade (Cytoid FlatFX: 0.4 / speed) */
   clear: { perfect: 0.42, great: 0.46, good: 0.52, bad: 0.56, miss: 0.5 } satisfies Record<Grade, number>,
 } as const

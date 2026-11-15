@@ -16,6 +16,7 @@ const COMMON = new Set(['unit', 'size', 'heading', 'R', 'W', 'inner', 'ringC', '
 const HOLD = new Set(['bracketR', 'bracketW', 'holdLanding', 'glyphW', 'coreR', 'progressR', 'progressW'])
 const FLICK = new Set(['flickW', 'rv', 'flickInner', 'coreMax', 'frameOuter', 'near', 'nearFar', 'approachNear', 'arrowSize', 'arrowTip', 'arrowHalf'])
 const BODY = new Set(['appear', 'progress', 'elapsed', 'remaining', 'duration', 'bodyWidth', 'dashPeriod'])
+const CHAIN = new Set(['length', 'elapsed'])
 const MAX_NODES = 20_000
 
 function inspect(value: unknown, fn: (key: string, val: unknown) => void): void {
@@ -224,7 +225,8 @@ export function validateSkin(skin: Skin): Map<string, Set<Input>> {
       const bodyInput = contract.path === 'body' && (BODY.has(input)
         || (contract.kind === 'hold' && input === 'length')
         || (contract.kind === 'long-hold' && ['top', 'bottom', 'collapse'].includes(input)))
-      if (!allowed && !bodyInput)
+      const chainInput = contract.path === 'chainLink' && CHAIN.has(input)
+      if (!allowed && !bodyInput && !chainInput)
         throw new Error(`${name}: input "${input}" is not available`)
     }
   }

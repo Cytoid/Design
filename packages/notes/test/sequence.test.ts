@@ -47,6 +47,8 @@ function complete(skin: Skin): Skin {
   }
   skin.slots['hold:body'] = { animation: 'sequence' }
   skin.slots['long-hold:body'] = { animation: 'sequence' }
+  skin.slots['drag-head:chainLink'] = { animation: 'sequence' }
+  skin.slots['click-drag-head:chainLink'] = { animation: 'sequence' }
   for (const binding of allFeedbackBindings) skin.slots[binding.name] = { animation: 'sequence' }
   return skin
 }

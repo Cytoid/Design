@@ -3,7 +3,7 @@ import { compileSkin } from './compile'
 
 export { compileAnimation, compileSkin } from './compile'
 export type { AnimationClock } from './compile'
-export { resolveInputs } from './inputs'
+export { resolveChainInputs, resolveInputs } from './inputs'
 export { LoadedSkin, loadSkinResources, SkinImage } from './resources'
 export type { SkinResourceOptions } from './resources'
 export { INPUTS, parseSkin, skinSchema } from './schema'

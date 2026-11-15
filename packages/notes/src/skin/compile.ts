@@ -5,7 +5,7 @@ import type { Primitive } from './primitive'
 import type { CompiledTrack, Env } from './runtime'
 import type { Layer, Skin, Time, Track } from './schema'
 import { NOTE_KINDS, noteTiming } from '../tokens'
-import { resolveBodyInputs, resolveInputs } from './inputs'
+import { resolveBodyInputs, resolveChainInputs, resolveInputs } from './inputs'
 import { LoadedSkin } from './resources'
 import { compileGate, compileNum, compilePrimitive, compileTrack, compileTransform, gateOpen, makeEnv } from './runtime'
 import { parseSkin } from './schema'
@@ -250,6 +250,8 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
     const required = ['enter', 'clear:perfect', 'clear:great', 'clear:good', 'clear:bad']
     if (kind === 'hold' || kind === 'long-hold')
       required.push('body')
+    if (kind === 'drag-head' || kind === 'click-drag-head')
+      required.push('chainLink')
     const hasHold = ['press', 'loopUnder', 'loopOver', 'progress'].some(path => Object.hasOwn(skin.slots, `${kind}:${path}`))
     if (hasHold)
       required.push('press', 'progress')
@@ -306,6 +308,23 @@ export function compileSkin(json: unknown, fallback?: NoteSkin): NoteSkin {
           return kind === 'hold' && ctx.bodyDirection === 'up'
             ? { type: 'group', transform: { scaleY: -1 }, children: [node] }
             : node
+        },
+      }
+    }
+    if (kind === 'drag-head' || kind === 'click-drag-head') {
+      const binding = skin.slots[`${kind}:chainLink`]!
+      if (binding.period !== undefined && binding.period < 0)
+        throw new Error(`${kind}:chainLink: period must be >= 0`)
+      const contract = slotRegistry.get(`${kind}:chainLink`)!
+      const period = binding.period ?? contract.duration
+      const draw = build(binding.animation)
+      design.chainLink = {
+        draw(options, context) {
+          const ctx = { ...context, kind, grade: undefined }
+          const inputs = resolveChainInputs(ctx, options)
+          const t = inputs.elapsed!
+          const p = slotProgress(contract, t, period)
+          return draw(p, ctx, inputs, { elapsed: p * period, duration: period })
         },
       }
     }

@@ -7,7 +7,7 @@ import { argv } from 'node:process'
 import { SkinBuilder } from '@cytoid/design-tools/authoring'
 import { compileSkin, rng, SHADES } from '@cytoid/notes'
 import { tokens } from '../src/tokens'
-import { holdBodyAnimation, longHoldBodyAnimation } from './body-animations'
+import { chainLinkAnimation, holdBodyAnimation, longHoldBodyAnimation } from './body-animations'
 import { bindFeedback } from './feedback-animations'
 
 /* ------------------------------------------------------------------ */
@@ -914,10 +914,12 @@ export function buildFlatSkin(edge?: typeof EDGE): Skin {
     for (const [grade, animation] of Object.entries(clearAll(CLICK_CLEAR))) skin.bind(`click-drag-head:clear:${grade}`, animation)
     skin.bind('click-drag-head:exit', exitClip(EXIT.tap, clickDragHeadEnter))
     skin.bind('click-drag-head:active', activeClip(clickDragHeadEnter, 'Triggered head sliding along its chain: the enter animation held at its hit pose (sampled at p 1, period 0).'), { period: 0 })
+    skin.bind('click-drag-head:chainLink', chainLinkAnimation(), { period: 0 })
     const dragHeadEnter = skin.bind('drag-head:enter', dragHeadClip('Fitted S-curve: small spawn, smooth growth into the +5 % peak at p 0.77, settled from p 0.87. Ring closes from 2 halves by p 0.2, arrow along the chain (rotate by heading); ring + arrow wake neutral 400 → 50 over the WAKE window. Path matters, not timing.'))
     for (const [grade, animation] of Object.entries(clearAll(DRAG_CLEAR))) skin.bind(`drag-head:clear:${grade}`, animation)
     skin.bind('drag-head:exit', exitClip(EXIT.tap, dragHeadEnter))
     skin.bind('drag-head:active', activeClip(dragHeadEnter, 'Triggered head sliding along its chain: the enter animation held at its hit pose (sampled at p 1, period 0).'), { period: 0 })
+    skin.bind('drag-head:chainLink', chainLinkAnimation(), { period: 0 })
     const dragChildEnter = skin.bind('drag-child:enter', dragChildClip('Solid bead (Cytoid), faint 600 hairline ring, fitted S-curve.'))
     for (const [grade, animation] of Object.entries(clearAll(DRAG_CHILD_CLEAR))) skin.bind(`drag-child:clear:${grade}`, animation)
     skin.bind('drag-child:exit', exitClip(EXIT.dragChild, dragChildEnter))

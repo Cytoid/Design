@@ -120,7 +120,7 @@ async function bakeClip(clip: Clip, ctx: DrawContext, dir: string, rel: string, 
 }
 
 async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (name: string) => boolean, appearance: BakeAppearance, skin: NoteSkin) {
-  const { metrics: tokens, holdDashPeriod, holdBody, longHoldBody, dragLine } = appearance
+  const { metrics: tokens, holdDashPeriod, holdBody, longHoldBody, chainLink } = appearance
   const out: Record<string, { file: string, width: number, height: number, repeat: 'y' | 'none', note: string }> = {}
   await mkdir(join(dir, rel), { recursive: true })
   const Wb = Math.ceil(ctx.unit * tokens.stroke.holdBody) + 2
@@ -140,7 +140,18 @@ async function bakeBodies(ctx: DrawContext, dir: string, rel: string, only: (nam
   await put('long-hold-done', () => longHoldBody({ top: tile * 2, bottom: tile * 2, progress: 1, t: 0 }, ctx, skin), lw, tile, lw / 2, tile / 2, 'y', 'Long hold completed fill; grows from the note toward both edges.')
   const dw = Math.ceil(ctx.unit * tokens.stroke.dragLine) + 2
   const dash = Math.max(1, Math.round(ctx.unit * tokens.stroke.dragDash))
-  await put('drag-line', () => dragLine({ x1: 0, y1: 0, x2: 0, y2: dash * 8, dash }, ctx)!, dw, dash * 2, dw / 2, 0, 'y', 'Drag connection (white dashes, 50 % duty); tile along the segment from the source note, rotate to its angle.')
+  // Chain-link strip: the skin's raw template (no window), tiled at the flat
+  // spatial period (width; the Cytoid pattern is 50 % duty — period = 2·dash).
+  await put(
+    'chain-link',
+    () => chainLink({ length: dash * 16, t: 0 }, ctx, skin)!,
+    dw,
+    dash * 2,
+    dw / 2,
+    0,
+    'y',
+    'Drag connection chain (Cytoid: white dashes, 50 % duty, gap at the source end); tile along the link from the source note, rotate toward the destination, mask by the engine lead/trail window.',
+  )
   return out
 }
 
@@ -195,10 +206,10 @@ export async function bake(options: BakeOptions): Promise<FrameManifest> {
   }
   for (const direction of directions) {
     manifest.bodies[direction] = {}
-    for (const fam of ['hold', 'long-hold', 'drag'] as const) {
-      const kind: NoteKind = fam === 'drag' ? 'drag-child' : fam
+    for (const fam of ['hold', 'long-hold', 'drag', 'click-drag'] as const) {
+      const kind: NoteKind = fam === 'hold' ? 'hold' : fam === 'long-hold' ? 'long-hold' : fam === 'drag' ? 'drag-head' : 'click-drag-head'
       const ctx = createContext(kind, { palette, direction, scale })
-      const relevant = (k: string) => fam === 'hold' ? k.startsWith('hold') : fam === 'long-hold' ? k.startsWith('long-hold') : k === 'drag-line'
+      const relevant = (k: string) => fam === 'hold' ? k.startsWith('hold') : fam === 'long-hold' ? k.startsWith('long-hold') : k === 'chain-link'
       const b = await bakeBodies(ctx, options.outDir, `bodies/${direction}/${fam}`, relevant, appearance, skin)
       for (const [k, v] of Object.entries(b))
         manifest.bodies[direction]![`${fam}:${k}`] = v

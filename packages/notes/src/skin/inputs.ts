@@ -8,7 +8,7 @@
  * blocks add the constants only that family uses (the hold's approach-
  * dependent bracket landing time is a time input — see `holdLanding`).
  */
-import type { BodyOptions, DrawContext } from '../notes/types'
+import type { BodyOptions, ChainLinkOptions, DrawContext } from '../notes/types'
 
 /** Ring stroke for a note of this size (thinner on small notes). Mirrors the designs' `ringWidth`. */
 function ringWidth(ctx: DrawContext): number {
@@ -104,5 +104,24 @@ export function resolveBodyInputs(ctx: DrawContext, options: BodyOptions): Input
     collapse: duration > 0
       ? Math.max(0, Math.min(1, (elapsed - Math.max(0, duration - collapseWindow)) / collapseWindow))
       : Math.max(0, Math.min(1, (progress - 0.86) / (1 - 0.86))),
+  }
+}
+
+/**
+ * Fixed geometry and clock contract for the chain-link slot. Growth and
+ *  retraction stay engine-private: the skin sees the full 0..length template
+ *  plus the sustain clock only.
+ */
+export function resolveChainInputs(ctx: DrawContext, options: ChainLinkOptions): InputTable {
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value)))
+      throw new Error(`chain input "${key}" must be finite`)
+  }
+  if (!Number.isFinite(options.length))
+    throw new Error('chain geometry and progress must be finite')
+  return {
+    ...resolveInputs(ctx),
+    length: Math.max(0, options.length),
+    elapsed: options.t ?? 0,
   }
 }

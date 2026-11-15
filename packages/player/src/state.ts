@@ -39,10 +39,14 @@ export interface DerivedNote {
 
 export interface DragSegment {
   key: string
+  /** NoteKind of the link's source (drag-head / click-drag-head — owns the chain-link design) */
+  kind: NoteKind
   from: Position
   to: Position
   lead: number
   trail: number
+  /** seconds since the link started growing (drives the chain-link loop clock) */
+  elapsed: number
   /** scan direction of the destination page (alt colour) */
   direction: Direction
 }
@@ -164,10 +168,12 @@ export function dragSegment(a: ParsedNote, b: ParsedNote, t: number, board: Boar
     return null
   return {
     key: `${a.id}->${b.id}`,
+    kind: KIND_OF[a.kind] as NoteKind,
     from: notePos(a, dropRatio(a, t), board),
     to: notePos(b, dropRatio(b, t), board),
     lead,
     trail,
+    elapsed: Math.max(0, t - leadA),
     direction: b.direction === -1 ? 'down' : 'up',
   }
 }

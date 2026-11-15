@@ -1,5 +1,4 @@
-import type { DragLineOptions, DrawContext, HoldBodyOptions, LongHoldBodyOptions, NoteSkin, SceneNode } from '@cytoid/notes'
-import { clamp01, lerp } from '@cytoid/notes'
+import type { ChainLinkOptions, DrawContext, HoldBodyOptions, LongHoldBodyOptions, NoteSkin, SceneNode } from '@cytoid/notes'
 import { designs } from './render'
 import { tokens } from './tokens'
 
@@ -17,30 +16,11 @@ export function longHoldBody(options: LongHoldBodyOptions, ctx: DrawContext, ski
 }
 
 /**
- * Drag connection between two notes, in world space. Drawn under the notes.
- * Unchanged from Cytoid: white, dashed (50 % duty), same width. The dash
- * pattern is anchored to the source note so it does not crawl while the
- * trailing edge retracts.
+ * One chain link's raw template, along +y from the source note toward the
+ * next node (spanning 0..length). Callers rotate it onto the link and clip it
+ * to the engine's lead/trail window — growth and retraction never reach the
+ * skin. Null when the context kind carries no chain-link design.
  */
-export function dragLine(o: DragLineOptions, ctx: DrawContext): SceneNode | null {
-  const lead = clamp01(o.lead ?? 1)
-  const trail = clamp01(o.trail ?? 0)
-  if (lead <= trail)
-    return null
-  const W = ctx.unit * tokens.stroke.dragLine
-  const dash = o.dash ?? ctx.unit * tokens.stroke.dragDash
-  const len = Math.hypot(o.x2 - o.x1, o.y2 - o.y1)
-  return {
-    type: 'line',
-    x1: lerp(o.x1, o.x2, trail),
-    y1: lerp(o.y1, o.y2, trail),
-    x2: lerp(o.x1, o.x2, lead),
-    y2: lerp(o.y1, o.y2, lead),
-    stroke: ctx.palette.ring,
-    strokeWidth: W,
-    cap: 'butt',
-    dash: [dash, dash],
-    dashOffset: trail * len,
-    opacity: o.opacity ?? 1,
-  }
+export function chainLink(options: ChainLinkOptions, ctx: DrawContext, skin: NoteSkin = designs): SceneNode | null {
+  return skin[ctx.kind].chainLink?.draw(options, ctx) ?? null
 }

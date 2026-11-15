@@ -48,6 +48,8 @@ function complete(skin: Skin): Skin {
   }
   skin.slots['hold:body'] = { animation: 'grow' }
   skin.slots['long-hold:body'] = { animation: 'grow' }
+  skin.slots['drag-head:chainLink'] = { animation: 'grow' }
+  skin.slots['click-drag-head:chainLink'] = { animation: 'grow' }
   for (const binding of allFeedbackBindings) skin.slots[binding.name] = { animation: 'grow' }
   return skin
 }

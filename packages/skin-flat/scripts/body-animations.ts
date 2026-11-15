@@ -97,3 +97,34 @@ export function longHoldBodyAnimation(): AnimationDraft {
     ],
   }
 }
+
+/**
+ * The chain-link template: one dashed line along +y from the source note
+ * (y 0) to the next node (y = length). Cytoid verbatim — white (ring 50),
+ * exact 50 % duty, dashes wider than long (width 0.0811u, dash 0.0406u),
+ * gap first at the source (the original tile's pivot half is transparent),
+ * butt caps; the engine cuts the far end mid-pattern at the destination.
+ * Frozen pose (period 0): the original chain is a static pattern whose only
+ * animation is the engine's lead/trail window.
+ */
+export function chainLinkAnimation(): AnimationDraft {
+  const width = mul(input('unit'), 0.0811)
+  const dash = mul(width, 0.5)
+  return {
+    note: 'Cytoid chain verbatim: white 50 % duty dashes anchored at the source (gap first), butt caps; the engine rotates it along the link and clips it to the lead/trail window. Frozen pose (period 0) — the original chain is a static pattern.',
+    layers: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: 0,
+        y2: input('length'),
+        stroke: 'ring:50',
+        strokeWidth: width,
+        cap: 'butt',
+        dash: [dash, dash],
+        dashOffset: dash,
+      },
+    ],
+  }
+}

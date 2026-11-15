@@ -55,12 +55,17 @@ export const tokens = {
     hair: 0.022,
     /** hold progress ring */
     progress: 0.07,
-    /** hold body width (Cytoid HoldLine: 0.56 × 1.133 world / 2.235 click ≈ 0.284) */
+    /** hold body width (Cytoid HoldLine.png: 56 px visible @ 100 ppu = 0.56 world; 0.56 / 1.9717 ≈ 0.284) */
     holdBody: 0.284,
-    /** drag connection width (Cytoid DragLine: 0.16 world / 2.235 click) */
-    dragLine: 0.0716,
-    /** drag connection dash and gap (Cytoid: 50 % duty, 0.16 world period) */
-    dragDash: 0.0358,
+    /**
+     * drag connection width and pattern period. Cytoid DragLine.png: 16×16 px
+     *  @ 100 ppu = 0.16 world; click = orthoSize 5 × 2 × (7/9) / 5 × 1.2675
+     *  = 1.9717 world (matches the player's NOTE_HEIGHT_RATIO parity anchor:
+     *  1.9717 / (verticalRatio × baseSize) = 0.412). 0.16 / 1.9717 ≈ 0.0811.
+     */
+    dragLine: 0.0811,
+    /** drag dash and gap (Cytoid: exact 50 % duty, 0.08 world each → 0.0406) */
+    dragDash: 0.0406,
   },
 
   time: noteTiming,

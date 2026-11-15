@@ -85,6 +85,15 @@ export interface NoteDesign {
   /** Parametric stretched body, present on Hold and Long Hold designs. */
   body?: BodyClip
   /**
+   * The chain connection template, present on Drag Head and Click Drag Head
+   * designs (one compiled clip; the engine instantiates it per link). Authored
+   * along +y from the source note toward the next node, spanning 0..length;
+   * the engine rotates it into place and clips it to the gameplay lead/trail
+   * window — the skin never sees growth or retraction, only `length` and the
+   * `t` sustain clock.
+   */
+  chainLink?: ChainClip
+  /**
    * Judgement text and FAST / SLOW for hits on this kind. Every kind carries
    * its own clips so a skin can lay out feedback per note; most kinds point
    * their slots at the same animations.
@@ -183,18 +192,15 @@ export interface BodyClip {
   draw: (options: BodyOptions, context: DrawContext) => SceneNode
 }
 
-export interface DragLineOptions {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  /** leading edge 0–1 (line grows from source toward destination) */
-  lead?: number
-  /** trailing edge 0–1 (line retracts as the scanner passes) */
-  trail?: number
-  opacity?: number
-  /** override dash length in px (bakers round it to whole pixels for seamless tiles) */
-  dash?: number
+/** One chain link (source note → next node), authored along +y in template space. */
+export interface ChainLinkOptions {
+  /** current source→destination distance in px (tracks the notes; drops stretch it during fade-in) */
+  length: number
+  /** seconds since the link started growing — the sustain clock (loop slots wrap it around their period) */
+  t?: number
+}
+export interface ChainClip {
+  draw: (options: ChainLinkOptions, context: DrawContext) => SceneNode
 }
 
 /** Presentation supplied by the application; player and tools never select a default skin. */
@@ -206,5 +212,5 @@ export interface NoteAppearance {
   holdBodyAlpha: (kind: NoteKind, state: NoteState, skin?: NoteSkin) => number
   holdBody: (options: HoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
   longHoldBody: (options: LongHoldBodyOptions, context: DrawContext, skin?: NoteSkin) => SceneNode
-  dragLine: (options: DragLineOptions, context: DrawContext) => SceneNode | null
+  chainLink: (options: ChainLinkOptions, context: DrawContext, skin?: NoteSkin) => SceneNode | null
 }

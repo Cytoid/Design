@@ -113,7 +113,13 @@ Body animations receive `appear`, `progress`, `elapsed`, `duration`, and `remain
 
 Hold templates extend along local +y; the engine flips their output for an upward body independently of color direction. Long Hold templates span -top..bottom. Body inputs are only available in body slots, including nested animations. Numeric tracks accept `driver` expressions to sample independent clocks. Driver dependencies must be acyclic and at most 32 tracks deep. Frames and bindings support `dash` / `dashOffset` on stroked shapes and rectangular group clips.
 
-Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly. Drag connections retain their existing renderer.
+Dimensions, animation durations and palette design remain fixed contracts. Body visibility and exit opacity stay with the engine's note-state composition. The existing native export samples the selected bodies into fixed-period strips; full-length parameterized playback uses the body slots directly.
+
+### Chain links
+
+`drag-head:chainLink` and `click-drag-head:chainLink` are required loop slots on their respective kinds — the connection between a drag head and the next chain node. `compileSkin()` exposes one compiled template per kind as `designs[kind].chainLink.draw(options, context)`; the engine instantiates it per link. Flat's `chainLink(options, context, skin?)` delegates to these slots.
+
+The template is authored along local +y from the source note (y 0) toward the next node, spanning the full `length` input — a periodic strip, not a fixed sprite: flat's is one dashed line (`dash` = half the period, 50 % duty, gap first at the source, matching Cytoid's 16 px tile verbatim). The only other input is `t`, seconds since the link started growing — the sustain clock for marching patterns (loop slot: the driver wraps around the contract period; `period: 0` freezes, which is what flat binds). Growth and retraction stay engine-private: the lead/trail window is fixed gameplay timing, the engine rotates the template onto the link and clips it to the window, so skins never see or implement it. Endpoint-to-endpoint phase anchoring, the destination cut and layer placement (under the notes, per-link) are likewise engine contracts. The native export tiles one flat-calibrated period (`metrics.stroke.dragLine`; the Cytoid pattern's period equals its width) — skins must stay periodic over it, and non-periodic endpoint ornaments are live-renderer-only, as with body end pieces.
 
 ### Active drag heads
 
