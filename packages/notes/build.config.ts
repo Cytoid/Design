@@ -1,5 +1,3 @@
 import { defineBuildConfig } from 'obuild/config'
 
-export default defineBuildConfig({
-  entries: ['./src/index.ts', './src/bake.ts'],
-})
+export default defineBuildConfig({ entries: ['./src/index.ts'] })

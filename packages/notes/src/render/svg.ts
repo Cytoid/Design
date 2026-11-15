@@ -70,8 +70,8 @@ function clipEl(c: ClipShape, id: string): string {
  * Serialise a scene node to SVG markup (no outer <svg>).
  *
  * Opacity contract (shared with the Canvas renderer and the Unity port):
- * group opacity is *multiplied down to the leaves* — there is no offscreen
- * group compositing. This is what per-sprite alpha in a game engine does.
+ * group opacity is multiplied down to the leaves unless `isolate` requests
+ * compositing the children first, matching the live Canvas and Pixi backends.
  */
 export function toSVGMarkup(node: SceneNode): string {
   let clipId = 0
@@ -80,6 +80,12 @@ export function toSVGMarkup(node: SceneNode): string {
     if (alpha <= 0.001)
       return ''
     switch (nd.type) {
+      case 'image':
+        if (nd.image.disposed)
+          throw new Error('skin image has been disposed')
+        if (nd.w <= 0 || nd.h <= 0)
+          return ''
+        return `<image href="${nd.image.src}" x="${n(nd.x)}" y="${n(nd.y)}" width="${n(nd.w)}" height="${n(nd.h)}" preserveAspectRatio="none" opacity="${n(alpha)}"${common(nd, 1)}/>`
       case 'circle':
         return `<circle cx="${n(nd.cx ?? 0)}" cy="${n(nd.cy ?? 0)}" r="${n(Math.max(0, nd.r))}" fill="${nd.fill ?? 'none'}"${strokeAttr(nd)}${common(nd, alpha)}/>`
       case 'arc':
@@ -97,7 +103,8 @@ export function toSVGMarkup(node: SceneNode): string {
       case 'line':
         return `<line x1="${n(nd.x1)}" y1="${n(nd.y1)}" x2="${n(nd.x2)}" y2="${n(nd.y2)}"${strokeAttr(nd)}${common(nd, alpha)}/>`
       case 'group': {
-        const body = nd.children.map(c => walk(c, alpha)).join('')
+        const isolated = nd.isolate && alpha < 0.999
+        const body = nd.children.map(c => walk(c, isolated ? 1 : alpha)).join('')
         if (!body)
           return ''
         let defs = ''
@@ -108,7 +115,7 @@ export function toSVGMarkup(node: SceneNode): string {
           clipAttr = ` clip-path="url(#${id})"`
         }
         // transform on outer <g>, clip on inner so the clip is in local space
-        return `<g${transformAttr(nd.transform)}${nd.blend === 'add' ? ' style="mix-blend-mode:plus-lighter"' : ''}>${defs}${clipAttr ? `<g${clipAttr}>${body}</g>` : body}</g>`
+        return `<g${transformAttr(nd.transform)}${isolated ? ` opacity="${n(alpha)}"` : ''}${nd.blend === 'add' ? ' style="mix-blend-mode:plus-lighter"' : ''}>${defs}${clipAttr ? `<g${clipAttr}>${body}</g>` : body}</g>`
       }
     }
   }

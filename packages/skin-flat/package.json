@@ -1,0 +1,37 @@
+{
+  "name": "@cytoid/skin-flat",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Flat note appearance and authored skin assets",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./skin.json": "./src/flat.skin.json"
+  },
+  "files": [
+    "dist",
+    "src/flat.skin.json"
+  ],
+  "scripts": {
+    "build": "obuild",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build",
+    "gen-skin": "node --import tsx scripts/gen-skin.ts"
+  },
+  "dependencies": {
+    "@cytoid/notes": "workspace:*"
+  },
+  "devDependencies": {
+    "@cytoid/design-tools": "workspace:*",
+    "@types/node": "^24.12.4",
+    "obuild": "^0.4.35",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

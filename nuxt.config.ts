@@ -5,6 +5,8 @@ export default defineNuxtConfig({
   // workspace packages are consumed from TypeScript source
   // (vite alias for runtime, tsconfig paths for types)
   alias: {
+    '@cytoid/skin-flat/skin.json': fileURLToPath(new URL('./packages/skin-flat/src/flat.skin.json', import.meta.url)),
+    '@cytoid/skin-flat': fileURLToPath(new URL('./packages/skin-flat/src/index.ts', import.meta.url)),
     '@cytoid/notes': fileURLToPath(new URL('./packages/notes/src/index.ts', import.meta.url)),
     '@cytoid/player': fileURLToPath(new URL('./packages/player/src/index.ts', import.meta.url)),
   },
@@ -14,6 +16,10 @@ export default defineNuxtConfig({
       compilerOptions: {
         paths: {
           '@cytoid/notes': ['../packages/notes/src/index.ts'],
+          '@cytoid/skin-flat': ['../packages/skin-flat/src/index.ts'],
+          '@cytoid/skin-flat/skin.json': ['../packages/skin-flat/src/flat.skin.json'],
+          '@cytoid/design-tools': ['../packages/design-tools/src/index.ts'],
+          '@cytoid/design-tools/authoring': ['../packages/design-tools/src/authoring.ts'],
           '@cytoid/player': ['../packages/player/src/index.ts'],
         },
       },

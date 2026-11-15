@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Direction, Family, PaletteOptions } from '@cytoid/notes'
-import { BASE_SHADE, FAMILIES, FAMILY_LABEL, hexToOklch, KIND_LABEL, NOTE_KINDS, SHADES, tokens } from '@cytoid/notes'
+import { BASE_SHADE, FAMILIES, FAMILY_LABEL, hexToOklch, KIND_LABEL, NOTE_KINDS, SHADES } from '@cytoid/notes'
+import { tokens } from '@cytoid/skin-flat'
 import { computed, ref } from 'vue'
 import { palette, paletteOptions, validatePalette } from '../../composables/usePalette'
 import LabNoteCanvas from './NoteCanvas.vue'

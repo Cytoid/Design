@@ -1,5 +1,6 @@
 import type { Direction, Grade, NoteKind, NoteState, Palette, Timing } from '@cytoid/notes'
-import { clamp01, createContext, dragLine, drawScene, renderNote, tokens } from '@cytoid/notes'
+import { clamp01, drawScene } from '@cytoid/notes'
+import { chainLink, createContext, renderNote, tokens } from '@cytoid/skin-flat'
 import { MISS_DEADLINE } from '~/composables/clips'
 
 /**
@@ -63,13 +64,30 @@ export function paintDragChain(ctx: CanvasRenderingContext2D, opts: DragChainOpt
   const base = { palette: opts.palette, direction: opts.direction, scale: opts.scale }
   const headingTo = (a: { x: number, y: number }, b: { x: number, y: number }) => Math.atan2(b.x - a.x, -(b.y - a.y))
   // connections grow toward the next node (arriving ~1s before its judgement,
-  // like Cytoid's DragLineElement) and retract behind it after the source is hit
+  // like Cytoid's DragLineElement) and retract behind it after the source is
+  // hit — the engine owns that window: the skin's template is rotated onto
+  // the link and clipped to it (stage.ts parity)
   for (let i = 0; i < 2; i++) {
-    const lead = clamp01((t - (hits[i]! - 1.233)) / ((hits[i + 1]! - 0.968) - (hits[i]! - 1.233)))
+    const growStart = hits[i]! - 1.233
+    const lead = clamp01((t - growStart) / ((hits[i + 1]! - 0.968) - growStart))
     const trail = clamp01((t - hits[i]!) / (hits[i + 1]! - hits[i]!))
-    const line = dragLine({ x1: nodes[i]!.x, y1: nodes[i]!.y, x2: nodes[i + 1]!.x, y2: nodes[i + 1]!.y, lead, trail }, createContext(headKind, base))
-    if (line)
-      drawScene(ctx, line)
+    if (lead <= trail)
+      continue
+    const a = nodes[i]!
+    const b = nodes[i + 1]!
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const length = Math.hypot(dx, dy)
+    const template = chainLink({ length, t: Math.max(0, t - growStart) }, createContext(headKind, base))
+    if (!template)
+      continue
+    const half = 16 * 128 * opts.scale
+    drawScene(ctx, {
+      type: 'group',
+      transform: { x: a.x, y: a.y, rotate: Math.atan2(-dx, dy) },
+      clip: { type: 'rect', x: -half, y: trail * length, w: half * 2, h: (lead - trail) * length },
+      children: [template],
+    })
   }
   const focus = focusHead ? 0 : 1
   const drawNode = (i: number) => {

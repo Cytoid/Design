@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Direction, NoteKind, Timing } from '@cytoid/notes'
-import { clipsOf, designs } from '@cytoid/notes'
+import { clipsOf } from '@cytoid/notes'
+import { designs } from '@cytoid/skin-flat'
 import { computed, ref } from 'vue'
 import { clipMax } from '../../composables/clips'
 import { review } from '../../composables/useReview'
@@ -102,7 +103,7 @@ const surfaceClass = computed(() => ({
       >
       <div class="flex justify-between text-xs text-muted font-mono mb-4">
         <span>0</span>
-        <span>{{ clip.mode }} · {{ clip.duration }}s nominal</span>
+        <span>{{ clip.mode }} · {{ clip.duration > 0 ? `${clip.duration}s nominal` : 'frozen (period 0)' }}</span>
         <span>{{ clipMax(clip) }}</span>
       </div>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -147,6 +148,9 @@ const surfaceClass = computed(() => ({
 
     <p v-if="clip.mode === 'progress'" class="text-xs text-muted leading-relaxed mt-4">
       The timeline drives gameplay progress, from 0 to 1.
+    </p>
+    <p v-else-if="clip.mode === 'loop' && clip.duration <= 0" class="text-xs text-muted leading-relaxed mt-4">
+      A loop bound with <code>period: 0</code> is frozen on its first frame, so the timeline has nothing to drive.
     </p>
   </div>
 </template>
