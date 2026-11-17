@@ -6,6 +6,7 @@ import { bake, rasterize } from '@cytoid/design-tools'
 import { bounds, compileSkin, GRADES, loadSkinResources, NOTE_KINDS, parseSkin, renderFeedback, TIMED_GRADES, TIMINGS } from '@cytoid/notes'
 import { createContext, createPalette, designs, flat, flatSkin, renderNote } from '@cytoid/skin-flat'
 import { describe, expect, it } from 'vitest'
+import { DROP_LIFT, DROP_STACK_SINK } from '../scripts/feedback-animations'
 import { judgementClips, judgementOffset } from './golden/reference/feedback-judgement'
 import { renderTiming } from './golden/reference/feedback-timing'
 
@@ -80,7 +81,7 @@ describe('three skin feedback modes', () => {
   it('lifts drop judgements and a standalone FAST / SLOW above the capsule', () => {
     const ctx = createContext('drop-click')
     const clickCtx = createContext('click')
-    const lift = 0.10 * ctx.unit
+    const lift = -DROP_LIFT * ctx.unit
     const u = 0.45
     const click = designs.click.feedback.judgement.perfect
     const clickBounds = bounds(click.draw(u * click.duration, clickCtx))!
@@ -88,15 +89,18 @@ describe('three skin feedback modes', () => {
       const drop = designs[kind].feedback.judgement.perfect
       const dropBounds = bounds(drop.draw(u * drop.duration, ctx))!
       expect(dropBounds[1]).toBeCloseTo(clickBounds[1] - lift, 3)
-      expect(dropBounds[3]).toBeCloseTo(clickBounds[3] - lift, 3)
+      // drops also drop the underline — the bottom sits above the shifted
+      // click bottom, which still includes it
+      expect(dropBounds[3]).toBeLessThan(clickBounds[3] - lift)
+      expect(dropBounds[3]).toBeGreaterThan(clickBounds[1] - lift)
     }
-    // Combined keeps the label where it was: text above the capsule, label below.
+    // Combined: text above, label sunk clear of the capsule's bottom band.
     const dropCombined = designs['drop-click'].feedback.combined.great.fast
     const clickCombined = designs.click.feedback.combined.great.fast
     const dropCombinedBounds = bounds(dropCombined.draw(u * dropCombined.duration, ctx))!
     const clickCombinedBounds = bounds(clickCombined.draw(u * clickCombined.duration, clickCtx))!
     expect(dropCombinedBounds[1]).toBeCloseTo(clickCombinedBounds[1] - lift, 3)
-    expect(dropCombinedBounds[3]).toBeCloseTo(clickCombinedBounds[3], 3)
+    expect(dropCombinedBounds[3]).toBeCloseTo(clickCombinedBounds[3] + DROP_STACK_SINK * ctx.unit, 3)
     // A standalone FAST / SLOW takes the same lift on drops.
     const clickTiming = designs.click.feedback.timing.great.fast
     const clickTimingBounds = bounds(clickTiming.draw(u * clickTiming.duration, clickCtx))!
