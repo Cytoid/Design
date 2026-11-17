@@ -248,24 +248,37 @@ function clearClip(flavor: ClearFlavor, grade: ClearGrade): AnimationDraft {
     }
     return { type: 'circle', r: mul(R, ratio), stroke: gc, strokeWidth: width, opacity }
   }
+  // Parallel-capsule band for the clear rings (see golden reference
+  // `capsuleRing`): the band sits (ratio − 1)·R off the note silhouette and w
+  // and h grow equally, so every ring keeps the capsule's end-cap arcs and
+  // all rings share one arc centre — ratio-scaling fattened only the long
+  // axis. The miss ring shrinks past the parallel-safe radius and keeps the
+  // plain ratio `outline`.
+  const capsuleRing = (ratio: Value, width: Value, opacity: Value): Shape =>
+    capsule(mul(SIZE, add(cap!.w - 1, ratio)), mul(SIZE, add(cap!.h - 1, ratio)), { stroke: gc, strokeWidth: width, opacity })
 
   /* 1. core flash */
   const flash: Shape = flavor.flash === 'tail'
     ? { type: 'circle', r: mul(UNIT, tokens.stroke.holdBody, grow), fill: gc, opacity: mul(0.25, lerp(1, 0, T('f3'))) }
     : solid(grow, mul(0.25, lerp(1, 0, T('f3'))))
 
-  /* 2. shock ring: 1.6 → 0.35 widths, radius 0.95 → reach, fade 1 − quintic */
-  const shock = outline(
-    lerp(0.95, reach, T('sk')),
-    mul(A('ringW'), lerp(1.6, 0.35, T('sk'))),
+  /* 2. shock ring: 1.6 → 0.35 widths (capsules start at 1 — their tight end
+     curvature squares off under a fat stroke), radius 0.95 → reach (capsules
+     erupt from their own silhouette), fade 1 − quintic */
+  const isCapsule = flavor.shape === 'capsule'
+  const ringShape = isCapsule ? capsuleRing : outline
+  const shock = ringShape(
+    lerp(isCapsule ? 1 : 0.95, reach, T('sk')),
+    mul(A('ringW'), lerp(isCapsule ? 1 : 1.6, 0.35, T('sk'))),
     mul(0.5, lerp(1, 0, T('oq'))),
   )
 
-  /* 3. second ring (hold family) */
+  /* 3. second ring (click / hold / drop family); capsules nest at half the
+     shock's travel — the gap between the two rings reads along the long axis */
   const second: Shape | null = flavor.extra === 'double'
-    ? outline(
-        lerp(0.7, reach * 0.78, T('s1')),
-        mul(A('ringW'), lerp(0.9, 0.2, T('s2'))),
+    ? ringShape(
+        isCapsule ? lerp(1, 1 + (reach - 1) / 2, T('s1')) : lerp(0.7, reach * 0.78, T('s1')),
+        mul(A('ringW'), lerp(isCapsule ? 0.7 : 0.9, 0.2, T('s2'))),
         lerp(1, 0, T('s3')),
       )
     : null
