@@ -21,7 +21,7 @@ export interface ClearFlavor {
   reach: number
   /** number of sectors in the crisp outer ring (Cytoid: 24, flick 4) */
   sectors: number
-  /** extra: horizontal streaks (flick), vertical beam (long hold), double ring (hold, click) */
+  /** extra: horizontal streaks (flick), vertical beam (long hold), double ring (click, hold, drop) */
   extra?: 'streaks' | 'beam' | 'double'
   /**
    * What the opening colour flash shows. 'note' (default): the note's own
