@@ -63,6 +63,20 @@ function outline(shape: EffectShape, r: number, width: number, color: string, ct
   return ring(r, width, color, opacity)
 }
 
+/**
+ * Parallel-capsule band (clear rings only): `r` is the band centreline's
+ * radius-equivalent, so the band sits `r − R` off the note's own silhouette
+ * and w and h grow by that offset *equally*. Every ring keeps the note
+ * capsule's end-cap arcs — all rings share one arc centre — where
+ * ratio-scaling fattened the long axis ~7× faster than the short one and
+ * squared the corners off. (The miss ring shrinks past the parallel-safe
+ * radius, so it keeps the plain ratio `outline`.)
+ */
+function capsuleRing(r: number, width: number, color: string, ctx: DrawContext, cap: { w: number, h: number }, opacity = 1): SceneNode {
+  const grow = r / (ctx.size / 2) - 1
+  return capsule(ctx.size * (cap.w + grow), ctx.size * (cap.h + grow), { stroke: color, strokeWidth: width, opacity })
+}
+
 function solid(shape: EffectShape, r: number, color: string, ctx: DrawContext, cap: { w: number, h: number } | undefined, opacity = 1): SceneNode {
   if (shape === 'diamond')
     return diamond(r, { fill: color, opacity })
@@ -93,13 +107,24 @@ export function clearEffect(flavor: ClearFlavor, grade: ClearGrade, u: number, c
   // 2. shock ring, thickness 1.333 → 0.333 (Cytoid FlatFX); the fade rides
   // classic's curve — 1 − quintic-out over the whole effect, no delay or early
   // cutoff — at the design's 0.5 peak (a full-strength ring pulled the eye away
-  // from the notes around it)
+  // from the notes around it). Capsules start from a narrower band and erupt
+  // from their own silhouette (not 0.95 R inside it): their ends curve far
+  // tighter than a circle's, and a fat stroke squares them off.
   const sk = outExpo(seg(u, 0, 0.85))
-  const shock = outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, flavor.capsule, 0.5 * (1 - outQuint(u)))
+  const isCapsule = shape === 'capsule'
+  const shockOpacity = 0.5 * (1 - outQuint(u))
+  const shock = isCapsule
+    ? capsuleRing(R * lerp(1, reach, sk), W * lerp(1, 0.35, sk), color, ctx, flavor.capsule!, shockOpacity)
+    : outline(shape, R * lerp(0.95, reach, sk), W * lerp(1.6, 0.35, sk), color, ctx, flavor.capsule, shockOpacity)
 
-  // 3. double ring (hold family)
+  // 3. double ring (click / hold / drop family). Capsule rings nest at half
+  // the shock's travel — the size gap between the two rings reads almost
+  // entirely along the long axis.
+  const secondSeg = seg(u, 0.08, 0.9)
   const second = flavor.extra === 'double'
-    ? outline(shape, R * lerp(0.7, reach * 0.78, outQuart(seg(u, 0.08, 0.9))), W * lerp(0.9, 0.2, seg(u, 0.08, 0.9)), color, ctx, flavor.capsule, 1 - seg(u, 0.4, 0.95))
+    ? isCapsule
+      ? capsuleRing(R * lerp(1, 1 + (reach - 1) / 2, outQuart(secondSeg)), W * lerp(0.7, 0.2, secondSeg), color, ctx, flavor.capsule!, 1 - seg(u, 0.4, 0.95))
+      : outline(shape, R * lerp(0.7, reach * 0.78, outQuart(secondSeg)), W * lerp(0.9, 0.2, secondSeg), color, ctx, flavor.capsule, 1 - seg(u, 0.4, 0.95))
     : null
 
   // 4. crisp sector ring (perfect / great)
