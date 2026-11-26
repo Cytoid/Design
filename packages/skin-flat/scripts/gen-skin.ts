@@ -871,8 +871,8 @@ const FLICK_CLEAR: ClearFlavor = { shape: 'diamond', reach: 1.4, sectors: 4, ext
 const DRAG_CLEAR: ClearFlavor = { shape: 'circle', reach: 1.4, sectors: 24, seed: 5 }
 const DRAG_CHILD_CLEAR: ClearFlavor = { shape: 'circle', reach: 1.4, sectors: 24, seed: 6 }
 const CLICK_DRAG_CHILD_CLEAR: ClearFlavor = { shape: 'circle', reach: 1.4, sectors: 24, seed: 7 }
-const DROP_CLICK_CLEAR: ClearFlavor = { shape: 'capsule', capsule: { w: 1, h: 76.8 / 536 }, reach: 1.3, sectors: 24, seed: 8 }
-const DROP_DRAG_CLEAR: ClearFlavor = { shape: 'capsule', capsule: { w: 1, h: 76.8 / 404 }, reach: 1.3, sectors: 24, seed: 9 }
+const DROP_CLICK_CLEAR: ClearFlavor = { shape: 'capsule', capsule: { w: 1, h: 76.8 / 536 }, reach: 1.3, sectors: 24, extra: 'double', seed: 8 }
+const DROP_DRAG_CLEAR: ClearFlavor = { shape: 'capsule', capsule: { w: 1, h: 76.8 / 404 }, reach: 1.3, sectors: 24, extra: 'double', seed: 9 }
 
 const DROP_CLICK_SPEC = {
   cap: { w: 1, h: 76.8 / 536 },
