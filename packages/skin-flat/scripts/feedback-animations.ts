@@ -9,12 +9,15 @@ const unit: Value = { input: 'unit' }
 /**
  * Drop capsules are thin horizontal bars (~±0.10 unit with the keyline) that
  * sit exactly where the judgement text centre lands; the drop-click core is
- * white, so the mid-grey text has almost no contrast there. Lift the drop
- * judgement and a standalone FAST / SLOW just above the capsule's white core
- * (the stacked label in combined stays below the capsule). Negative: y grows
- * down.
+ * white, so the mid-grey text has almost no contrast there. Drops also skip
+ * the underline — the capsule itself is the horizontal rule — so the whole
+ * label can lift clear of both the capsule and the expanding clear rings
+ * (the second ring's band peaks ≈ 0.21 unit above the centre). Negative: y
+ * grows down.
  */
-const DROP_LIFT = -0.10
+export const DROP_LIFT = -0.27
+/** extra distance drops sink the combined stacked label so its glyphs clear the second clear ring's bottom band (peaks ≈ 0.205 unit below the centre) */
+export const DROP_STACK_SINK = 0.13
 const T = (track: string): Value => ({ track })
 const mul = (...multiply: Value[]): Value => ({ multiply })
 const add = (...add: Value[]): Value => ({ add })
@@ -52,7 +55,7 @@ function textShape(text: string, H: Value, gap: Value, stroke: Value, color: Col
   return { type: 'group', children }
 }
 
-function judgement(grade: Grade, lift?: Value): AnimationDraft {
+function judgement(grade: Grade, lift?: Value, withLine = true): AnimationDraft {
   const text = grade.toUpperCase()
   const H = mul(unit, 0.09)
   const miss = grade === 'miss'
@@ -70,7 +73,7 @@ function judgement(grade: Grade, lift?: Value): AnimationDraft {
   return {
     tracks,
     properties: { opacity: lerp(1, 0, T('fade')), transform: { y: lift ? add(rise, lift) : rise } },
-    layers: [body, ...(miss ? [] : [line])],
+    layers: [body, ...(miss || !withLine ? [] : [line])],
   }
 }
 
@@ -101,22 +104,28 @@ function timing(timing: Timing, stacked: boolean, lift?: Value): AnimationDraft 
 }
 
 export function bindFeedback(builder: SkinBuilder): void {
-  const stacked = Object.fromEntries(TIMINGS.map((value) => {
-    const body = builder.animation(`timing-stacked-body-${value}`, timing(value, true))
-    return [value, builder.animation(`timing-stacked-${value}`, { layers: [{ source: { animation: body }, properties: { transform: { y: mul(unit, 0.09 * 1.18 + 0.06 / 2) } } }] })]
-  }))
+  /** stacked label centre below the judgement text centre (unit fractions) */
+  const STACK_GAP = 0.09 * 1.18 + 0.06 / 2
+  /** extra distance drops sink the stacked label so its glyphs clear the capsule's bottom stroke band (≈ ±0.114 unit) */
+  const stackedBodies = Object.fromEntries(TIMINGS.map(value => [value, builder.animation(`timing-stacked-body-${value}`, timing(value, true))]))
+  const stackedAt = (id: string, value: Timing, extra: number) =>
+    builder.animation(id, { layers: [{ source: { animation: stackedBodies[value]! }, properties: { transform: { y: mul(unit, STACK_GAP + extra) } } }] })
+  const stacked = Object.fromEntries(TIMINGS.map(value => [value, stackedAt(`timing-stacked-${value}`, value, 0)]))
+  const stackedSunken = Object.fromEntries(TIMINGS.map(value => [value, stackedAt(`timing-stacked-drop-${value}`, value, DROP_STACK_SINK)]))
   // Every kind owns its feedback slots; the drafts are identical, so the
   // builder dedupes them to one animation and the slots share the reference.
   for (const kind of NOTE_KINDS) {
     // Drops lift both their judgement text and the standalone FAST / SLOW
-    // label so the two layouts share one vertical anchor; stacked labels in
-    // combined stay below the capsule.
-    const lift = kind.startsWith('drop-') ? mul(unit, DROP_LIFT) : undefined
-    const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`${kind}:feedback:judgement:${grade}`, judgement(grade, lift))]))
+    // label clear of the capsule and the clear rings; the capsule replaces
+    // the judgement underline. In combined, the stacked label sinks below
+    // the capsule's bottom band instead.
+    const isDrop = kind.startsWith('drop-')
+    const lift = isDrop ? mul(unit, DROP_LIFT) : undefined
+    const judgements = Object.fromEntries(GRADES.map(grade => [grade, builder.bind(`${kind}:feedback:judgement:${grade}`, judgement(grade, lift, !isDrop))]))
     for (const grade of TIMED_GRADES) {
       for (const value of TIMINGS) {
         builder.bind(`${kind}:feedback:timing:${grade}:${value}`, timing(value, false, lift))
-        builder.bind(`${kind}:feedback:combined:${grade}:${value}`, { layers: [{ source: { animation: judgements[grade]! } }, { source: { animation: stacked[value]! } }] })
+        builder.bind(`${kind}:feedback:combined:${grade}:${value}`, { layers: [{ source: { animation: judgements[grade]! } }, { source: { animation: (isDrop ? stackedSunken : stacked)[value]! } }] })
       }
     }
   }
