@@ -1,5 +1,5 @@
 import type { Clip, Grade, NoteKind, NoteState, Timing } from '@cytoid/notes'
-import { designs, tokens } from '@cytoid/notes'
+import { designs, tokens } from '@cytoid/skin-flat'
 
 export function clipMax(clip: Pick<Clip, 'mode' | 'duration'>) {
   return clip.mode === 'once' || clip.mode === 'loop' ? clip.duration : 1

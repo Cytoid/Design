@@ -29,3 +29,7 @@ logs
 
 # local CLI tooling artifacts
 .zcode/
+
+# bake-image-skin validation output (regenerate locally on demand)
+packages/skin-flat/src/assets-baked
+packages/skin-flat/src/flat-baked.skin.json

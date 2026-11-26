@@ -19,6 +19,7 @@
   "dependencies": {
     "@cytoid/notes": "workspace:*",
     "@cytoid/player": "workspace:*",
+    "@cytoid/skin-flat": "workspace:*",
     "@iconify-json/lucide": "^1.2.139",
     "@iconify-json/simple-icons": "^1.2.98",
     "@iconify-json/vscode-icons": "^1.2.84",
